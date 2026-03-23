@@ -1,0 +1,66 @@
+# ============================================================================
+# FL-RIS Configuration: 4x4 TORUS Topology
+# Requires Noxim Torus patch (see noxim_patch/torus_topology_patch.cpp)
+# ============================================================================
+
+# --- Torus Topology (requires patched Noxim) ---
+# If using unpatched Noxim, this will fall back to Mesh.
+# Comment out and use routing_algorithm: XY if Torus patch is not applied.
+topology: TORUS
+mesh_dim_x: 4
+mesh_dim_y: 4
+
+# --- Router Configuration ---
+flit_size: 128
+buffer_depth: 8
+n_virtual_channels: 4
+
+# --- Link Parameters ---
+r2h_link_length: 1.0
+r2r_link_length: 1.0
+
+# --- Routing ---
+# TORUS_XY: shortest-path with wrap-around awareness (from patch)
+# Falls back to TABLE_BASED if TORUS_XY not compiled
+routing_algorithm: TORUS_XY
+routing_table_filename: ""
+
+# --- Selection Strategy ---
+selection_strategy: BUFFER_LEVEL
+
+# --- Traffic ---
+traffic_distribution: TRAFFIC_TABLE_BASED
+traffic_table_filename: "traffic_ringallreduce.txt"
+
+# --- Packet Size ---
+min_packet_size: 64
+max_packet_size: 64
+packet_injection_rate: 0.01
+probability_of_retransmission: 0.01
+
+# --- Simulation Timing ---
+clock_period_ps: 1000
+reset_time: 1000
+simulation_time: 500000
+stats_warm_up_time: 2000
+
+# --- Power & Output ---
+use_winoc: false
+use_wirxsleep: false
+detailed: true
+max_volume_to_be_drained: 0
+show_buffer_stats: true
+verbose_mode: VERBOSE_OFF
+trace_mode: false
+trace_filename: ""
+
+# --- Hubs (disabled) ---
+Hubs:
+    defaults:
+        rx_radio_channels: [0]
+        tx_radio_channels: [0]
+        attached_nodes: []
+        to_tile_buffer_size: 4
+        from_tile_buffer_size: 4
+        rx_buffer_size: 4
+        tx_buffer_size: 4

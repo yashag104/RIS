@@ -1,0 +1,79 @@
+# ============================================================================
+# FL-RIS Base Configuration: 4x4 Mesh Topology
+# Optimal NoC parameters from Python experiment suite
+# ============================================================================
+
+# --- Network Topology ---
+# Noxim native Mesh. For Torus, apply the noxim_patch and use topology: TORUS
+mesh_dim_x: 4
+mesh_dim_y: 4
+
+# --- Router Configuration ---
+# GNN model = 706,112 params x 4 bytes = 2,824,448 bytes
+# Flit = 128 bits = 16 bytes → 176,528 flits per model transfer
+flit_size: 128
+buffer_depth: 8
+n_virtual_channels: 4
+
+# --- Link Parameters ---
+r2h_link_length: 1.0
+r2r_link_length: 1.0
+
+# --- Routing ---
+# XY is deadlock-free on Mesh. For Torus, use TABLE_BASED with torus routing table.
+routing_algorithm: XY
+routing_table_filename: ""
+
+# --- Selection Strategy ---
+selection_strategy: BUFFER_LEVEL
+
+# --- Traffic Configuration ---
+# TABLE_BASED allows custom FL communication patterns
+traffic_distribution: TRAFFIC_TABLE_BASED
+traffic_table_filename: "traffic_ringallreduce.txt"
+
+# --- Packet Size ---
+# GNN model: 2,824,448 bytes / 16 bytes_per_flit / 15 segments ≈ 11,769 flits/segment
+# Packet = 64 flits (to avoid extremely long packets)
+min_packet_size: 64
+max_packet_size: 64
+
+# --- Injection Rate ---
+# Controlled by traffic table entries
+packet_injection_rate: 0.01
+probability_of_retransmission: 0.01
+
+# --- Simulation Timing ---
+# 1 GHz clock
+clock_period_ps: 1000
+# Reset period (cycles)
+reset_time: 1000
+# Simulation: 5 FL rounds worth of traffic
+# Each round ≈ 176,528 flits, 5 rounds = 882,640 flits
+# At PIR=0.05 per node → ~50,000 cycles per round → 250,000 + warm-up
+simulation_time: 500000
+# Start collecting stats after warm-up
+stats_warm_up_time: 2000
+
+# --- Power & Wireless ---
+use_winoc: false
+use_wirxsleep: false
+detailed: true
+max_volume_to_be_drained: 0
+show_buffer_stats: true
+
+# --- Output ---
+verbose_mode: VERBOSE_OFF
+trace_mode: false
+trace_filename: ""
+
+# --- Hubs (disabled for wired-only simulation) ---
+Hubs:
+    defaults:
+        rx_radio_channels: [0]
+        tx_radio_channels: [0]
+        attached_nodes: []
+        to_tile_buffer_size: 4
+        from_tile_buffer_size: 4
+        rx_buffer_size: 4
+        tx_buffer_size: 4
