@@ -1,0 +1,62 @@
+[
+    {
+        "scenario": "Synthetic Rician (LoS)",
+        "type": "synthetic",
+        "avg_snr_optimal_db": 24.439646382062847,
+        "std_snr_optimal_db": 5.28728330714402,
+        "avg_snr_no_ris_db": 24.439637181033945,
+        "ris_gain_db": 9.201028902339203e-06,
+        "avg_channel_gain": 2.738117825737785e-06,
+        "num_samples": 200
+    },
+    {
+        "scenario": "Synthetic Rician (NLoS)",
+        "type": "synthetic",
+        "avg_snr_optimal_db": 22.849314592874084,
+        "std_snr_optimal_db": 7.76484494583129,
+        "avg_snr_no_ris_db": 22.849324615462653,
+        "ris_gain_db": -1.0022588568858737e-05,
+        "avg_channel_gain": 1.5172186035487904e-06,
+        "num_samples": 200
+    },
+    {
+        "scenario": "Synthetic Rician (Mixed)",
+        "type": "synthetic",
+        "avg_snr_optimal_db": 24.146151196210965,
+        "std_snr_optimal_db": 5.946411810647064,
+        "avg_snr_no_ris_db": 24.14617031103073,
+        "ris_gain_db": -1.911481976435425e-05,
+        "avg_channel_gain": 2.598141365466786e-06,
+        "num_samples": 200
+    },
+    {
+        "scenario": "3GPP UMi 28 GHz (LoS)",
+        "type": "3gpp_umi",
+        "avg_snr_optimal_db": 42.14295736473284,
+        "std_snr_optimal_db": 5.540380692615968,
+        "avg_snr_no_ris_db": 42.14257014061699,
+        "ris_gain_db": 0.0003872241158475731,
+        "avg_channel_gain": 2.6613777848316015e-05,
+        "num_samples": 200
+    },
+    {
+        "scenario": "3GPP UMi 28 GHz (NLoS)",
+        "type": "3gpp_umi",
+        "avg_snr_optimal_db": 35.69068337302127,
+        "std_snr_optimal_db": 10.779458426395156,
+        "avg_snr_no_ris_db": 35.690697922480844,
+        "ris_gain_db": -1.4549459571355783e-05,
+        "avg_channel_gain": 1.375326628417046e-05,
+        "num_samples": 200
+    },
+    {
+        "scenario": "3GPP UMi 60 GHz (Mixed)",
+        "type": "3gpp_umi",
+        "avg_snr_optimal_db": 36.09794828721019,
+        "std_snr_optimal_db": 5.691936792767234,
+        "avg_snr_no_ris_db": 36.09802996603444,
+        "ris_gain_db": -8.167882425169637e-05,
+        "avg_channel_gain": 1.1500715557993726e-05,
+        "num_samples": 200
+    }
+]

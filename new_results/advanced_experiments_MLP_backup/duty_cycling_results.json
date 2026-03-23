@@ -1,0 +1,50 @@
+[
+    {
+        "strategy": "No DC",
+        "avg_snr_db": 25.085670026923022,
+        "std_snr_db": 5.568130618732896,
+        "avg_active_ratio": 1.0,
+        "avg_energy_savings_pct": 0.0,
+        "snr_loss_vs_full_db": 0.0
+    },
+    {
+        "strategy": "Threshold (-10 dB)",
+        "avg_snr_db": 25.08566274240096,
+        "std_snr_db": 5.568139059330807,
+        "avg_active_ratio": 0.25,
+        "avg_energy_savings_pct": 70.0,
+        "snr_loss_vs_full_db": 7.284522062889209e-06
+    },
+    {
+        "strategy": "Threshold (-20 dB)",
+        "avg_snr_db": 25.08566274240096,
+        "std_snr_db": 5.568139059330807,
+        "avg_active_ratio": 0.25,
+        "avg_energy_savings_pct": 70.0,
+        "snr_loss_vs_full_db": 7.284522062889209e-06
+    },
+    {
+        "strategy": "Top-K (50%)",
+        "avg_snr_db": 25.085666178212044,
+        "std_snr_db": 5.568135123322908,
+        "avg_active_ratio": 0.5,
+        "avg_energy_savings_pct": 46.66666666666668,
+        "snr_loss_vs_full_db": 3.848710978360259e-06
+    },
+    {
+        "strategy": "Top-K (25%)",
+        "avg_snr_db": 25.08566274240096,
+        "std_snr_db": 5.568139059330807,
+        "avg_active_ratio": 0.25,
+        "avg_energy_savings_pct": 70.0,
+        "snr_loss_vs_full_db": 7.284522062889209e-06
+    },
+    {
+        "strategy": "Adaptive",
+        "avg_snr_db": 25.085670079230646,
+        "std_snr_db": 5.568130528940873,
+        "avg_active_ratio": 0.87765625,
+        "avg_energy_savings_pct": 11.41875,
+        "snr_loss_vs_full_db": -5.230762312180559e-08
+    }
+]

@@ -1,0 +1,92 @@
+[
+    {
+        "convergence_round": 20,
+        "final_loss": 2.8836282789707184,
+        "final_snr": -14.49479869931195,
+        "snr_gain": 56.579495193146776,
+        "phase_error_deg": 76.02618408203125,
+        "total_communication_kb": 357520.0,
+        "total_energy_mj": 1661.5048806400002,
+        "final_accuracy": 0.244890625,
+        "round_metrics": [
+            {
+                "round": 0,
+                "avg_client_loss": 4.572702441896711,
+                "max_client_loss": 4.615229879106794,
+                "min_client_loss": 4.5346720559256415,
+                "total_samples": 3584,
+                "total_energy": 0.08307524403200002,
+                "bytes_uploaded": 9152512,
+                "bytes_downloaded": 9152512,
+                "total_bytes": 18305024,
+                "client_metrics": [
+                    {
+                        "client_id": 0,
+                        "avg_loss": 4.557691029139927,
+                        "final_loss": 4.557691029139927,
+                        "samples_processed": 448,
+                        "energy_consumed": 0.010384405504000003,
+                        "flops": 384405504
+                    },
+                    {
+                        "client_id": 1,
+                        "avg_loss": 4.535264492034912,
+                        "final_loss": 4.535264492034912,
+                        "samples_processed": 448,
+                        "energy_consumed": 0.010384405504000003,
+                        "flops": 384405504
+                    },
+                    {
+                        "client_id": 2,
+                        "avg_loss": 4.571525028773716,
+                        "final_loss": 4.571525028773716,
+                        "samples_processed": 448,
+                        "energy_consumed": 0.010384405504000003,
+                        "flops": 384405504
+                    },
+                    {
+                        "client_id": 3,
+                        "avg_loss": 4.615229879106794,
+                        "final_loss": 4.615229879106794,
+                        "samples_processed": 448,
+                        "energy_consumed": 0.010384405504000003,
+                        "flops": 384405504
+                    },
+                    {
+                        "client_id": 4,
+                        "avg_loss": 4.5677483422415595,
+                        "final_loss": 4.5677483422415595,
+                        "samples_processed": 448,
+                        "energy_consumed": 0.010384405504000003,
+                        "flops": 384405504
+                    },
+                    {
+                        "client_id": 5,
+                        "avg_loss": 4.597465106419155,
+                        "final_loss": 4.597465106419155,
+                        "samples_processed": 448,
+                        "energy_consumed": 0.010384405504000003,
+                        "flops": 384405504
+                    },
+                    {
+                        "client_id": 6,
+                        "avg_loss": 4.5346720559256415,
+                        "final_loss": 4.5346720559256415,
+                        "samples_processed": 448,
+                        "energy_consumed": 0.010384405504000003,
+                        "flops": 384405504
+                    },
+                    {
+                        "client_id": 7,
+                        "avg_loss": 4.602023601531982,
+                        "final_loss": 4.602023601531982,
+                        "samples_processed": 448,
+                        "energy_consumed": 0.010384405504000003,
+                        "flops": 384405504
+                    }
+                ],
+                "eval_metrics": {
+                    "loss": 3.6062014400959015,
+                    "mse": 3.6062014400959015,
+                    "mae": 1.6064902320504189,
+                    "phase_error_mean": 
