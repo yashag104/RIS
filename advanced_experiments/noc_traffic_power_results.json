@@ -1,0 +1,44 @@
+[
+    {
+        "convergence_round": 31,
+        "final_loss": 1.2193307355046272,
+        "final_snr": -4.744196756367816,
+        "snr_gain": 66.17764587583162,
+        "phase_error_deg": 39.96376037597656,
+        "total_communication_kb": 446900.0,
+        "total_energy_mj": 14283.375615999998,
+        "final_accuracy": 0.553046875,
+        "round_metrics": [
+            {
+                "round": 0,
+                "avg_client_loss": 2.579004422900004,
+                "max_client_loss": 2.583700534319266,
+                "min_client_loss": 2.574308311480742,
+                "total_samples": 49920,
+                "total_energy": 0.14283375616,
+                "bytes_uploaded": 2288128,
+                "bytes_downloaded": 2288128,
+                "total_bytes": 4576256,
+                "client_metrics": [
+                    {
+                        "client_id": 0,
+                        "avg_loss": 2.583700534319266,
+                        "final_loss": 2.1276688254796543,
+                        "samples_processed": 24960,
+                        "energy_consumed": 0.07141687808,
+                        "flops": 21416878080
+                    },
+                    {
+                        "client_id": 1,
+                        "avg_loss": 2.574308311480742,
+                        "final_loss": 2.1116815965909224,
+                        "samples_processed": 24960,
+                        "energy_consumed": 0.07141687808,
+                        "flops": 21416878080
+                    }
+                ],
+                "eval_metrics": {
+                    "loss": 2.355529949069023,
+                    "mse": 2.355529949069023,
+                    "mae": 1.2120114862918854,
+                    "phase_error_mean": 
