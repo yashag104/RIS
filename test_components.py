@@ -3,14 +3,27 @@ Component Testing Script
 Test individual components before full training
 """
 
+import sys
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 import torch
 import numpy as np
 from config import Config
-from models.ris_net import RISNet, RISNetCNN
+from models.ris_net import create_model
 from src.dataset_utils import RISChannelDataset, create_non_iid_datasets, create_test_dataset
 from src.client import RISClient
 from src.server import FederatedServer
 from torch.utils.data import DataLoader
+from utils.metrics import (
+    calculate_achievable_rate,
+    calculate_energy_efficiency,
+    calculate_phase_error,
+    calculate_snr,
+)
 
 
 def test_dataset_generation():
@@ -63,11 +76,11 @@ def test_model_architecture():
     print("=" * 60)
 
     try:
-        # Test RISNet
         input_dim = 100
         num_elements = 64
 
-        model = RISNet(
+        model = create_model(
+            "MLP",
             input_dim=input_dim,
             num_elements=num_elements,
             hidden_dim=256,
@@ -75,7 +88,7 @@ def test_model_architecture():
             dropout=0.1
         )
 
-        print(f"✓ RISNet created")
+        print(f"✓ MLP model created")
         print(f"  Parameters: {model.count_parameters():,}")
 
         # Test forward pass
@@ -88,18 +101,21 @@ def test_model_architecture():
         print(f"  Output shape: {output.shape}")
         print(f"  Output range: [{output.min():.3f}, {output.max():.3f}]")
 
-        # Test CNN model
-        cnn_model = RISNetCNN(
-            input_channels=4,
-            grid_size=(8, 8),
-            hidden_channels=64
+        # Test CNN+SE model using the current flat-feature API
+        cnn_model = create_model(
+            "CNN",
+            input_dim=input_dim,
+            num_elements=num_elements,
+            hidden_dim=256,
+            num_layers=3,
+            dropout=0.1,
+            config=Config
         )
 
-        x_grid = torch.randn(batch_size, 4, 8, 8)
-        output_grid = cnn_model(x_grid)
+        output_grid = cnn_model(x)
 
-        print(f"\n✓ RISNetCNN created")
-        print(f"  Input shape: {x_grid.shape}")
+        print(f"\n✓ CNN model created")
+        print(f"  Input shape: {x.shape}")
         print(f"  Output shape: {output_grid.shape}")
 
         return True
@@ -126,11 +142,13 @@ def test_client():
         )
 
         # Create model
-        model = RISNet(
+        model = create_model(
+            "MLP",
             input_dim=dataset.get_input_dim(),
             num_elements=64,
             hidden_dim=128,
-            num_layers=2
+            num_layers=2,
+            dropout=0.1
         )
 
         # Create client
@@ -190,11 +208,13 @@ def test_server():
 
         # Create global model
         input_dim = datasets[0].get_input_dim()
-        global_model = RISNet(
+        global_model = create_model(
+            "MLP",
             input_dim=input_dim,
             num_elements=64,
             hidden_dim=128,
-            num_layers=2
+            num_layers=2,
+            dropout=0.1
         )
 
         # Create server
@@ -205,11 +225,13 @@ def test_server():
         # Create clients
         clients = []
         for i, dataset in enumerate(datasets):
-            model = RISNet(
+            model = create_model(
+                "MLP",
                 input_dim=input_dim,
                 num_elements=64,
                 hidden_dim=128,
-                num_layers=2
+                num_layers=2,
+                dropout=0.1
             )
             client = RISClient(i, model, dataset, Config)
             clients.append(client)
@@ -248,8 +270,6 @@ def test_metrics():
     print("=" * 60)
 
     try:
-        from utils.metrics import *
-
         # Test SNR calculation
         signal_power = 1e-3  # 1 mW
         snr = calculate_snr(signal_power)
@@ -283,7 +303,11 @@ def test_plotting():
     print("=" * 60)
 
     try:
-        from utils.plotting import *
+        from utils.plotting import (
+            plot_communication_overhead,
+            plot_convergence_curve,
+            plot_energy_consumption,
+        )
         import tempfile
 
         # Create temporary directory

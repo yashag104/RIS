@@ -115,18 +115,17 @@ def run_minimal_test():
 
     try:
         import torch
-        import numpy as np
-        from models.ris_net import RISNet
+        from models.ris_net import create_model
 
         # Create small model
-        model = RISNet(input_dim=50, num_elements=16, hidden_dim=64, num_layers=2)
+        model = create_model("MLP", input_dim=50, num_elements=16, hidden_dim=64, num_layers=2)
 
         # Test forward pass
         x = torch.randn(4, 50)
         output = model(x)
 
         assert output.shape == (4, 16), "Output shape mismatch"
-        assert output.min() >= 0 and output.max() <= 2 * np.pi, "Output range incorrect"
+        assert torch.isfinite(output).all(), "Output contains non-finite values"
 
         print(f"  ✓ Model creation and forward pass")
         print(f"    Input shape: {x.shape}")

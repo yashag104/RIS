@@ -16,11 +16,12 @@ except ImportError:
     SDROptimizer = None
 
 try:
-    from baselines.drl_agent import TD3Agent
+    from baselines.drl_agent import RISEnv, TD3Agent
 except ImportError:
+    RISEnv = None
     TD3Agent = None
 
 __all__ = [
     'AlternatingOptimization', 'CentralizedRIS', 'RandomSearch', 'TD3Agent',
-    'SDROptimizer', 'SCAOptimizer', 'ADMMOptimizer',
+    'RISEnv', 'SDROptimizer', 'SCAOptimizer', 'ADMMOptimizer',
 ]

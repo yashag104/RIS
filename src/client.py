@@ -112,6 +112,10 @@ class RISClient:
         diff = torch.remainder(pred - target + torch.pi, 2 * torch.pi) - torch.pi
         return torch.mean(diff ** 2)
 
+    def _phase_error(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        """Circular signed phase error in [-pi, pi]."""
+        return torch.remainder(pred - target + torch.pi, 2 * torch.pi) - torch.pi
+
     def train_local_model(self, epochs):
         """
         Train the local model for specified epochs
@@ -285,9 +289,10 @@ class RISClient:
                 loss = self.criterion(predictions, labels)
                 total_loss += loss.item()
 
-                # Additional metrics
-                mse = torch.mean((predictions - labels) ** 2).item()
-                mae = torch.mean(torch.abs(predictions - labels)).item()
+                # Additional circular metrics, consistent with training loss.
+                phase_diff = self._phase_error(predictions, labels)
+                mse = torch.mean(phase_diff ** 2).item()
+                mae = torch.mean(torch.abs(phase_diff)).item()
 
                 total_mse += mse
                 total_mae += mae
@@ -311,8 +316,9 @@ class RISClient:
             predictions_array, _ = quantize_phases(predictions_array, quant_bits)
 
         # Phase prediction accuracy (within threshold)
-        phase_error = np.abs(predictions_array - labels_array)
-        phase_error = np.minimum(phase_error, 2 * np.pi - phase_error)  # Circular error
+        phase_error = np.abs(
+            np.remainder(predictions_array - labels_array + np.pi, 2 * np.pi) - np.pi
+        )
         accuracy_10deg = np.mean(phase_error < np.deg2rad(10))
         accuracy_30deg = np.mean(phase_error < np.deg2rad(30))
 

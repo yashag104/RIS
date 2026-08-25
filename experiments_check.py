@@ -14,7 +14,7 @@ import traceback
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config import Config
-from src.dataset_utils import create_test_dataset
+from src.dataset_utils import create_non_iid_datasets, create_test_dataset
 from experiments import AdvancedExperiments
 from models.ris_net import create_model
 
@@ -87,44 +87,78 @@ def test_experiments_suite():
             TRAIN_SAMPLES = 10
             TEST_SAMPLES = 10
             NUM_TILES = 2
+            TILE_GRID_ROWS = 1
+            TILE_GRID_COLS = 2
+            BATCH_SIZE = 5
+            SAVE_EVERY_N_ROUNDS = 1000
             VERBOSE = False
             
         experiments = AdvancedExperiments(CheckConfig)
-        
-        # Test 1: Basic FL Run (via local epochs experiment)
+
+        checks = []
+
+        # Test 1: Basic FL run through the shared experiment helper.
         print("  Running mini-FL experiment...")
-        res = experiments.experiment_1_local_epochs_variation()
-        assert len(res) > 0
-        print("  [OK] FL Experiment ran successfully")
-        
-        # Test 2: Baseline Comparison (DRL Check)
-        print("  Running Baseline Comparison (DRL Check)...")
-        # Ensure we can instantiate and run a tiny bit of exp 9
-        # This is tricky because exp 9 runs everything.
-        # We'll just rely on the test_drl_agent() above for component check.
-        print("  [OK] Baseline Comparison logic valid")
-        
-        # Test 3: Compression Logic
+        try:
+            res = experiments._run_single_fl_experiment()
+            assert res['round_metrics'], "mini-FL produced no round metrics"
+            assert np.isfinite(res['final_loss']), "mini-FL final loss is not finite"
+            assert 'global_weights' in res and res['global_weights'], "mini-FL did not return global weights"
+            print("  [OK] Mini-FL experiment ran successfully")
+            checks.append(True)
+        except Exception as e:
+            print(f"  [FAIL] Mini-FL experiment failed: {e}")
+            traceback.print_exc()
+            checks.append(False)
+
+        # Test 2: DRL environment semantics, not just agent construction.
+        print("  Running DRL environment check...")
+        try:
+            train_datasets, _ = create_non_iid_datasets(CheckConfig, CheckConfig.NUM_TILES)
+            from baselines.drl_agent import RISEnv
+            env = RISEnv(train_datasets[0], CheckConfig.TX_POWER_DBM, CheckConfig.NOISE_POWER_DBM)
+            state = env.reset()
+            action = np.zeros(CheckConfig.ELEMENTS_PER_TILE)
+            next_state, reward, done, info = env.step(action)
+            assert state.shape == next_state.shape, "DRL env state shape changed across step"
+            assert np.isfinite(reward), "DRL env reward is not finite"
+            assert done is False, "offline RIS env should not terminate during mini check"
+            assert isinstance(info, dict), "DRL env info must be a dictionary"
+            print("  [OK] DRL environment step/reset works")
+            checks.append(True)
+        except Exception as e:
+            print(f"  [FAIL] DRL environment check failed: {e}")
+            traceback.print_exc()
+            checks.append(False)
+
+        # Test 3: Compression logic
         print("  Running Model Compression Check...")
         try:
             res_comp = experiments._run_fl_with_compression(bits=8)
             assert 'accuracy_degradation' in res_comp
+            assert res_comp['total_communication_kb'] > 0
             print("  [OK] Model Compression (Real Quantization) runs")
+            checks.append(True)
         except Exception as e:
             print(f"  [FAIL] Model Compression failed: {e}")
             traceback.print_exc()
+            checks.append(False)
             
-        # Test 4: Mobility Logic
+        # Test 4: Mobility logic
         print("  Running Mobility Check...")
         try:
             res_mob = experiments._run_fl_with_mobility(speed_mps=10)
             assert 'tracking_error' in res_mob
+            assert np.isfinite(res_mob['tracking_error'])
             print("  [OK] Mobility Simulation (Jakes Model) runs")
+            checks.append(True)
         except Exception as e:
             print(f"  [FAIL] Mobility Simulation failed: {e}")
             traceback.print_exc()
-        
-        return True
+
+            checks.append(False)
+
+        return all(checks)
     except Exception as e:
         print(f"  [FAIL] FAILED: {e}")
         traceback.print_exc()

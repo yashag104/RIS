@@ -38,15 +38,29 @@ def quantize_phases(phases: np.ndarray, bits: int) -> tuple:
         quantized_phases: Quantized phases, same shape as input
         error_stats: Dict with quantization error statistics
     """
+    phases_array = np.asarray(phases)
+    original_shape = phases_array.shape
+
     if bits <= 0:
-        return phases.copy(), {'mean_error_rad': 0.0, 'max_error_rad': 0.0, 'snr_loss_factor': 1.0}
+        return phases_array.copy(), {
+            'mean_error_rad': 0.0,
+            'max_error_rad': 0.0,
+            'mean_error_deg': 0.0,
+            'max_error_deg': 0.0,
+            'rmse_rad': 0.0,
+            'num_levels': None,
+            'step_rad': None,
+            'step_deg': None,
+            'snr_loss_factor': 1.0,
+            'snr_loss_db': 0.0,
+        }
     
     num_levels = 2 ** bits
     step = 2 * np.pi / num_levels
     levels = np.arange(num_levels) * step  # Quantization grid
     
     # Normalize to [0, 2π)
-    phases_norm = np.mod(phases, 2 * np.pi)
+    phases_norm = np.mod(phases_array, 2 * np.pi).reshape(-1)
     
     # Find nearest level for each phase
     # Compute circular distance to each level
@@ -76,7 +90,7 @@ def quantize_phases(phases: np.ndarray, bits: int) -> tuple:
         'snr_loss_db': float(10 * np.log10(snr_loss_factor)) if snr_loss_factor > 0 else -np.inf,
     }
     
-    return quantized, error_stats
+    return quantized.reshape(original_shape), error_stats
 
 
 # ============================================================================
@@ -629,7 +643,7 @@ class ThreeGPPUMiChannel:
             )
             a[idx] = np.exp(1j * phase)
         
-        return a / np.sqrt(self.num_elements)
+        return a
     
     def generate_channel(
         self,
@@ -1111,20 +1125,26 @@ def _channels_to_dataset(
         if hasattr(user_pos, 'flatten'):
             features.extend(user_pos.flatten() / 10.0)  # Normalize
         
-        # Channel magnitudes (estimated)
-        # BUG FIX: Scale up microscopic channel magnitudes to O(1) for neural network stability
-        scale = 1e5
-        
         # BUG FIX: Use full cascaded channel so network knows BS-RIS phase
         h_cascade_all = h_ris_user_est * h_bs_ris_est
         
         # BUG FIX: Use continuous Real/Imaginary components instead of Abs/Angle 
         # to prevent discontinuous Phase Wrapping gradient failures.
-        features.extend(h_direct_est.real.flatten() * scale)
-        features.extend(h_cascade_all.real.flatten() * scale)
-        
-        features.extend(h_direct_est.imag.flatten() * scale)
-        features.extend(h_cascade_all.imag.flatten() * scale)
+        channel_features = np.concatenate([
+            h_direct_est.real.flatten(),
+            h_cascade_all.real.flatten(),
+            h_direct_est.imag.flatten(),
+            h_cascade_all.imag.flatten(),
+        ]).astype(np.float32)
+
+        # Normalize each sample dynamically instead of relying on a fixed scalar.
+        # Absolute channel magnitudes vary strongly with path loss; per-sample RMS
+        # scaling keeps inputs numerically stable without hard-coding a scenario.
+        channel_rms = float(np.sqrt(np.mean(channel_features.astype(np.float64) ** 2)))
+        if channel_rms > 1e-12:
+            channel_features = channel_features / channel_rms
+
+        features.extend(channel_features)
         
         features = np.array(features, dtype=np.float32)
         labels = optimal_phases.astype(np.float32)
@@ -1141,6 +1161,7 @@ def _channels_to_dataset(
             'bs_position': ch.get('bs_position', np.zeros(3)),
             'ris_position': ch.get('ris_pos', np.zeros(3)),
             'scenario': ch.get('scenario', 'unknown'),
+            'feature_channel_rms': channel_rms,
         })
     
     return np.array(features_list), np.array(labels_list), metadata_list

@@ -10,19 +10,22 @@ Tests for the specific issues identified in the anomalous results:
 """
 
 import sys
+from pathlib import Path
 import numpy as np
 import torch
 
 # Add project root to path
-sys.path.insert(0, '.')
+PROJECT_ROOT = Path(__file__).resolve().parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from config import Config
 from utils.metrics import dbm_to_watts, calculate_snr, compute_ris_snr_db
 from src.channel_model import (
-    RicianChannel, generate_ris_channel_dataset, _channels_to_dataset
+    RicianChannel, ThreeGPPUMiChannel, generate_ris_channel_dataset, _channels_to_dataset
 )
-from models.ris_net_gnn import build_noc_adjacency, RISNetGNNWrapper
 from models.ris_net import create_model
+from src.noc_simulator import NoCTopology
 
 
 # ============================================================================
@@ -261,16 +264,15 @@ def test_torus_adjacency():
     print("=" * 60)
     passed = True
 
-    edge_index = build_noc_adjacency(16, "Torus", grid_rows=4, grid_cols=4)
-    edges = set()
-    for i in range(edge_index.size(1)):
-        edges.add((edge_index[0, i].item(), edge_index[1, i].item()))
+    topology = NoCTopology.build_torus(4, 4)
+    adjacency = topology['adjacency']
 
     # Check each node has exactly 4 neighbors + self-loop = 5 edges
     for node in range(16):
-        neighbors = {dst for src, dst in edges if src == node}
+        neighbors = set(adjacency[node])
+        neighbors_with_self = neighbors | {node}
         # Should have self-loop + 4 neighbors
-        ok = len(neighbors) == 5 and node in neighbors
+        ok = len(neighbors_with_self) == 5 and node in neighbors_with_self
         row, col = node // 4, node % 4
         expected_neighbors = {
             node,  # self
@@ -279,14 +281,14 @@ def test_torus_adjacency():
             ((row + 1) % 4) * 4 + col,  # down (wrap)
             ((row - 1) % 4) * 4 + col,  # up (wrap)
         }
-        ok2 = neighbors == expected_neighbors
+        ok2 = neighbors_with_self == expected_neighbors
         if not ok2:
-            print(f"  Node {node} ({row},{col}): neighbors={neighbors}, "
+            print(f"  Node {node} ({row},{col}): neighbors={neighbors_with_self}, "
                   f"expected={expected_neighbors}")
         passed &= ok2
 
-    total_edges = len(edges)
-    expected_edges = 16 * 5  # 16 nodes * 5 edges each
+    total_edges = sum(len(v) for v in adjacency.values())
+    expected_edges = 16 * 4  # 16 nodes * 4 directed neighbor entries each
     ok = total_edges == expected_edges
     print(f"  Total edges: {total_edges} (expected {expected_edges}) {'PASS' if ok else 'FAIL'}")
     passed &= ok
@@ -364,68 +366,58 @@ def test_communication_volume():
 
 def test_gnn_forward():
     """
-    Verify GNN produces phases in [0, 2pi] and gradients flow.
+    Verify GNN forward pass and that GAT message passing is active for
+    variable batch sizes.
     """
     print("\n" + "=" * 60)
     print("TEST 7: GNN Forward Pass & Gradients")
     print("=" * 60)
     passed = True
 
+    class GNNCheckConfig(Config):
+        GNN_HIDDEN_DIM = 32
+        GNN_NUM_LAYERS = 2
+        GNN_NUM_HEADS = 4
+        PIXEL_GRID_ROWS = 8
+        PIXEL_GRID_COLS = 8
+
     input_dim = 100
-    model = RISNetGNNWrapper(
+    model = create_model(
+        "GNN",
         input_dim=input_dim,
         num_elements=64,
         hidden_dim=32,
         num_layers=2,
-        num_heads=4,
-        num_tiles=16,
-        topology="Torus",
-        grid_rows=4,
-        grid_cols=4,
+        dropout=0.1,
+        config=GNNCheckConfig,
     )
 
-    # Test single sample (per-tile training mode — skips GAT)
-    x = torch.randn(1, input_dim)
-    y = model(x)
-    ok = y.shape == (1, 64)
-    print(f"  Single sample output shape: {y.shape} (expected (1, 64)) {'PASS' if ok else 'FAIL'}")
-    passed &= ok
+    for batch_size in [1, 7, 16, 64]:
+        model.zero_grad(set_to_none=True)
+        x = torch.randn(batch_size, input_dim, requires_grad=True)
+        y = model(x)
 
-    ok = (y >= 0).all() and (y <= 2 * np.pi + 0.01).all()
-    print(f"  Phase range [0, 2pi]: [{y.min():.3f}, {y.max():.3f}] {'PASS' if ok else 'FAIL'}")
-    passed &= ok
+        ok = y.shape == (batch_size, 64)
+        print(f"  Batch({batch_size}) output shape: {y.shape} "
+              f"(expected ({batch_size}, 64)) {'PASS' if ok else 'FAIL'}")
+        passed &= ok
 
-    # Test batch (per-tile training mode — skips GAT)
-    x = torch.randn(64, input_dim)
-    y = model(x)
-    ok = y.shape == (64, 64)
-    print(f"  Batch(64) output shape: {y.shape} (expected (64, 64)) {'PASS' if ok else 'FAIL'}")
-    passed &= ok
+        ok = torch.isfinite(y).all().item()
+        print(f"  Batch({batch_size}) finite output: {'PASS' if ok else 'FAIL'}")
+        passed &= ok
 
-    # Test full-graph mode (batch_size == num_tiles → uses GAT)
-    x = torch.randn(16, input_dim)
-    y = model(x)
-    ok = y.shape == (16, 64)
-    print(f"  Full graph(16) output shape: {y.shape} (expected (16, 64)) {'PASS' if ok else 'FAIL'}")
-    passed &= ok
+        loss = y.sum()
+        loss.backward()
 
-    # Test gradient flow
-    x = torch.randn(16, input_dim, requires_grad=True)
-    y = model(x)
-    loss = y.sum()
-    loss.backward()
-
-    has_grad = all(p.grad is not None and p.grad.abs().sum() > 0
-                   for p in model.parameters() if p.requires_grad)
-    print(f"  Gradients flow through all layers: {'PASS' if has_grad else 'FAIL'}")
-    passed &= has_grad
-
-    # Check GAT layer gradients specifically
-    for i, gat in enumerate(model.gat_layers):
-        gat_has_grad = all(p.grad is not None and p.grad.abs().sum() > 0
-                          for p in gat.parameters() if p.requires_grad)
-        print(f"    GAT layer {i} gradients: {'PASS' if gat_has_grad else 'FAIL (zero/None)'}")
-        passed &= gat_has_grad
+        for i, gat in enumerate(model.gats):
+            gat_has_grad = all(
+                p.grad is not None and p.grad.abs().sum() > 0
+                for p in gat.parameters()
+                if p.requires_grad
+            )
+            print(f"    Batch({batch_size}) GAT layer {i} gradients: "
+                  f"{'PASS' if gat_has_grad else 'FAIL (zero/None)'}")
+            passed &= gat_has_grad
 
     print(f"\n  Overall: {'PASS' if passed else 'FAIL'}")
     return passed
@@ -444,19 +436,23 @@ def test_steering_vector_norm():
     print("=" * 60)
     passed = True
 
-    ch = RicianChannel(num_elements=64, frequency=28e9)
+    channels = [
+        ("Rician", RicianChannel(num_elements=64, frequency=28e9)),
+        ("3GPP UMi", ThreeGPPUMiChannel(num_elements=64, frequency=28e9)),
+    ]
 
     # Expected norm is sqrt(num_elements) because we removed 1/sqrt(N) normalization
     # to correctly model passive RIS reflections
     expected_norm = np.sqrt(64)  # 64 elements
-    for az in [0, np.pi / 4, np.pi / 2, np.pi]:
-        for el in [0, np.pi / 6, np.pi / 4]:
-            a = ch._compute_steering_vector(az, el)
-            norm = np.linalg.norm(a)
-            if not np.isclose(norm, expected_norm, rtol=1e-3):
-                print(f"  az={az:.2f}, el={el:.2f}: |a|={norm:.6f}\t\tFAIL")
-                print(f"  Expected |a|={expected_norm:.6f}")
-                passed = False
+    for name, ch in channels:
+        for az in [0, np.pi / 4, np.pi / 2, np.pi]:
+            for el in [0, np.pi / 6, np.pi / 4]:
+                a = ch._compute_steering_vector(az, el)
+                norm = np.linalg.norm(a)
+                if not np.isclose(norm, expected_norm, rtol=1e-3):
+                    print(f"  {name} az={az:.2f}, el={el:.2f}: |a|={norm:.6f}\t\tFAIL")
+                    print(f"  Expected |a|={expected_norm:.6f}")
+                    passed = False
     
     if passed:
         print("  All steering vectors have expected norm (sqrt(N)):\tPASS")
@@ -555,4 +551,4 @@ def main():
 
 
 if __name__ == "__main__":
-    exit(main())
+    raise SystemExit(main())

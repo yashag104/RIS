@@ -344,21 +344,26 @@ def save_results(config, server, clients, all_round_metrics, baselines, test_dat
     # fallback: use first round loss from all_round_metrics if present
     try:
         if initial_loss is None and isinstance(all_round_metrics, (list, tuple)) and len(all_round_metrics) > 0:
-            initial_loss = all_round_metrics[0].get('loss', None)
+            initial_loss = all_round_metrics[0].get('avg_client_loss', None)
     except Exception:
         initial_loss = None
 
-    # fallback: use final_eval['loss'] if convergence didn't provide final
+    # fallback: use final round loss, then final_eval['loss'] if convergence didn't provide final
     try:
+        if final_loss is None and isinstance(all_round_metrics, (list, tuple)) and len(all_round_metrics) > 0:
+            final_loss = all_round_metrics[-1].get('avg_client_loss', None)
         if final_loss is None:
             final_loss = final_eval.get('loss', None)
     except Exception:
         final_loss = None
 
     # compute percentage reduction safely
-    reduction_percentage = None
+    reduction_percentage = convergence.get(
+        'reduction_percentage',
+        convergence.get('loss_reduction_percent')
+    )
     try:
-        if initial_loss is not None and final_loss is not None:
+        if reduction_percentage is None and initial_loss is not None and final_loss is not None:
             init_f = float(initial_loss)
             fin_f = float(final_loss)
             if init_f != 0:
@@ -373,6 +378,7 @@ def save_results(config, server, clients, all_round_metrics, baselines, test_dat
     convergence['initial_loss'] = initial_loss
     convergence['final_loss'] = final_loss
     convergence['reduction_percentage'] = reduction_percentage
+    convergence['loss_reduction_percent'] = reduction_percentage
     # keep existing converged_round if present, otherwise None
     convergence.setdefault('converged_round', None)
 

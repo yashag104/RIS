@@ -344,12 +344,15 @@ class FederatedServer:
                 converged_round = i
                 break
 
+        reduction_percentage = ((losses[0] - losses[-1]) / losses[0]) * 100
+
         metrics = {
             'converged_round': converged_round,
             'initial_loss': losses[0],
             'final_loss': losses[-1],
             'loss_reduction': losses[0] - losses[-1],
-            'loss_reduction_percent': ((losses[0] - losses[-1]) / losses[0]) * 100,
+            'reduction_percentage': reduction_percentage,
+            'loss_reduction_percent': reduction_percentage,
             'convergence_rate': (losses[0] - losses[-1]) / len(losses),
             'all_losses': losses
         }

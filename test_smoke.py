@@ -1,10 +1,17 @@
 """Quick smoke test for Phase 1-3 changes"""
-import sys, os, numpy as np, torch
-sys.path.insert(0, '.')
+import sys
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+import numpy as np
+import torch
 from config import Config
 from src.channel_model import RicianChannel, generate_ris_channel_dataset
 from src.dataset_utils import RISChannelDataset, create_non_iid_datasets, create_test_dataset
-from models.ris_net import RISNet, create_model
+from models.ris_net import create_model
 from src.client import RISClient
 from src.server import FederatedServer
 
@@ -99,7 +106,7 @@ assert h_noisy.shape == result['h_direct'].shape
 phases = np.random.uniform(0, 2*np.pi, 64)
 noisy_p = apply_phase_noise(phases, noise_std_deg=5.0)
 assert noisy_p.shape == phases.shape
-quant_p, _ = quantize_phases(phases, num_bits=2)
+quant_p, _ = quantize_phases(phases, bits=2)
 assert quant_p.shape == phases.shape
 print("  CSI error, phase noise, quantization: OK")
 
