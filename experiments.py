@@ -950,42 +950,22 @@ class AdvancedExperiments:
             # and calculating reward using the Channel Model helper.
             pass
 
-        # RE-IMPLEMENTATION: Simpler DRL Loop iterating through samples
-        # Train on first 500 samples of first tile (to save time)
-        train_ds = train_datasets[0]
-        num_train_samples = min(500, len(train_ds))
+        # RE-IMPLEMENTATION: Use proper RISEnv
+        from baselines.drl_agent import RISEnv
+        env = RISEnv(train_datasets[0], self.config.TX_POWER_DBM, self.config.NOISE_POWER_DBM)
+        
+        num_train_samples = min(500, len(train_datasets[0]))
+        state = env.reset()
         
         for i in range(num_train_samples):
-            # Get environment state (channel)
-            features, _ = train_ds[i]
-            metadata = train_ds.metadata[i]
-            h_direct = metadata['H_direct'][0]
-            h_ris = metadata['H_ris'][0]
-            h_bs_ris = metadata['h_bs_ris']
-            h_cascade = h_ris * h_bs_ris
-
-            state = features.numpy() # (2*elements,)
-
             # Select action
             action = agent.select_action(state, noise=0.1)
-            # Action is in [-pi, pi], map to [0, 2pi] for physics
-            phases = np.mod(action + np.pi, 2*np.pi)
-
-            # Compute Reward
-            h_total = h_direct + np.sum(h_cascade * np.exp(1j * phases))
-            signal = tx_power * np.abs(h_total) ** 2
-            snr = 10 * np.log10(signal / noise_power)
-            reward = snr / 10.0 # Scale reward
             
-            # Next state (stateless bandit: next state is random new channel)
-            # But DRL expects s -> s'. We just sample next i+1
-            if i < num_train_samples - 1:
-                next_features, _ = train_ds[i+1]
-                next_state = next_features.numpy()
-            else:
-                next_state = np.zeros_like(state)
-                
-            agent.add_to_buffer(state, action, next_state, reward, float(i == num_train_samples-1))
+            # Step environment
+            next_state, reward, done, _ = env.step(action)
+            
+            agent.add_to_buffer(state, action, next_state, reward, float(done))
+            state = next_state
             
             if i > 32:
                 agent.train(batch_size=32)
@@ -2159,7 +2139,7 @@ class AdvancedExperiments:
                     optimal_phases = np.mod(np.angle(h_d) - np.angle(a), 2 * np.pi)
 
                     if bits > 0:
-                        q_phases = quantize_phases(optimal_phases, bits)
+                        q_phases, _ = quantize_phases(optimal_phases, bits)
                         # Compute quantization error manually
                         phase_diff = np.abs(optimal_phases - q_phases)
                         phase_diff = np.minimum(phase_diff, 2 * np.pi - phase_diff)

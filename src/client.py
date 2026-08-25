@@ -308,7 +308,7 @@ class RISClient:
         if quant_bits > 0:
             from src.channel_model import quantize_phases
             # Apply to flat array
-            predictions_array = quantize_phases(predictions_array, quant_bits)
+            predictions_array, _ = quantize_phases(predictions_array, quant_bits)
 
         # Phase prediction accuracy (within threshold)
         phase_error = np.abs(predictions_array - labels_array)
@@ -362,7 +362,7 @@ class RISClient:
                 quant_bits = getattr(self.config, 'PHASE_QUANTIZATION_BITS', 0)
                 if quant_bits > 0:
                     from src.channel_model import quantize_phases
-                    predicted_phases = quantize_phases(predicted_phases, quant_bits)
+                    predicted_phases, _ = quantize_phases(predicted_phases, quant_bits)
                 
                 optimal_phases = optimal_phases.numpy()
 

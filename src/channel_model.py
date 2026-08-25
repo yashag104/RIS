@@ -504,31 +504,6 @@ def apply_phase_noise(
 # Phase Quantization
 # ============================================================================
 
-def quantize_phases(
-    phases: np.ndarray,
-    num_bits: int
-) -> np.ndarray:
-    """
-    Quantize continuous phase shifts to discrete levels.
-    
-    Args:
-        phases: Continuous phase shifts in radians [0, 2π]
-        num_bits: Number of quantization bits
-            1-bit: {0, π}
-            2-bit: {0, π/2, π, 3π/2}
-            3-bit: {0, π/4, π/2, ..., 7π/4}
-    
-    Returns:
-        Quantized phase shifts
-    """
-    if num_bits <= 0:
-        return phases  # Continuous (no quantization)
-    
-    num_levels = 2 ** num_bits
-    step = 2 * np.pi / num_levels
-    quantized = np.round(phases / step) * step
-    return np.mod(quantized, 2 * np.pi)
-
 
 # ============================================================================
 # 3GPP TR 38.901 Urban Micro (UMi) Channel Model

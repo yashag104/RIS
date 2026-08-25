@@ -99,7 +99,7 @@ assert h_noisy.shape == result['h_direct'].shape
 phases = np.random.uniform(0, 2*np.pi, 64)
 noisy_p = apply_phase_noise(phases, noise_std_deg=5.0)
 assert noisy_p.shape == phases.shape
-quant_p = quantize_phases(phases, num_bits=2)
+quant_p, _ = quantize_phases(phases, num_bits=2)
 assert quant_p.shape == phases.shape
 print("  CSI error, phase noise, quantization: OK")
 

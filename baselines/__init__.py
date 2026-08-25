@@ -16,7 +16,7 @@ except ImportError:
     SDROptimizer = None
 
 try:
-    from baselines.drl_baseline import TD3Agent
+    from baselines.drl_agent import TD3Agent
 except ImportError:
     TD3Agent = None
 

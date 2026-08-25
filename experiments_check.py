@@ -58,19 +58,10 @@ def test_drl_agent():
 def test_gnn_model():
     print("\n>>> Testing GNN Model Architecture...")
     try:
-        from models.ris_net_gnn import RISNetGNNWrapper
-        
         input_dim = 16
         num_elements = 64
         
-        # Check if PyG is available
-        try:
-            import torch_geometric
-        except ImportError:
-            print("  ! PyTorch Geometric not installed. Skipping GNN test.")
-            return True # Not a failure of code, just env
-            
-        model = create_model("GNN", input_dim, num_elements, config=Config)
+        model = create_model("GNN", input_dim, num_elements, 256, 3, 0.1, config=Config)
         
         # Mock input (batch_size, input_dim)
         x = torch.randn(8, input_dim)
@@ -102,8 +93,8 @@ def test_experiments_suite():
         
         # Test 1: Basic FL Run (via local epochs experiment)
         print("  Running mini-FL experiment...")
-        #res = experiments.experiment_1_local_epochs_variation()
-        #assert len(res) > 0
+        res = experiments.experiment_1_local_epochs_variation()
+        assert len(res) > 0
         print("  [OK] FL Experiment ran successfully")
         
         # Test 2: Baseline Comparison (DRL Check)

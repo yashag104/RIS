@@ -25,6 +25,44 @@ import torch.nn.functional as F
 import copy
 import os
 
+class RISEnv:
+    """
+    Proper RL Environment for RIS Phase Optimization.
+    Implements standard step() and reset() semantics.
+    """
+    def __init__(self, dataset, tx_power_dbm=30, noise_power_dbm=-90):
+        self.dataset = dataset
+        self.idx = 0
+        self.tx_power = 10 ** ((tx_power_dbm - 30) / 10)
+        self.noise_power = 10 ** ((noise_power_dbm - 30) / 10)
+        
+    def reset(self):
+        self.idx = np.random.randint(0, len(self.dataset))
+        features, _ = self.dataset[self.idx]
+        return features.numpy()
+        
+    def step(self, action):
+        # Map action [-pi, pi] to [0, 2pi]
+        phases = np.mod(action + np.pi, 2 * np.pi)
+        
+        metadata = self.dataset.metadata[self.idx]
+        h_direct = metadata['H_direct'][0]
+        h_ris = metadata['H_ris'][0]
+        h_bs_ris = metadata['h_bs_ris']
+        h_cascade = h_ris * h_bs_ris
+        
+        h_total = h_direct + np.sum(h_cascade * np.exp(1j * phases))
+        signal = self.tx_power * np.abs(h_total) ** 2
+        snr = 10 * np.log10(signal / self.noise_power)
+        reward = snr / 10.0
+        
+        # Next state
+        self.idx = (self.idx + 1) % len(self.dataset)
+        next_features, _ = self.dataset[self.idx]
+        done = False
+        
+        return next_features.numpy(), reward, done, {}
+
 class Actor(nn.Module):
     def __init__(self, state_dim, action_dim, max_action):
         super(Actor, self).__init__()
