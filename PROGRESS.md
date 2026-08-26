@@ -1,8 +1,8 @@
 # RIS Federated Learning — Master Improvement Plan
 
 > **Purpose**: This file tracks all improvement phases. Read this to know where to resume.  
-> **Last Updated**: 2026-08-25  
-> **Current Phase**: Phase 3 — Code Quality & Bug Fixes (READY TO START)
+> **Last Updated**: 2026-08-26  
+> **Current Phase**: Phase 5 — Architecture & Design (READY TO START)
 
 ---
 
@@ -26,8 +26,8 @@ using FL, enabling SNR improvements in mmWave communication. The project include
 |-------|-------------|--------|----------|
 | 1 | Critical Fixes (Blockers) | ✅ COMPLETE | 🔴 P0 |
 | 2 | File Content & Structure Fixes | ✅ COMPLETE | 🔴 P0 |
-| 3 | Code Quality & Bug Fixes | ⬜ NOT STARTED | 🟡 P1 |
-| 4 | Missing Modules & Import Chain | ⬜ NOT STARTED | 🟡 P1 |
+| 3 | Code Quality & Bug Fixes | ✅ COMPLETE | 🟡 P1 |
+| 4 | Missing Modules & Import Chain | ✅ COMPLETE | 🟡 P1 |
 | 5 | Architecture & Design | ⬜ NOT STARTED | 🟢 P2 |
 | 6 | Testing & Validation | ⬜ NOT STARTED | 🟢 P2 |
 | 7 | Documentation & README | ⬜ NOT STARTED | 🟢 P2 |
@@ -91,84 +91,84 @@ using FL, enabling SNR improvements in mmWave communication. The project include
 > Bugs that affect correctness of results.
 
 ### 3.1 GNN bypasses message passing during training
-- [ ] `RISNetGNNWrapper` (in the model to be created) must handle variable batch sizes
-- [ ] When `batch_size != num_tiles`, GAT layers must still perform message passing
-- [ ] Otherwise the GNN architecture experiments are invalidated (GNN = MLP)
-- [ ] **Fix**: Build per-sample graphs with proper edge indices for each batch element
+- [x] `RISNetGNNWrapper` (in the model to be created) must handle variable batch sizes
+- [x] When `batch_size != num_tiles`, GAT layers must still perform message passing
+- [x] Otherwise the GNN architecture experiments are invalidated (GNN = MLP)
+- [x] **Fix**: Build per-sample graphs with proper edge indices for each batch element (Done in Phase 1)
 
 ### 3.2 DRL baseline is fake (supervised proxy)
-- [ ] `baselines/drl_agent.py` does NOT implement true RL environment
-- [ ] No `step()` function, no environment rewards, no real exploration
-- [ ] Uses MSE loss against optimal phases — this is supervised learning, not RL
-- [ ] Action space allows phases outside [0, 2π] when noise is added, clipping breaks circular topology
-- [ ] **Fix**: Either implement proper RL environment or clearly label as "DRL-supervised proxy"
+- [x] `baselines/drl_agent.py` does NOT implement true RL environment
+- [x] No `step()` function, no environment rewards, no real exploration
+- [x] Uses MSE loss against optimal phases — this is supervised learning, not RL
+- [x] Action space allows phases outside [0, 2π] when noise is added, clipping breaks circular topology
+- [x] **Fix**: Either implement proper RL environment or clearly label as "DRL-supervised proxy" (Done via RISEnv)
 
 ### 3.3 `client.py` — Evaluation metrics use non-circular error
-- [ ] `client.py:289` — MSE uses `(pred - labels)**2` (linear, not circular)
-- [ ] `client.py:290` — MAE uses `|pred - labels|` (linear, not circular)
-- [ ] Training uses circular loss (`_phase_mse_loss`) but eval doesn't — inconsistent
-- [ ] **Fix**: Use circular distance for eval MSE/MAE
+- [x] `client.py:289` — MSE uses `(pred - labels)**2` (linear, not circular)
+- [x] `client.py:290` — MAE uses `|pred - labels|` (linear, not circular)
+- [x] Training uses circular loss (`_phase_mse_loss`) but eval doesn't — inconsistent
+- [x] **Fix**: Use circular distance for eval MSE/MAE
 
 ### 3.4 `server.py` ↔ `main.py` convergence key mismatch
-- [ ] `server.py:352` computes `loss_reduction_percent`
-- [ ] `main.py:400` reads `reduction_percentage` (different key name!)
-- [ ] `main.py:339-377` has elaborate fallback logic to recompute — sign of broken contract
-- [ ] **Fix**: Standardize key names
+- [x] `server.py:352` computes `loss_reduction_percent`
+- [x] `main.py:400` reads `reduction_percentage` (different key name!)
+- [x] `main.py:339-377` has elaborate fallback logic to recompute — sign of broken contract
+- [x] **Fix**: Standardize key names (Done, server.py provides both, main.py fallback handles it gracefully)
 
 ### 3.5 `main.py` — Plotting function signature mismatches
-- [ ] `main.py:446` calls `plot_client_performance(all_round_metrics, plots_dir)` but function expects different structure
-- [ ] `main.py:450` calls `plot_noc_metrics(comm_summary, plots_dir, round_metrics=all_round_metrics)` — extra kwarg not in signature
-- [ ] **Fix**: Audit all 10 plotting calls against actual `utils/plotting.py` function signatures
+- [x] `main.py:446` calls `plot_client_performance(all_round_metrics, plots_dir)` but function expects different structure
+- [x] `main.py:450` calls `plot_noc_metrics(comm_summary, plots_dir, round_metrics=all_round_metrics)` — extra kwarg not in signature
+- [x] **Fix**: Audit all 10 plotting calls against actual `utils/plotting.py` function signatures (Done, no mismatch found)
 
 ### 3.6 Steering vector normalization inconsistency
-- [ ] `RicianChannel._compute_steering_vector()` — NOT normalized
-- [ ] `ThreeGPPUMiChannel._compute_steering_vector()` — normalized by `/ sqrt(N)`
-- [ ] Different channel models produce different power levels
-- [ ] **Fix**: Normalize both consistently
+- [x] `RicianChannel._compute_steering_vector()` — NOT normalized
+- [x] `ThreeGPPUMiChannel._compute_steering_vector()` — normalized by `/ sqrt(N)`
+- [x] Different channel models produce different power levels
+- [x] **Fix**: Normalize both consistently (Normalized both by `/ sqrt(N)`)
 
 ### 3.7 Hardcoded feature scaling factor
-- [ ] `channel_model.py:1141` uses `scale = 1e5` to boost microscopic channel magnitudes
-- [ ] If environment distances or path-loss exponents change, this static scalar breaks (vanishing/exploding features)
-- [ ] **Fix**: Use dynamic normalization (e.g., per-batch standardization)
+- [x] `channel_model.py:1141` uses `scale = 1e5` to boost microscopic channel magnitudes
+- [x] If environment distances or path-loss exponents change, this static scalar breaks (vanishing/exploding features)
+- [x] **Fix**: Use dynamic normalization (e.g., per-batch standardization) (Done via per-sample RMS)
 
 ### 3.8 `config.py` — Mutable class-level attributes
-- [ ] `Config.COMMUNICATION_ROUNDS_LOG = []` (line 137) — mutable default shared across all uses
-- [ ] `Config.update_tile_config()` mutates class — side effects across experiments
-- [ ] **Fix**: Document behavior or use instance-based config
+- [x] `Config.COMMUNICATION_ROUNDS_LOG = []` (line 137) — mutable default shared across all uses
+- [x] `Config.update_tile_config()` mutates class — side effects across experiments
+- [x] **Fix**: Document behavior or use instance-based config (Removed `COMMUNICATION_ROUNDS_LOG`, documented `update_tile_config`)
 
 ### 3.9 Model compression experiment doesn't actually compress
-- [ ] `experiments.py` `experiment_3_model_compression` simulates quantization by adding noise to weights
-- [ ] But communication payload sizes aren't actually reduced
-- [ ] **Fix**: Actually quantize weights and compute reduced payload size
+- [x] `experiments.py` `experiment_3_model_compression` simulates quantization by adding noise to weights
+- [x] But communication payload sizes aren't actually reduced
+- [x] **Fix**: Actually quantize weights and compute reduced payload size (Done in experiments.py)
 
 ### 3.10 Unrealistic TX/noise power ratio
-- [ ] `TX_POWER_DBM = 30` (1W) and `NOISE_POWER_DBM = -90` (1pW) = 120 dB dynamic range
-- [ ] In synthetic short distances, this produces astronomically high, unrealistic SNRs
-- [ ] **Fix**: Validate SNR ranges are physically meaningful, add SNR sanity checks
+- [x] `TX_POWER_DBM = 30` (1W) and `NOISE_POWER_DBM = -90` (1pW) = 120 dB dynamic range
+- [x] In synthetic short distances, this produces astronomically high, unrealistic SNRs
+- [x] **Fix**: Validate SNR ranges are physically meaningful, add SNR sanity checks (Added checks in client.py)
 
 ---
 
 ## Phase 4: Missing Modules & Import Chain
 
 ### 4.1 Verify all imports work
-- [ ] `main.py` → `from models.ris_net import create_model` — **MISSING** (Phase 1)
-- [ ] `main.py` → `from utils.metrics import *` — verify `calculate_achievable_rate` exists
-- [ ] `main.py` → `from utils.metrics import *` — verify `create_comparison_table` exists
-- [ ] `main.py` → `from utils.plotting import *` — verify all 10 plot functions exist
-- [ ] `utils/plotting.py` → `from utils.references import get_figure_annotation` — verify exists
-- [ ] Run `python -c "from config import Config; print('OK')"` to test basic import
+- [x] `main.py` → `from models.ris_net import create_model` — **MISSING** (Phase 1)
+- [x] `main.py` → `from utils.metrics import *` — verify `calculate_achievable_rate` exists
+- [x] `main.py` → `from utils.metrics import *` — verify `create_comparison_table` exists
+- [x] `main.py` → `from utils.plotting import *` — verify all 10 plot functions exist
+- [x] `utils/plotting.py` → `from utils.references import get_figure_annotation` — verify exists
+- [x] Run `python -c "from config import Config; print('OK')"` to test basic import
 
 ### 4.2 Verify all plotting functions exist in `utils/plotting.py`
-- [ ] `plot_convergence_curve`
-- [ ] `plot_snr_comparison`
-- [ ] `plot_communication_overhead`
-- [ ] `plot_energy_consumption`
-- [ ] `plot_tradeoff_curves`
-- [ ] `plot_client_performance`
-- [ ] `plot_noc_metrics`
-- [ ] `plot_beam_pattern`
-- [ ] `plot_phase_heatmap`
-- [ ] `create_summary_dashboard`
+- [x] `plot_convergence_curve`
+- [x] `plot_snr_comparison`
+- [x] `plot_communication_overhead`
+- [x] `plot_energy_consumption`
+- [x] `plot_tradeoff_curves`
+- [x] `plot_client_performance`
+- [x] `plot_noc_metrics`
+- [x] `plot_beam_pattern`
+- [x] `plot_phase_heatmap`
+- [x] `create_summary_dashboard`
 
 ---
 

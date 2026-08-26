@@ -134,7 +134,6 @@ class Config:
     NON_IID_ALPHA = 0.5  # Dirichlet parameter for non-IID data (lower = more non-IID)
 
     # ============ Communication Parameters ============
-    COMMUNICATION_ROUNDS_LOG = []  # Track communication per round
     PACKET_SIZE_BYTES = 4  # Size of float32 in bytes (local computation)
     COMM_BYTES_PER_PARAM = 1  # INT8 quantized transmission (1 byte/param)
     NOC_BANDWIDTH_GBPS = 10  # Network-on-Chip bandwidth
@@ -200,7 +199,11 @@ class Config:
     
     @classmethod
     def update_tile_config(cls, tile_rows, tile_cols, pixel_rows=8, pixel_cols=8):
-        """Update tile and pixel configuration dynamically"""
+        """
+        Update tile and pixel configuration dynamically.
+        WARNING: This mutates the Config class itself and will affect all future
+        experiments in the same process unless reset.
+        """
         cls.TILE_GRID_ROWS = tile_rows
         cls.TILE_GRID_COLS = tile_cols
         cls.PIXEL_GRID_ROWS = pixel_rows
