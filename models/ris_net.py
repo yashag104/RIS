@@ -115,8 +115,17 @@ class GNNModel(BaseModel):
         # Use GNN hidden dimension from config if available
         self.node_dim = getattr(config, 'GNN_HIDDEN_DIM', hidden_dim) if config else hidden_dim
         
-        # Initial projection to node features
-        self.feature_proj = nn.Linear(input_dim, num_elements * self.node_dim)
+        # Compact shared feature encoder. The previous direct projection from
+        # input_dim to num_elements * node_dim made communication cost scale
+        # as O(users * elements * hidden_dim). A shared context plus learned
+        # element embeddings keeps the model size practical while preserving
+        # per-element message passing.
+        self.feature_encoder = nn.Sequential(
+            nn.Linear(input_dim, self.node_dim),
+            nn.ReLU(),
+            nn.Dropout(dropout) if dropout > 0 else nn.Identity(),
+            nn.Linear(self.node_dim, self.node_dim),
+        )
         
         # Create adjacency matrix for grid
         grid_rows = getattr(config, 'PIXEL_GRID_ROWS', 8) if config else 8
@@ -126,6 +135,7 @@ class GNNModel(BaseModel):
                 f"GNN grid ({grid_rows}x{grid_cols}) must match num_elements={num_elements}"
             )
         self.register_buffer('adj', self._build_grid_adj(grid_rows, grid_cols))
+        self.node_embedding = nn.Parameter(torch.randn(1, num_elements, self.node_dim) * 0.02)
         
         # GAT Layers
         num_gnn_layers = getattr(config, 'GNN_NUM_LAYERS', 3) if config else num_layers
@@ -166,8 +176,8 @@ class GNNModel(BaseModel):
     def forward(self, x):
         # x: (batch, input_dim)
         batch_size = x.size(0)
-        h = self.feature_proj(x)
-        h = h.view(batch_size, self.num_elements, self.node_dim)
+        context = self.feature_encoder(x)
+        h = context.unsqueeze(1) + self.node_embedding.expand(batch_size, -1, -1)
         
         for gat in self.gats:
             h = gat(h, self.adj)
@@ -208,7 +218,15 @@ class CNNModel(BaseModel):
         channels = getattr(config, 'CNN_HIDDEN_CHANNELS', 64) if config else 64
         se_reduction = getattr(config, 'CNN_SE_REDUCTION', 16) if config else 16
         
-        self.feature_proj = nn.Linear(input_dim, channels * self.grid_rows * self.grid_cols)
+        self.feature_encoder = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(dropout) if dropout > 0 else nn.Identity(),
+            nn.Linear(hidden_dim, channels),
+        )
+        self.spatial_embedding = nn.Parameter(
+            torch.randn(1, channels, self.grid_rows, self.grid_cols) * 0.02
+        )
         
         self.conv_net = nn.Sequential(
             nn.Conv2d(channels, channels, kernel_size=3, padding=1),
@@ -225,8 +243,8 @@ class CNNModel(BaseModel):
         
     def forward(self, x):
         b = x.size(0)
-        h = self.feature_proj(x)
-        h = h.view(b, -1, self.grid_rows, self.grid_cols)
+        context = self.feature_encoder(x).view(b, -1, 1, 1)
+        h = context + self.spatial_embedding.expand(b, -1, -1, -1)
         h = self.conv_net(h)
         out = self.out_conv(h).view(b, self.num_elements)
         return out
@@ -267,7 +285,12 @@ class TransformerModel(BaseModel):
         dim_feedforward = getattr(config, 'TRANSFORMER_FF_DIM', 512) if config else 512
         
         self.d_model = d_model
-        self.feature_proj = nn.Linear(input_dim, num_elements * d_model)
+        self.feature_encoder = nn.Sequential(
+            nn.Linear(input_dim, d_model),
+            nn.ReLU(),
+            nn.Dropout(dropout) if dropout > 0 else nn.Identity(),
+            nn.Linear(d_model, d_model),
+        )
         
         # Position encoding
         self.pos_emb = nn.Parameter(torch.randn(1, num_elements, d_model))
@@ -282,10 +305,8 @@ class TransformerModel(BaseModel):
 
     def forward(self, x):
         b = x.size(0)
-        h = self.feature_proj(x)
-        h = h.view(b, self.num_elements, self.d_model)
-        
-        h = h + self.pos_emb
+        context = self.feature_encoder(x)
+        h = context.unsqueeze(1) + self.pos_emb.expand(b, -1, -1)
         h = self.transformer(h)
         out = self.out_proj(h).squeeze(-1)
         return out

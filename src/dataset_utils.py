@@ -25,6 +25,31 @@ from src.channel_model import (
 )
 
 
+def expected_feature_dim(num_ris_elements, num_users):
+    """
+    Return the expected flat feature dimension for generated RIS datasets.
+
+    The feature vector contains normalized user positions plus real and
+    imaginary parts of the direct and cascaded channels:
+        3U + 2 * (U + U * N)
+    where U is user count and N is RIS elements per tile.
+    """
+    return int(num_users * (2 * num_ris_elements + 5))
+
+
+def validate_dataset_feature_dim(dataset, config, dataset_name="dataset"):
+    """Validate that a dataset matches the active Config dimensions."""
+    expected = expected_feature_dim(config.ELEMENTS_PER_TILE, config.NUM_USERS)
+    actual = dataset.get_input_dim()
+    if actual != expected:
+        raise ValueError(
+            f"{dataset_name} feature dimension mismatch: expected {expected} "
+            f"for NUM_USERS={config.NUM_USERS}, ELEMENTS_PER_TILE={config.ELEMENTS_PER_TILE}; "
+            f"got {actual}. Regenerate datasets after changing geometry/user settings."
+        )
+    return True
+
+
 class RISChannelDataset(Dataset):
     """
     Dataset for RIS channel state information and optimal phase shifts.
@@ -71,6 +96,12 @@ class RISChannelDataset(Dataset):
             deepmimo_scenario=deepmimo_scenario,
             deepmimo_data_dir=deepmimo_data_dir,
         )
+        expected = expected_feature_dim(num_ris_elements, num_users)
+        if self.features.shape[1] != expected:
+            raise ValueError(
+                f"Generated feature dimension mismatch: expected {expected}, "
+                f"got {self.features.shape[1]}"
+            )
 
     def __len__(self):
         return self.num_samples

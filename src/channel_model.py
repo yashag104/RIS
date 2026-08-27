@@ -229,6 +229,31 @@ class RicianChannel:
             elevation: Elevation angle in radians
         
         Returns:
+            Complex steering vector with one entry per RIS element.
+        """
+        d = self.element_spacing
+        k = 2 * np.pi / self.wavelength
+
+        a = np.zeros(self.num_elements, dtype=complex)
+        for idx in range(self.num_elements):
+            row = idx // self.grid_cols
+            col = idx % self.grid_cols
+            phase = k * d * (
+                col * np.sin(azimuth) * np.cos(elevation) +
+                row * np.sin(elevation)
+            )
+            a[idx] = np.exp(1j * phase)
+
+        return a
+
+    def _compute_path_loss(
+        self,
+        distance: float,
+        override_exponent: Optional[float] = None
+    ) -> float:
+        """
+        Compute free-space-like path loss in linear power scale.
+
         Args:
             distance: Distance in meters
             override_exponent: Optional custom path loss exponent
