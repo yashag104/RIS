@@ -15,7 +15,12 @@ from torch.utils.data import DataLoader
 from config import Config
 from models.ris_net import create_model
 from src.client import RISClient
-from src.dataset_utils import create_non_iid_datasets, create_test_dataset
+from src.dataset_utils import (
+    create_non_iid_datasets,
+    create_test_dataset,
+    validate_dataset_feature_dim,
+    validate_dataset_collection,
+)
 from src.server import FederatedServer
 from utils.metrics import *
 from utils.metrics import dbm_to_watts
@@ -42,6 +47,12 @@ class BaselineMultiuserExperimentsMixin:
         # Create datasets (same for all methods - fair comparison)
         train_datasets, tile_positions = create_non_iid_datasets(self.config, self.config.NUM_TILES)
         test_dataset = create_test_dataset(self.config)
+        input_dim = validate_dataset_collection(
+            train_datasets,
+            test_dataset,
+            self.config,
+            expected_num_tiles=self.config.NUM_TILES,
+        )
         num_eval_samples = min(100, len(test_dataset))
 
         noise_power = dbm_to_watts(self.config.NOISE_POWER_DBM)
@@ -136,7 +147,7 @@ class BaselineMultiuserExperimentsMixin:
         # Initialize DRL Agent
         # State: full feature vector from the dataset (same as model input)
         # Action: phases [0, 2pi] mapped to [-pi, pi] for tanh
-        state_dim = train_datasets[0].get_input_dim()
+        state_dim = input_dim
         action_dim = self.config.ELEMENTS_PER_TILE
         max_action = np.pi
         
@@ -285,8 +296,6 @@ class BaselineMultiuserExperimentsMixin:
 
         # ---- 5. Centralized Deep Learning ----
         self.logger.info("\n>>> Evaluating: Centralized Deep Learning...")
-        input_dim = train_datasets[0].get_input_dim()
-        input_dim = train_datasets[0].get_input_dim()
         cent_model = create_model(
             model_type=self.config.MODEL_TYPE,
             input_dim=input_dim,
@@ -424,8 +433,21 @@ class BaselineMultiuserExperimentsMixin:
             self.logger.info(f"\n>>> Testing with {num_users} simultaneous users...")
 
             # Generate multi-user channel samples
-            test_dataset = create_test_dataset(self.config)
-            num_eval_samples = min(100, len(test_dataset))
+            original_num_users = self.config.NUM_USERS
+            self.config.NUM_USERS = num_users
+            try:
+                test_dataset = create_test_dataset(self.config)
+                validate_dataset_feature_dim(
+                    test_dataset,
+                    self.config,
+                    f"multiuser test_dataset[{num_users}]",
+                )
+                num_eval_samples = min(100, len(test_dataset))
+
+                self.logger.info(f"  Running FL training for {num_users} users...")
+                fl_result = self._run_single_fl_experiment()
+            finally:
+                self.config.NUM_USERS = original_num_users
 
             noise_power = dbm_to_watts(self.config.NOISE_POWER_DBM)
             tx_power = dbm_to_watts(self.config.TX_POWER_DBM)
@@ -477,10 +499,6 @@ class BaselineMultiuserExperimentsMixin:
                 else:
                     fairness = 1.0
                 fairness_indices.append(fairness)
-
-            # Now run FL for this user configuration
-            self.logger.info(f"  Running FL training for {num_users} users...")
-            fl_result = self._run_single_fl_experiment()
 
             result = {
                 'num_users': num_users,
@@ -544,4 +562,3 @@ class BaselineMultiuserExperimentsMixin:
             phases = np.mod(phases, 2 * np.pi)
 
         return phases
-

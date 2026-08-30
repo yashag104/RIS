@@ -15,7 +15,12 @@ from torch.utils.data import DataLoader
 from config import Config
 from models.ris_net import create_model
 from src.client import RISClient
-from src.dataset_utils import create_non_iid_datasets, create_test_dataset
+from src.dataset_utils import (
+    create_non_iid_datasets,
+    create_test_dataset,
+    validate_dataset_feature_dim,
+    validate_dataset_collection,
+)
 from src.server import FederatedServer
 from utils.metrics import *
 from utils.metrics import dbm_to_watts
@@ -61,6 +66,12 @@ class ExperimentBase:
             # For efficiency, we could cache them, but for robustness, we re-create
             train_datasets, tile_positions = create_non_iid_datasets(self.config, self.config.NUM_TILES)
             test_dataset = create_test_dataset(self.config)
+            validate_dataset_collection(
+                train_datasets,
+                test_dataset,
+                self.config,
+                expected_num_tiles=self.config.NUM_TILES,
+            )
 
             # Evaluate baselines
             baselines = evaluate_baselines(self.config, test_dataset)
@@ -124,10 +135,11 @@ class ExperimentBase:
         
         # Create test dataset for re-evaluation
         test_dataset = create_test_dataset(self.config)
+        validate_dataset_feature_dim(test_dataset, self.config, "compression test_dataset")
         test_loader = DataLoader(test_dataset, batch_size=self.config.BATCH_SIZE, shuffle=False)
         
         # Load weights into a temporary model
-        temp_model = create_model(self.config.MODEL_TYPE, test_dataset.get_input_dim(), 
+        temp_model = create_model(self.config.MODEL_TYPE, test_dataset.get_input_dim(),
                                 self.config.ELEMENTS_PER_TILE, config=self.config)
         temp_model.to(self.config.DEVICE)
         
@@ -217,6 +229,7 @@ class ExperimentBase:
             # Generate "aged" test dataset
             # h_new = rho * h_old + sqrt(1 - rho^2) * noise
             test_dataset = create_test_dataset(self.config)
+            validate_dataset_feature_dim(test_dataset, self.config, "mobility test_dataset")
             
             aged_snrs = []
             
@@ -229,7 +242,7 @@ class ExperimentBase:
             # We need to reconstruct the model state. 
             # We assume 'result' implies we have the model.
             # We need to reload the weights.
-            model = create_model(self.config.MODEL_TYPE, test_dataset.get_input_dim(), 
+            model = create_model(self.config.MODEL_TYPE, test_dataset.get_input_dim(),
                                self.config.ELEMENTS_PER_TILE, config=self.config)
             model.load_state_dict(result['global_weights']) 
             model.to(self.config.DEVICE)
@@ -315,7 +328,12 @@ class ExperimentBase:
         train_datasets, tile_positions = create_non_iid_datasets(self.config, self.config.NUM_TILES)
         test_dataset = create_test_dataset(self.config)
         
-        input_dim = train_datasets[0].get_input_dim()
+        input_dim = validate_dataset_collection(
+            train_datasets,
+            test_dataset,
+            self.config,
+            expected_num_tiles=self.config.NUM_TILES,
+        )
         cent_model = create_model(self.config.MODEL_TYPE, input_dim, self.config.ELEMENTS_PER_TILE, config=self.config)
         
         centralized = CentralizedRIS(cent_model, self.config)
@@ -357,7 +375,12 @@ class ExperimentBase:
         test_dataset = create_test_dataset(self.config)
         test_loader = DataLoader(test_dataset, batch_size=self.config.BATCH_SIZE, shuffle=False)
         
-        input_dim = train_datasets[0].get_input_dim()
+        input_dim = validate_dataset_collection(
+            train_datasets,
+            test_dataset,
+            self.config,
+            expected_num_tiles=self.config.NUM_TILES,
+        )
         
         # Train isolated clients
         final_snrs = []
@@ -560,4 +583,3 @@ class ExperimentBase:
         """Plot phase quantization analysis (Exp 20)."""
         from utils.plotting_advanced import plot_phase_quantization_detailed
         plot_phase_quantization_detailed(results, self.results_dir)
-

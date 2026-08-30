@@ -37,8 +37,19 @@ def expected_feature_dim(num_ris_elements, num_users):
     return int(num_users * (2 * num_ris_elements + 5))
 
 
+def expected_label_dim(num_ris_elements):
+    """Return the expected phase-label dimension for one RIS tile."""
+    return int(num_ris_elements)
+
+
 def validate_dataset_feature_dim(dataset, config, dataset_name="dataset"):
     """Validate that a dataset matches the active Config dimensions."""
+    if dataset is None:
+        raise ValueError(f"{dataset_name} is None")
+
+    if not hasattr(dataset, "get_input_dim"):
+        raise TypeError(f"{dataset_name} must provide get_input_dim()")
+
     expected = expected_feature_dim(config.ELEMENTS_PER_TILE, config.NUM_USERS)
     actual = dataset.get_input_dim()
     if actual != expected:
@@ -47,7 +58,71 @@ def validate_dataset_feature_dim(dataset, config, dataset_name="dataset"):
             f"for NUM_USERS={config.NUM_USERS}, ELEMENTS_PER_TILE={config.ELEMENTS_PER_TILE}; "
             f"got {actual}. Regenerate datasets after changing geometry/user settings."
         )
+
+    dataset_users = getattr(dataset, "num_users", None)
+    if dataset_users is not None and dataset_users != config.NUM_USERS:
+        raise ValueError(
+            f"{dataset_name} user-count mismatch: expected NUM_USERS={config.NUM_USERS}; "
+            f"dataset was built with num_users={dataset_users}."
+        )
+
+    dataset_elements = getattr(dataset, "num_ris_elements", None)
+    if dataset_elements is not None and dataset_elements != config.ELEMENTS_PER_TILE:
+        raise ValueError(
+            f"{dataset_name} RIS-element mismatch: expected ELEMENTS_PER_TILE="
+            f"{config.ELEMENTS_PER_TILE}; dataset was built with "
+            f"num_ris_elements={dataset_elements}."
+        )
+
+    labels = getattr(dataset, "labels", None)
+    if labels is not None:
+        expected_labels = expected_label_dim(config.ELEMENTS_PER_TILE)
+        if labels.ndim != 2 or labels.shape[1] != expected_labels:
+            raise ValueError(
+                f"{dataset_name} label dimension mismatch: expected labels with "
+                f"shape (*, {expected_labels}); got {labels.shape}."
+            )
+
     return True
+
+
+def validate_dataset_collection(train_datasets, test_dataset, config, expected_num_tiles=None):
+    """
+    Validate train/test datasets before model creation.
+
+    Returns the single input dimension that should be used to instantiate models.
+    """
+    if not train_datasets:
+        raise ValueError("train_datasets must contain at least one dataset")
+
+    if expected_num_tiles is not None and len(train_datasets) != expected_num_tiles:
+        raise ValueError(
+            f"train_datasets tile-count mismatch: expected {expected_num_tiles}; "
+            f"got {len(train_datasets)}."
+        )
+
+    input_dim = None
+    for idx, dataset in enumerate(train_datasets):
+        name = f"train_datasets[{idx}]"
+        validate_dataset_feature_dim(dataset, config, name)
+        dim = dataset.get_input_dim()
+        if input_dim is None:
+            input_dim = dim
+        elif dim != input_dim:
+            raise ValueError(
+                f"{name} feature dimension mismatch: expected {input_dim}; got {dim}."
+            )
+
+    if test_dataset is not None:
+        validate_dataset_feature_dim(test_dataset, config, "test_dataset")
+        test_dim = test_dataset.get_input_dim()
+        if test_dim != input_dim:
+            raise ValueError(
+                f"test_dataset feature dimension mismatch: expected {input_dim}; "
+                f"got {test_dim}."
+            )
+
+    return input_dim
 
 
 class RISChannelDataset(Dataset):

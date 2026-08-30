@@ -1,8 +1,8 @@
 # RIS Federated Learning — Master Improvement Plan
 
-> **Purpose**: This file tracks all improvement phases. Read this to know where to resume.  
-> **Last Updated**: 2026-08-26  
-> **Current Phase**: Phase 5 — Architecture & Design (READY TO START)
+> **Purpose**: This file tracks all improvement phases. Read this to know where to resume.
+> **Last Updated**: 2026-08-28
+> **Current Phase**: Phase 5 — Architecture & Design (IN PROGRESS; next: 5.3 logging cleanup)
 
 ---
 
@@ -28,9 +28,9 @@ using FL, enabling SNR improvements in mmWave communication. The project include
 | 2 | File Content & Structure Fixes | ✅ COMPLETE | 🔴 P0 |
 | 3 | Code Quality & Bug Fixes | ✅ COMPLETE | 🟡 P1 |
 | 4 | Missing Modules & Import Chain | ✅ COMPLETE | 🟡 P1 |
-| 5 | Architecture & Design | ⬜ NOT STARTED | 🟢 P2 |
-| 6 | Testing & Validation | ⬜ NOT STARTED | 🟢 P2 |
-| 7 | Documentation & README | ⬜ NOT STARTED | 🟢 P2 |
+| 5 | Architecture & Design | 🟡 IN PROGRESS | 🟢 P2 |
+| 6 | Testing & Validation | 🟡 PARTIAL | 🟢 P2 |
+| 7 | Documentation & README | 🟡 PARTIAL | 🟢 P2 |
 | 8 | Polish & Final Verification | ⬜ NOT STARTED | 🔵 P3 |
 
 ---
@@ -50,7 +50,7 @@ using FL, enabling SNR improvements in mmWave communication. The project include
 - [x] Implement `TransformerModel` — Transformer architecture (referenced in config)
 - [x] Each model MUST have a `.count_parameters()` method (used in `main.py:102`, `client.py:181`)
 - [x] Test that `create_model()` works with config defaults
-  - Static implementation verified; runtime verification requires installing project dependencies (`torch`, `numpy`, etc.) because the current `.venv` only contains pip.
+  - Runtime verification passed with `.venv/bin/python setup_check.py` on 2026-08-28.
 
 ### 1.2 Missing `__init__.py` files for packages
 - [x] Create `src/__init__.py`
@@ -124,7 +124,7 @@ using FL, enabling SNR improvements in mmWave communication. The project include
 - [x] `RicianChannel._compute_steering_vector()` — NOT normalized
 - [x] `ThreeGPPUMiChannel._compute_steering_vector()` — normalized by `/ sqrt(N)`
 - [x] Different channel models produce different power levels
-- [x] **Fix**: Normalize both consistently (Normalized both by `/ sqrt(N)`)
+- [x] **Fix**: Use consistent steering-vector normalization across both channel models.
 
 ### 3.7 Hardcoded feature scaling factor
 - [x] `channel_model.py:1141` uses `scale = 1e5` to boost microscopic channel magnitudes
@@ -156,7 +156,7 @@ using FL, enabling SNR improvements in mmWave communication. The project include
 - [x] `main.py` → `from utils.metrics import *` — verify `create_comparison_table` exists
 - [x] `main.py` → `from utils.plotting import *` — verify all 10 plot functions exist
 - [x] `utils/plotting.py` → `from utils.references import get_figure_annotation` — verify exists
-- [x] Run `python -c "from config import Config; print('OK')"` to test basic import
+- [x] Run `.venv/bin/python setup_check.py` to test imports, dependency availability, model creation, and forward pass.
 
 ### 4.2 Verify all plotting functions exist in `utils/plotting.py`
 - [x] `plot_convergence_curve`
@@ -175,14 +175,22 @@ using FL, enabling SNR improvements in mmWave communication. The project include
 ## Phase 5: Architecture & Design
 
 ### 5.1 Split `experiments.py` (98KB monolith)
-- [ ] Categorize all experiments
-- [ ] Create `experiments/` package directory
-- [ ] Split into logical modules
-- [ ] Update all imports
+- [x] Categorize all experiments
+- [x] Create `experiments/` package directory
+- [x] Split into logical modules (`base`, `federated`, `baselines_multiuser`, `journal`, `cli`, `suite`)
+- [x] Update active imports (`run_all_experiments.py`, `experiments_check.py`) to use the package
+- [ ] Decide whether to keep or archive/delete `experiments_legacy.py`
 
 ### 5.2 Dynamic feature dimension
-- [ ] Input feature size depends on `num_users` — changing users breaks model
-- [ ] **Fix**: Make feature extraction handle variable user counts, or validate config consistency
+- [x] Input feature size depends on `num_users` — changing users breaks model unless datasets/models are regenerated together
+- [x] **Fix**: Strictly validate config consistency before model creation
+  - Added `expected_label_dim()` and `validate_dataset_collection()` in `src/dataset_utils.py`
+  - Validate cached datasets in `main.initialize_datasets()`
+  - Revalidate train/test datasets before `main.train_federated()` creates the global/client models
+  - Validate datasets in active experiment helpers before centralized/local/compression/mobility model creation
+  - Fixed multi-user experiment so each user-count run actually sets `NUM_USERS` before dataset/model generation, then restores the original config
+  - Added `test_dataset_dimension_contract()` in `test_validation.py`
+- [ ] Future optional upgrade: true variable-user model support via padding/masking or per-user encoders
 
 ### 5.3 Add proper logging
 - [ ] Replace `print()` with Python `logging` module
@@ -199,31 +207,33 @@ using FL, enabling SNR improvements in mmWave communication. The project include
 
 ### 6.1 Fix existing test files
 - [ ] `test_components.py` — fix imports, verify runs
-- [ ] `test_smoke.py` — fix `sys.path.insert(0, '.')` to work from any directory
-- [ ] `test_validation.py` — fix `exit(main())` pattern, use proper pytest assertions
-- [ ] `experiments_check.py` — uncomment real tests
-- [ ] `setup_check.py` — fix `__version__` check for packages that don't expose it
+- [x] `test_smoke.py` — fix `sys.path.insert(0, '.')` to work from any directory
+- [x] `test_validation.py` — fix `exit(main())` pattern; still script-style, not full pytest assertions
+- [x] `experiments_check.py` — replace commented/false-positive checks with real mini checks
+- [x] `setup_check.py` — handles package checks successfully in current `.venv`
 
 ### 6.2 Add missing tests
-- [ ] Test model creation (all 4 architectures)
-- [ ] Test channel model correctness
-- [ ] Test 1 FL round end-to-end
+- [x] Test model creation smoke coverage (`test_smoke.py`: MLP, CNN_Attention, GNN)
+- [x] Test channel model correctness/sanity coverage (`test_validation.py`)
+- [x] Test 1 FL round end-to-end (`experiments_check.py` mini-FL)
 - [ ] Test NoC simulator (all topologies × protocols)
 - [ ] Test baseline optimizers
+- [ ] Add Transformer to smoke/model-creation coverage
+- [ ] Convert script-style checks to pytest-compatible tests
 
 ---
 
 ## Phase 7: Documentation & README
 
 ### 7.1 Write proper README.md
-- [ ] Project overview
+- [x] Project overview
 - [ ] Architecture diagram
-- [ ] Installation guide
-- [ ] Quick start / usage
-- [ ] Configuration reference
-- [ ] Experiment guide
+- [x] Installation guide
+- [x] Quick start / usage
+- [x] Configuration reference
+- [x] Experiment guide
 - [ ] Results / figures
-- [ ] References / citations
+- [x] References / citations
 - [ ] License
 
 ### 7.2 Add/fix docstrings

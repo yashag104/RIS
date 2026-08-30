@@ -24,6 +24,7 @@ from utils.metrics import dbm_to_watts, calculate_snr, compute_ris_snr_db
 from src.channel_model import (
     RicianChannel, ThreeGPPUMiChannel, generate_ris_channel_dataset, _channels_to_dataset
 )
+from src.dataset_utils import expected_feature_dim, validate_dataset_collection
 from models.ris_net import create_model
 from src.noc_simulator import NoCTopology
 
@@ -514,6 +515,90 @@ def test_snr_formula():
 
 
 # ============================================================================
+# Test 10: Dataset/model input dimension contract
+# ============================================================================
+
+def test_dataset_dimension_contract():
+    """Verify stale datasets fail before model creation."""
+    print("\n" + "=" * 60)
+    print("TEST 10: Dataset Dimension Contract")
+    print("=" * 60)
+
+    class DimConfig:
+        NUM_USERS = 4
+        ELEMENTS_PER_TILE = 16
+        NUM_TILES = 2
+
+    class FakeDataset:
+        def __init__(self, input_dim, label_dim, num_users, num_elements):
+            self.features = np.zeros((3, input_dim), dtype=np.float32)
+            self.labels = np.zeros((3, label_dim), dtype=np.float32)
+            self.num_users = num_users
+            self.num_ris_elements = num_elements
+
+        def __len__(self):
+            return len(self.features)
+
+        def get_input_dim(self):
+            return self.features.shape[1]
+
+    expected_dim = expected_feature_dim(DimConfig.ELEMENTS_PER_TILE, DimConfig.NUM_USERS)
+    valid_train = [
+        FakeDataset(expected_dim, DimConfig.ELEMENTS_PER_TILE, 4, 16),
+        FakeDataset(expected_dim, DimConfig.ELEMENTS_PER_TILE, 4, 16),
+    ]
+    valid_test = FakeDataset(expected_dim, DimConfig.ELEMENTS_PER_TILE, 4, 16)
+
+    passed = True
+    try:
+        dim = validate_dataset_collection(
+            valid_train,
+            valid_test,
+            DimConfig,
+            expected_num_tiles=DimConfig.NUM_TILES,
+        )
+        ok = dim == expected_dim
+        print(f"  Matching datasets accepted: {'PASS' if ok else 'FAIL'}")
+        passed &= ok
+    except Exception as e:
+        print(f"  Matching datasets accepted: FAIL ({e})")
+        passed = False
+
+    stale_test = FakeDataset(expected_dim + 5, DimConfig.ELEMENTS_PER_TILE, 5, 16)
+    try:
+        validate_dataset_collection(
+            valid_train,
+            stale_test,
+            DimConfig,
+            expected_num_tiles=DimConfig.NUM_TILES,
+        )
+        print("  Stale user-count dataset rejected: FAIL")
+        passed = False
+    except ValueError as e:
+        ok = "feature dimension mismatch" in str(e)
+        print(f"  Stale user-count dataset rejected: {'PASS' if ok else 'FAIL'}")
+        passed &= ok
+
+    wrong_tile_count = valid_train[:1]
+    try:
+        validate_dataset_collection(
+            wrong_tile_count,
+            valid_test,
+            DimConfig,
+            expected_num_tiles=DimConfig.NUM_TILES,
+        )
+        print("  Wrong tile count rejected: FAIL")
+        passed = False
+    except ValueError as e:
+        ok = "tile-count mismatch" in str(e)
+        print(f"  Wrong tile count rejected: {'PASS' if ok else 'FAIL'}")
+        passed &= ok
+
+    print(f"\n  Overall: {'PASS' if passed else 'FAIL'}")
+    return passed
+
+
+# ============================================================================
 # Main
 # ============================================================================
 
@@ -532,6 +617,7 @@ def main():
     results['gnn_forward'] = test_gnn_forward()
     results['steering_vector'] = test_steering_vector_norm()
     results['snr_formula'] = test_snr_formula()
+    results['dataset_dims'] = test_dataset_dimension_contract()
 
     print("\n" + "=" * 60)
     print("SUMMARY")

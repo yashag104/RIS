@@ -176,6 +176,7 @@ class Config:
 
     # ============ Logging ============
     VERBOSE = True
+    LOG_LEVEL = "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
     SAVE_EVERY_N_ROUNDS = 10
     
     # ============ Dynamic Duty Cycling (Pixel-Level) ============
