@@ -21,6 +21,7 @@ Disadvantages:
 """
 
 import numpy as np
+from utils.logger import logger
 from typing import Dict, List, Optional
 
 
@@ -188,7 +189,7 @@ class SCAOptimizer:
         
         for i, sample in enumerate(channel_samples):
             if self.verbose and i % 10 == 0:
-                print(f"  SCA: Processing sample {i+1}/{len(channel_samples)}")
+                logger.info(f"  SCA: Processing sample {i+1}/{len(channel_samples)}")
                 
             result = self.optimize_phases(
                 h_direct=sample['h_direct'],

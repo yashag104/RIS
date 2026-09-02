@@ -10,6 +10,7 @@ Comparison with Federated Learning:
 """
 
 import torch
+from utils.logger import logger
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, ConcatDataset
@@ -113,7 +114,7 @@ class CentralizedRIS:
             })
             
             if (epoch + 1) % 10 == 0 and getattr(self.config, 'VERBOSE', False):
-                print(f"Centralized Training - Epoch {epoch+1}/{epochs}, Loss: {avg_epoch_loss:.6f}")
+                logger.info(f"Centralized Training - Epoch {epoch+1}/{epochs}, Loss: {avg_epoch_loss:.6f}")
         
         # Compute final metrics
         metrics = {

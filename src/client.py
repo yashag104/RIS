@@ -4,6 +4,7 @@ Each RIS tile trains its local model on its data
 """
 
 import torch
+from utils.logger import logger
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
@@ -194,7 +195,7 @@ class RISClient:
             self.train_losses.append(epoch_loss)
 
             if self.config.VERBOSE and epoch % 2 == 0:
-                print(f"  Client {self.client_id} | Epoch {epoch + 1}/{epochs} | Loss: {epoch_loss:.6f}")
+                logger.debug(f"  Client {self.client_id} | Epoch {epoch + 1}/{epochs} | Loss: {epoch_loss:.6f}")
 
         self.local_epochs_completed += epochs
         self.samples_processed += total_samples
@@ -416,7 +417,7 @@ class RISClient:
                 # Per-sample assertion: FL SNR must not exceed genie-aided optimal
                 snr_fl_db = snr_optimized_ris[-1]
                 if snr_fl_db > snr_opt_db + 0.1:  # 0.1 dB tolerance for float precision
-                    print(f"  WARNING: Sample {i}: FL SNR ({snr_fl_db:.2f} dB) > "
+                    logger.warning(f"  WARNING: Sample {i}: FL SNR ({snr_fl_db:.2f} dB) > "
                           f"genie-aided ({snr_opt_db:.2f} dB) by "
                           f"{snr_fl_db - snr_opt_db:.2f} dB. "
                           f"Check channel/phase computation.")
@@ -425,7 +426,7 @@ class RISClient:
         mean_optimal = np.mean(snr_optimal)
         mean_predicted = np.mean(snr_optimized_ris)
         if mean_predicted > mean_optimal + 0.01:
-            print(f"  WARNING: FL SNR ({mean_predicted:.2f} dB) exceeds genie-aided optimal "
+            logger.warning(f"  WARNING: FL SNR ({mean_predicted:.2f} dB) exceeds genie-aided optimal "
                   f"({mean_optimal:.2f} dB). Check SNR computation.")
 
         metrics = {

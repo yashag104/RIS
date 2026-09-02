@@ -1,6 +1,9 @@
 """
-Publication-Quality Plotting for FL-RIS Research
+Publication-Quality Plotting for FL-RIS Research (Base Utilities)
 =================================================
+Plotting utilities for single FL training runs and basic evaluations.
+For cross-experiment comparison plots, see `plotting_advanced.py`.
+
 IEEE-standard figures with ColorBrewer palettes, confidence intervals,
 literature reference annotations, and consistent professional styling.
 """

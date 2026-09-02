@@ -6,6 +6,7 @@ document from saved experiment JSON results.
 """
 
 import os
+from utils.logger import logger
 import json
 import csv
 import numpy as np
@@ -136,7 +137,7 @@ class ReportGenerator:
         generated = self._regenerate_figures()
         self._generate_tables()
         self._generate_summary(generated)
-        print(f"Report generated: {self.output_dir}/")
+        logger.info(f"Report generated: {self.output_dir}/")
 
     def _regenerate_figures(self):
         """Regenerate all figures from saved JSON results."""
@@ -176,11 +177,11 @@ class ReportGenerator:
                 try:
                     plot_func(json_data, self.figures_dir)
                     generated.append(result_name)
-                    print(f"  Generated: {result_name}")
+                    logger.info(f"  Generated: {result_name}")
                 except Exception as e:
-                    print(f"  [SKIP] {result_name}: {e}")
+                    logger.info(f"  [SKIP] {result_name}: {e}")
             else:
-                print(f"  [MISS] No data for {result_name}")
+                logger.info(f"  [MISS] No data for {result_name}")
 
         return generated
 

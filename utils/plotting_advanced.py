@@ -1,5 +1,5 @@
 """
-Advanced Plotting Functions for FL-RIS Research Experiments
+Cross-Experiment Comparison Plotting Functions
 ============================================================
 Publication-quality figures for all 20 experiments.
 Each function includes literature reference annotations.

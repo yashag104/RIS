@@ -13,6 +13,7 @@ Reference channel model follows 3GPP TR 38.901 conventions for mmWave.
 """
 
 import numpy as np
+from utils.logger import logger
 from typing import Tuple, Dict, Optional, List
 import os
 
@@ -825,7 +826,7 @@ class DeepMIMODatasetLoader:
             self.dm = DeepMIMO
             self.is_installed = True
         except ImportError:
-            print("WARNING: DeepMIMOv3 not found. Place the DeepMIMOv3 folder in the project root.")
+            logger.warning("DeepMIMOv3 not found. Place the DeepMIMOv3 folder in the project root.")
             self.is_installed = False
 
     @property
@@ -1031,8 +1032,8 @@ def generate_ris_channel_dataset(
                 )
                 return _channels_to_dataset(dm_channels, num_ris_elements, csi_error_variance)
             except Exception as e:
-                print(f"DeepMIMO generation failed: {e}")
-                print("Falling back to synthetic Rician channel model.")
+                logger.error(f"DeepMIMO generation failed: {e}")
+                logger.info("Falling back to synthetic Rician channel model.")
     
     # ---- Synthetic Rician channel ----
     channel_model = RicianChannel(

@@ -10,6 +10,7 @@ Supports:
 """
 
 import numpy as np
+from utils.logger import logger
 import torch
 from torch.utils.data import Dataset, DataLoader
 from scipy.spatial.distance import euclidean
@@ -283,7 +284,7 @@ def save_datasets(datasets, test_dataset, save_path):
     with open(os.path.join(save_path, 'datasets.pkl'), 'wb') as f:
         pickle.dump(data, f)
 
-    print(f"Datasets saved to {save_path}")
+    logger.info(f"Datasets saved to {save_path}")
 
 
 def load_datasets(load_path):

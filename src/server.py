@@ -6,6 +6,7 @@ Coordinates federated learning across RIS tiles
 import torch
 import numpy as np
 import copy
+from utils.logger import logger
 from collections import OrderedDict
 
 
@@ -176,7 +177,7 @@ class FederatedServer:
                 client.set_scaffold_controls(self.scaffold_c_global)
 
         if self.config.VERBOSE:
-            print(f"  [Server] Broadcasted model to {len(clients)} clients "
+            logger.info(f"  [Server] Broadcasted model to {len(clients)} clients "
                   f"({total_bytes / 1024:.2f} KB total)")
 
     def aggregate_round(self, clients, round_num):
@@ -191,9 +192,9 @@ class FederatedServer:
         Returns:
             Dictionary with round metrics
         """
-        print(f"\n{'='*60}")
-        print(f"Round {round_num + 1}/{self.config.FL_ROUNDS} [{self.aggregation_method}]")
-        print(f"{'='*60}")
+        logger.info(f"\n{'='*60}")
+        logger.info(f"Round {round_num + 1}/{self.config.FL_ROUNDS} [{self.aggregation_method}]")
+        logger.info(f"{'='*60}")
 
         # Step 1: Broadcast current global model (+ FedProx/SCAFFOLD state)
         self.broadcast_model(clients)
@@ -216,7 +217,7 @@ class FederatedServer:
             if self.aggregation_method == 'SCAFFOLD':
                 old_weights_list.append(client.get_model_weights())
 
-            print(f"\n[Client {client.client_id}] Starting local training...")
+            logger.debug(f"\n[Client {client.client_id}] Starting local training...")
             metrics = client.train_local_model(self.config.LOCAL_EPOCHS)
             client_metrics.append(metrics)
 
@@ -235,7 +236,7 @@ class FederatedServer:
                 c_deltas.append(c_delta)
 
         # Step 3: Aggregate weights at server
-        print(f"\n[Server] Aggregating weights from {len(clients)} clients...")
+        logger.info(f"\n[Server] Aggregating weights from {len(clients)} clients...")
         aggregated_weights = self.aggregate_weights(
             client_weights, client_sizes, c_deltas=c_deltas
         )
@@ -265,10 +266,10 @@ class FederatedServer:
         self.round_metrics.append(round_metric)
 
         # Print summary
-        print(f"\n[Round {round_num + 1} Summary]")
-        print(f"  Avg Loss: {round_metric['avg_client_loss']:.6f}")
-        print(f"  Total Energy: {round_metric['total_energy']:.6f} J")
-        print(f"  Communication: {round_metric['total_bytes'] / 1024:.2f} KB")
+        logger.info(f"\n[Round {round_num + 1} Summary]")
+        logger.info(f"  Avg Loss: {round_metric['avg_client_loss']:.6f}")
+        logger.info(f"  Total Energy: {round_metric['total_energy']:.6f} J")
+        logger.info(f"  Communication: {round_metric['total_bytes'] / 1024:.2f} KB")
 
         return round_metric
 

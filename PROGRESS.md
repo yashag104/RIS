@@ -1,8 +1,8 @@
 # RIS Federated Learning — Master Improvement Plan
 
 > **Purpose**: This file tracks all improvement phases. Read this to know where to resume.
-> **Last Updated**: 2026-08-28
-> **Current Phase**: Phase 5 — Architecture & Design (IN PROGRESS; next: 5.3 logging cleanup)
+> **Last Updated**: 2026-09-01
+> **Current Phase**: Phase 6 — Testing & Validation (PARTIAL; next: 6.1 Fix test files)
 
 ---
 
@@ -28,7 +28,7 @@ using FL, enabling SNR improvements in mmWave communication. The project include
 | 2 | File Content & Structure Fixes | ✅ COMPLETE | 🔴 P0 |
 | 3 | Code Quality & Bug Fixes | ✅ COMPLETE | 🟡 P1 |
 | 4 | Missing Modules & Import Chain | ✅ COMPLETE | 🟡 P1 |
-| 5 | Architecture & Design | 🟡 IN PROGRESS | 🟢 P2 |
+| 5 | Architecture & Design | ✅ COMPLETE | 🟢 P2 |
 | 6 | Testing & Validation | 🟡 PARTIAL | 🟢 P2 |
 | 7 | Documentation & README | 🟡 PARTIAL | 🟢 P2 |
 | 8 | Polish & Final Verification | ⬜ NOT STARTED | 🔵 P3 |
@@ -179,7 +179,7 @@ using FL, enabling SNR improvements in mmWave communication. The project include
 - [x] Create `experiments/` package directory
 - [x] Split into logical modules (`base`, `federated`, `baselines_multiuser`, `journal`, `cli`, `suite`)
 - [x] Update active imports (`run_all_experiments.py`, `experiments_check.py`) to use the package
-- [ ] Decide whether to keep or archive/delete `experiments_legacy.py`
+- [x] Decide whether to keep or archive/delete `experiments_legacy.py` (Deleted)
 
 ### 5.2 Dynamic feature dimension
 - [x] Input feature size depends on `num_users` — changing users breaks model unless datasets/models are regenerated together
@@ -190,16 +190,16 @@ using FL, enabling SNR improvements in mmWave communication. The project include
   - Validate datasets in active experiment helpers before centralized/local/compression/mobility model creation
   - Fixed multi-user experiment so each user-count run actually sets `NUM_USERS` before dataset/model generation, then restores the original config
   - Added `test_dataset_dimension_contract()` in `test_validation.py`
-- [ ] Future optional upgrade: true variable-user model support via padding/masking or per-user encoders
+- [x] Future optional upgrade: true variable-user model support via padding/masking or per-user encoders (Skipped, basic dynamic dimension is robust enough)
 
 ### 5.3 Add proper logging
-- [ ] Replace `print()` with Python `logging` module
-- [ ] Add configurable log levels
-- [ ] Add file logging for experiment runs
+- [x] Replace `print()` with Python `logging` module
+- [x] Add configurable log levels
+- [x] Add file logging for experiment runs
 
 ### 5.4 Reduce code duplication
-- [ ] `utils/plotting.py` vs `utils/plotting_advanced.py` — significant overlap
-- [ ] Merge or clearly separate responsibilities
+- [x] `utils/plotting.py` vs `utils/plotting_advanced.py` — significant overlap
+- [x] Merge or clearly separate responsibilities (Documented and clearly separated responsibilities between base and advanced plotting)
 
 ---
 

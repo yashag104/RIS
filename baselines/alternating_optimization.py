@@ -17,6 +17,7 @@ This serves as a strong baseline - achieves near-optimal performance but:
 """
 
 import numpy as np
+from utils.logger import logger
 import torch
 from typing import Tuple, Dict, List
 
@@ -105,7 +106,7 @@ class AlternatingOptimization:
                 snr_improvement = snr_db - prev_snr
                 if snr_improvement < self.convergence_threshold:
                     if self.verbose:
-                        print(f"AO converged at iteration {iteration}, SNR = {snr_db:.2f} dB")
+                        logger.info(f"AO converged at iteration {iteration}, SNR = {snr_db:.2f} dB")
                     break
             
             prev_snr = snr_db
@@ -137,7 +138,7 @@ class AlternatingOptimization:
             phases = np.mod(phases, 2 * np.pi)
             
             if self.verbose and iteration % 10 == 0:
-                print(f"Iteration {iteration}: SNR = {snr_db:.2f} dB")
+                logger.info(f"Iteration {iteration}: SNR = {snr_db:.2f} dB")
         
         return phases, snr_history
     

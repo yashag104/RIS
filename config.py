@@ -177,6 +177,7 @@ class Config:
     # ============ Logging ============
     VERBOSE = True
     LOG_LEVEL = "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+    LOG_FILE = "ris_fl.log"  # Log file name (None to disable)
     SAVE_EVERY_N_ROUNDS = 10
     
     # ============ Dynamic Duty Cycling (Pixel-Level) ============
