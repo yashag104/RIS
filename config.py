@@ -16,6 +16,29 @@ import torch
 
 
 class Config:
+    """Central configuration namespace for the RIS Federated Learning system.
+
+    All attributes are class-level constants (no instance needed).  Groups:
+
+    * **System** — ``DEVICE``, ``SEED``, ``RANDOM_SEEDS``
+    * **Tile / Pixel grid** — ``TILE_GRID_ROWS/COLS``, ``PIXEL_GRID_ROWS/COLS``,
+      ``NUM_TILES``, ``ELEMENTS_PER_TILE``, ``TOTAL_RIS_ELEMENTS``
+    * **Environment** — frequency, wavelength, room size, number of users
+    * **Channel model** — K-factor, spatial correlation, path-loss exponents
+    * **FL training** — rounds, local epochs, batch size, learning rate,
+      aggregation method, quantization bits, duty-cycle threshold
+    * **Neural network** — model type, hidden dim, layers, dropout
+    * **NoC simulation** — topology, protocol, bandwidth, link latency
+    * **Paths** — results, plots, and data directories
+
+    Use :meth:`update_tile_config` to recalculate derived tile attributes when
+    changing ``TILE_GRID_ROWS``/``COLS`` at runtime.
+
+    .. warning::
+        ``update_tile_config`` mutates *class-level* attributes; concurrent use
+        across threads or multiple experiment configurations is not safe without
+        explicit synchronisation.
+    """
     # ============ System Parameters ============
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     SEED = 42

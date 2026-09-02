@@ -2,3 +2,134 @@
 2026-08-28 05:48:12,309 | INFO | ris.AdvancedExperiments |   Simulating mobility: 10 m/s...
 2026-08-28 06:06:40,044 | INFO | ris.AdvancedExperiments |   Compressing model to 8-bit...
 2026-08-28 06:06:43,625 | INFO | ris.AdvancedExperiments |   Simulating mobility: 10 m/s...
+2026-09-02 05:56:09,028 | INFO | ris.main | ============================================================
+2026-09-02 05:56:09,029 | INFO | ris.main | BASELINE EVALUATION
+2026-09-02 05:56:09,030 | INFO | ris.main | ============================================================
+2026-09-02 05:56:09,032 | INFO | ris.main | Evaluating: No RIS (direct link)
+2026-09-02 05:56:09,033 | INFO | ris.main |   SNR: -15.65 dB
+2026-09-02 05:56:09,034 | INFO | ris.main |   Rate: 0.04 bps/Hz
+2026-09-02 05:56:09,034 | INFO | ris.main | 
+Evaluating: Random RIS
+2026-09-02 05:56:09,035 | INFO | ris.main |   SNR: -15.62 dB
+2026-09-02 05:56:09,036 | INFO | ris.main |   Rate: 0.04 bps/Hz
+2026-09-02 05:56:09,037 | INFO | ris.main | 
+Evaluating: Optimal (Genie-aided)
+2026-09-02 05:56:09,038 | INFO | ris.main |   SNR: -14.87 dB
+2026-09-02 05:56:09,039 | INFO | ris.main |   Rate: 0.05 bps/Hz
+2026-09-02 05:56:09,040 | INFO | ris.main | ============================================================
+2026-09-02 05:56:09,041 | INFO | ris.main | FEDERATED LEARNING TRAINING
+2026-09-02 05:56:09,042 | INFO | ris.main | ============================================================
+2026-09-02 05:56:09,042 | INFO | ris.main | ============================================================
+2026-09-02 05:56:09,043 | INFO | ris.main | MODEL INITIALIZATION
+2026-09-02 05:56:09,044 | INFO | ris.main | ============================================================
+2026-09-02 05:56:09,063 | INFO | ris.main | [OK] Global model ({config.MODEL_TYPE}) created
+2026-09-02 05:56:09,066 | INFO | ris.main |   Total parameters: 621,313
+2026-09-02 05:56:09,067 | INFO | ris.main |   Model size (FP32): 2427.00 KB
+2026-09-02 05:56:09,068 | INFO | ris.main |   Model size (INT8 for FL comm): 606.75 KB
+2026-09-02 05:56:09,069 | INFO | ris.main |   Expected comm per round: 2427.00 KB (= 621313 B x 2 x 2 tiles)
+2026-09-02 05:56:09,069 | INFO | ris.main |   Expected total comm (1 rounds): 2427.00 KB = 2.37 MB
+2026-09-02 05:56:09,110 | INFO | ris.main | [OK] Created {len(clients)} RIS tile clients
+2026-09-02 05:56:09,111 | INFO | ris.main | 
+Starting Federated Learning for 1 rounds...
+2026-09-02 05:56:09,112 | INFO | ris.main | Local epochs per round: 1
+2026-09-02 05:56:09,452 | INFO | ris.main | [Evaluation] Testing global model...
+2026-09-02 05:56:09,553 | INFO | ris.main |   Test Loss: 2.983506
+2026-09-02 05:56:09,554 | INFO | ris.main |   Phase Error: 1.5124 rad (86.65°)
+2026-09-02 05:56:09,555 | INFO | ris.main |   SNR (Optimized): -15.69 dB
+2026-09-02 05:56:09,555 | INFO | ris.main |   SNR Gain: -0.04 dB
+2026-09-02 05:56:09,787 | INFO | ris.main | ============================================================
+2026-09-02 05:56:09,788 | INFO | ris.main | TRAINING COMPLETE
+2026-09-02 05:56:09,791 | INFO | ris.main | ============================================================
+2026-09-02 05:56:09,792 | INFO | ris.main | 
+  Communication check:
+2026-09-02 05:56:09,794 | INFO | ris.main |     Model parameters: 621,313
+2026-09-02 05:56:09,795 | INFO | ris.main |     Expected total: 2.37 MB
+2026-09-02 05:56:09,796 | INFO | ris.main |     Actual total:   2.37 MB
+2026-09-02 05:56:13,359 | INFO | ris.main | ============================================================
+2026-09-02 05:56:13,363 | INFO | ris.main | BASELINE EVALUATION
+2026-09-02 05:56:13,364 | INFO | ris.main | ============================================================
+2026-09-02 05:56:13,364 | INFO | ris.main | Evaluating: No RIS (direct link)
+2026-09-02 05:56:13,365 | INFO | ris.main |   SNR: -14.64 dB
+2026-09-02 05:56:13,366 | INFO | ris.main |   Rate: 0.05 bps/Hz
+2026-09-02 05:56:13,370 | INFO | ris.main | 
+Evaluating: Random RIS
+2026-09-02 05:56:13,371 | INFO | ris.main |   SNR: -14.64 dB
+2026-09-02 05:56:13,372 | INFO | ris.main |   Rate: 0.05 bps/Hz
+2026-09-02 05:56:13,373 | INFO | ris.main | 
+Evaluating: Optimal (Genie-aided)
+2026-09-02 05:56:13,374 | INFO | ris.main |   SNR: -14.01 dB
+2026-09-02 05:56:13,375 | INFO | ris.main |   Rate: 0.06 bps/Hz
+2026-09-02 05:56:13,376 | INFO | ris.main | ============================================================
+2026-09-02 05:56:13,382 | INFO | ris.main | FEDERATED LEARNING TRAINING
+2026-09-02 05:56:13,382 | INFO | ris.main | ============================================================
+2026-09-02 05:56:13,383 | INFO | ris.main | ============================================================
+2026-09-02 05:56:13,384 | INFO | ris.main | MODEL INITIALIZATION
+2026-09-02 05:56:13,384 | INFO | ris.main | ============================================================
+2026-09-02 05:56:13,415 | INFO | ris.main | [OK] Global model ({config.MODEL_TYPE}) created
+2026-09-02 05:56:13,420 | INFO | ris.main |   Total parameters: 621,313
+2026-09-02 05:56:13,420 | INFO | ris.main |   Model size (FP32): 2427.00 KB
+2026-09-02 05:56:13,421 | INFO | ris.main |   Model size (INT8 for FL comm): 606.75 KB
+2026-09-02 05:56:13,421 | INFO | ris.main |   Expected comm per round: 2427.00 KB (= 621313 B x 2 x 2 tiles)
+2026-09-02 05:56:13,422 | INFO | ris.main |   Expected total comm (1 rounds): 2427.00 KB = 2.37 MB
+2026-09-02 05:56:13,472 | INFO | ris.main | [OK] Created {len(clients)} RIS tile clients
+2026-09-02 05:56:13,473 | INFO | ris.main | 
+Starting Federated Learning for 1 rounds...
+2026-09-02 05:56:13,474 | INFO | ris.main | Local epochs per round: 1
+2026-09-02 05:56:13,743 | INFO | ris.main | [Evaluation] Testing global model...
+2026-09-02 05:56:13,838 | INFO | ris.main |   Test Loss: 3.925263
+2026-09-02 05:56:13,839 | INFO | ris.main |   Phase Error: 1.7684 rad (101.32°)
+2026-09-02 05:56:13,840 | INFO | ris.main |   SNR (Optimized): -14.58 dB
+2026-09-02 05:56:13,841 | INFO | ris.main |   SNR Gain: 0.05 dB
+2026-09-02 05:56:13,900 | INFO | ris.main | ============================================================
+2026-09-02 05:56:13,901 | INFO | ris.main | TRAINING COMPLETE
+2026-09-02 05:56:13,902 | INFO | ris.main | ============================================================
+2026-09-02 05:56:13,903 | INFO | ris.main | 
+  Communication check:
+2026-09-02 05:56:13,905 | INFO | ris.main |     Model parameters: 621,313
+2026-09-02 05:56:13,906 | INFO | ris.main |     Expected total: 2.37 MB
+2026-09-02 05:56:13,908 | INFO | ris.main |     Actual total:   2.37 MB
+2026-09-02 05:56:14,629 | INFO | ris.AdvancedExperiments |   Compressing model to 8-bit...
+2026-09-02 05:56:16,895 | INFO | ris.main | ============================================================
+2026-09-02 05:56:16,896 | INFO | ris.main | BASELINE EVALUATION
+2026-09-02 05:56:16,898 | INFO | ris.main | ============================================================
+2026-09-02 05:56:16,900 | INFO | ris.main | Evaluating: No RIS (direct link)
+2026-09-02 05:56:16,901 | INFO | ris.main |   SNR: -10.67 dB
+2026-09-02 05:56:16,902 | INFO | ris.main |   Rate: 0.12 bps/Hz
+2026-09-02 05:56:16,903 | INFO | ris.main | 
+Evaluating: Random RIS
+2026-09-02 05:56:16,904 | INFO | ris.main |   SNR: -10.64 dB
+2026-09-02 05:56:16,905 | INFO | ris.main |   Rate: 0.12 bps/Hz
+2026-09-02 05:56:16,906 | INFO | ris.main | 
+Evaluating: Optimal (Genie-aided)
+2026-09-02 05:56:16,907 | INFO | ris.main |   SNR: -9.97 dB
+2026-09-02 05:56:16,908 | INFO | ris.main |   Rate: 0.14 bps/Hz
+2026-09-02 05:56:16,909 | INFO | ris.main | ============================================================
+2026-09-02 05:56:16,909 | INFO | ris.main | FEDERATED LEARNING TRAINING
+2026-09-02 05:56:16,910 | INFO | ris.main | ============================================================
+2026-09-02 05:56:16,911 | INFO | ris.main | ============================================================
+2026-09-02 05:56:16,912 | INFO | ris.main | MODEL INITIALIZATION
+2026-09-02 05:56:16,912 | INFO | ris.main | ============================================================
+2026-09-02 05:56:16,933 | INFO | ris.main | [OK] Global model ({config.MODEL_TYPE}) created
+2026-09-02 05:56:16,934 | INFO | ris.main |   Total parameters: 621,313
+2026-09-02 05:56:16,935 | INFO | ris.main |   Model size (FP32): 2427.00 KB
+2026-09-02 05:56:16,936 | INFO | ris.main |   Model size (INT8 for FL comm): 606.75 KB
+2026-09-02 05:56:16,936 | INFO | ris.main |   Expected comm per round: 2427.00 KB (= 621313 B x 2 x 2 tiles)
+2026-09-02 05:56:16,937 | INFO | ris.main |   Expected total comm (1 rounds): 2427.00 KB = 2.37 MB
+2026-09-02 05:56:17,007 | INFO | ris.main | [OK] Created {len(clients)} RIS tile clients
+2026-09-02 05:56:17,008 | INFO | ris.main | 
+Starting Federated Learning for 1 rounds...
+2026-09-02 05:56:17,009 | INFO | ris.main | Local epochs per round: 1
+2026-09-02 05:56:17,282 | INFO | ris.main | [Evaluation] Testing global model...
+2026-09-02 05:56:17,380 | INFO | ris.main |   Test Loss: 3.272638
+2026-09-02 05:56:17,382 | INFO | ris.main |   Phase Error: 1.5728 rad (90.11°)
+2026-09-02 05:56:17,383 | INFO | ris.main |   SNR (Optimized): -10.46 dB
+2026-09-02 05:56:17,384 | INFO | ris.main |   SNR Gain: 0.21 dB
+2026-09-02 05:56:17,444 | INFO | ris.main | ============================================================
+2026-09-02 05:56:17,446 | INFO | ris.main | TRAINING COMPLETE
+2026-09-02 05:56:17,447 | INFO | ris.main | ============================================================
+2026-09-02 05:56:17,448 | INFO | ris.main | 
+  Communication check:
+2026-09-02 05:56:17,450 | INFO | ris.main |     Model parameters: 621,313
+2026-09-02 05:56:17,451 | INFO | ris.main |     Expected total: 2.37 MB
+2026-09-02 05:56:17,451 | INFO | ris.main |     Actual total:   2.37 MB
+2026-09-02 05:56:17,588 | INFO | ris.AdvancedExperiments |   Simulating mobility: 10 m/s...

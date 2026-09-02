@@ -49,11 +49,11 @@ def test_drl_agent():
         loss = agent.train(batch_size=32)
         print(f"  [OK] Training step works (Loss: {loss:.4f})")
         
-        return True
+        assert True; return True
     except Exception as e:
         print(f"  [FAIL] FAILED: {e}")
         traceback.print_exc()
-        return False
+        assert False; return False
 
 def test_gnn_model():
     print("\n>>> Testing GNN Model Architecture...")
@@ -71,11 +71,11 @@ def test_gnn_model():
         assert out.shape == (8, num_elements)
         print("  [OK] Forward pass works")
         
-        return True
+        assert True; return True
     except Exception as e:
         print(f"  [FAIL] FAILED: {e}")
         traceback.print_exc()
-        return False
+        assert False; return False
 
 def test_experiments_suite():
     print("\n>>> Testing Experiments Suite (Mini-Run)...")
@@ -158,11 +158,11 @@ def test_experiments_suite():
 
             checks.append(False)
 
-        return all(checks)
+        assert all(checks); return all(checks)
     except Exception as e:
         print(f"  [FAIL] FAILED: {e}")
         traceback.print_exc()
-        return False
+        assert False; return False
 
 def run_checks():
     print("="*60)

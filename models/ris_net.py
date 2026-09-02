@@ -4,11 +4,35 @@ import torch.nn.functional as F
 from config import Config
 
 class BaseModel(nn.Module):
-    def count_parameters(self):
+    """Abstract base class for all RIS phase-prediction models.
+
+    Provides a shared :meth:`count_parameters` utility so that training
+    scripts can uniformly report model complexity regardless of architecture.
+    """
+
+    def count_parameters(self) -> int:
+        """Return the total number of trainable parameters."""
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
+
 class MLPModel(BaseModel):
-    def __init__(self, input_dim, num_elements, hidden_dim, num_layers, dropout=0.0):
+    """Multi-Layer Perceptron for RIS phase prediction.
+
+    A fully-connected feed-forward network that maps concatenated channel
+    state features directly to per-element phase shifts.  Each hidden layer
+    uses ReLU activation; optional dropout is applied after every hidden layer.
+
+    Args:
+        input_dim: Dimensionality of the input feature vector.
+        num_elements: Number of RIS elements (output dimension).
+        hidden_dim: Width of each hidden layer.
+        num_layers: Number of hidden layers (must be >= 1).
+        dropout: Dropout probability applied after each hidden layer (0 = off).
+    """
+
+    def __init__(self, input_dim: int, num_elements: int, hidden_dim: int,
+                 num_layers: int, dropout: float = 0.0):
+        """Initialise the MLP by building a sequential stack of linear layers."""
         super().__init__()
         if num_layers < 1:
             raise ValueError("num_layers must be >= 1")
@@ -25,6 +49,14 @@ class MLPModel(BaseModel):
         self.net = nn.Sequential(*layers)
 
     def forward(self, x):
+        """Forward pass: map input features to predicted phase shifts.
+
+        Args:
+            x: Input tensor of shape ``(batch, input_dim)``.
+
+        Returns:
+            Predicted phase shifts of shape ``(batch, num_elements)``.
+        """
         return self.net(x)
 
 
@@ -32,6 +64,7 @@ class RISNet(MLPModel):
     """Backward-compatible name for the default MLP phase predictor."""
 
     def __init__(self, input_dim, num_elements, hidden_dim=256, num_layers=3, dropout=0.1):
+        """Initialise with the same signature as :class:`MLPModel` plus sensible defaults."""
         super().__init__(input_dim, num_elements, hidden_dim, num_layers, dropout)
 
 
@@ -39,7 +72,19 @@ class GraphAttentionLayer(nn.Module):
     """
     Simple GAT layer, based on https://arxiv.org/abs/1710.10903
     """
-    def __init__(self, in_features, out_features, dropout, alpha, concat=True):
+
+    def __init__(self, in_features: int, out_features: int, dropout: float,
+                 alpha: float, concat: bool = True):
+        """Initialise linear projection and attention weight parameters.
+
+        Args:
+            in_features: Input node feature dimension.
+            out_features: Output node feature dimension per head.
+            dropout: Attention coefficient dropout probability.
+            alpha: Negative slope for the LeakyReLU activation.
+            concat: If ``True``, apply ELU activation after aggregation
+                (used for all layers except the final one).
+        """
         super(GraphAttentionLayer, self).__init__()
         self.dropout = dropout
         self.in_features = in_features
@@ -54,6 +99,17 @@ class GraphAttentionLayer(nn.Module):
         self.leakyrelu = nn.LeakyReLU(self.alpha)
 
     def forward(self, h, adj):
+        """Compute attended node features for one graph attention head.
+
+        Args:
+            h: Node feature tensor of shape ``(batch, N, in_features)``.
+            adj: Adjacency matrix of shape ``(N, N)`` or ``(batch, N, N)``;
+                non-zero entries indicate edges.
+
+        Returns:
+            Attended node features of shape ``(batch, N, out_features)``
+            after ELU if ``concat=True``, else raw pre-activation values.
+        """
         Wh = self.W(h) # (batch, N, out_features)
         
         a1 = self.a[:self.out_features, :]
@@ -84,7 +140,18 @@ class GraphAttentionLayer(nn.Module):
 class MultiHeadGraphAttentionLayer(nn.Module):
     """Multi-head GAT block with a stable output feature dimension."""
 
-    def __init__(self, in_features, out_features, num_heads, dropout, alpha, concat=True):
+    def __init__(self, in_features: int, out_features: int, num_heads: int,
+                 dropout: float, alpha: float, concat: bool = True):
+        """Initialise *num_heads* GAT heads and an output projection.
+
+        Args:
+            in_features: Input node feature dimension.
+            out_features: Desired output feature dimension (after projection).
+            num_heads: Number of parallel attention heads (must be ≥ 1).
+            dropout: Attention dropout probability passed to each head.
+            alpha: LeakyReLU negative slope passed to each head.
+            concat: If ``True``, apply ELU after the output projection.
+        """
         super().__init__()
         if num_heads < 1:
             raise ValueError("num_heads must be >= 1")
@@ -102,13 +169,41 @@ class MultiHeadGraphAttentionLayer(nn.Module):
         self.concat = concat
 
     def forward(self, h, adj):
+        """Run all heads in parallel, concatenate, and project to *out_features*.
+
+        Args:
+            h: Node feature tensor of shape ``(batch, N, in_features)``.
+            adj: Adjacency matrix passed through to each head.
+
+        Returns:
+            Node feature tensor of shape ``(batch, N, out_features)``.
+        """
         h = torch.cat([head(h, adj) for head in self.heads], dim=-1)
         h = self.out_proj(h)
         return F.elu(h) if self.concat else h
 
 
 class GNNModel(BaseModel):
-    def __init__(self, input_dim, num_elements, hidden_dim, num_layers, dropout, config=None):
+    """Graph Neural Network model for RIS phase prediction using GAT layers.
+
+    Models RIS element interactions as a spatial graph where nodes are pixels
+    and edges connect 4-neighbours on a rectangular grid.  A shared feature
+    encoder produces a context vector that is added to learnable per-node
+    embeddings; stacked Graph Attention (GAT) layers then perform message
+    passing before a final per-node linear projection yields phase shifts.
+
+    Args:
+        input_dim: Dimensionality of the input feature vector.
+        num_elements: Number of RIS elements; must equal ``grid_rows × grid_cols``.
+        hidden_dim: Default node feature dimension (overridden by ``config.GNN_HIDDEN_DIM``).
+        num_layers: Default number of GAT layers (overridden by ``config.GNN_NUM_LAYERS``).
+        dropout: Dropout probability in the feature encoder.
+        config: Optional :class:`Config` instance for architecture hyper-parameters.
+    """
+
+    def __init__(self, input_dim: int, num_elements: int, hidden_dim: int,
+                 num_layers: int, dropout: float, config=None):
+        """Build the feature encoder, adjacency matrix, node embeddings, and GAT stack."""
         super().__init__()
         self.num_elements = num_elements
         
@@ -174,6 +269,14 @@ class GNNModel(BaseModel):
         return adj
 
     def forward(self, x):
+        """Forward pass through encoder, node-embedding fusion, and GAT layers.
+
+        Args:
+            x: Input tensor of shape ``(batch, input_dim)``.
+
+        Returns:
+            Predicted phase shifts of shape ``(batch, num_elements)``.
+        """
         # x: (batch, input_dim)
         batch_size = x.size(0)
         context = self.feature_encoder(x)
@@ -187,7 +290,23 @@ class GNNModel(BaseModel):
 
 
 class SEBlock(nn.Module):
-    def __init__(self, channel, reduction=16):
+    """Squeeze-and-Excitation channel attention block.
+
+    Recalibrates channel-wise feature responses by modelling inter-channel
+    dependencies.  Applies global average pooling to produce channel
+    descriptors, then uses a bottleneck FC network to produce per-channel
+    scaling weights in [0, 1].
+
+    Args:
+        channel: Number of input channels.
+        reduction: Bottleneck reduction ratio for the FC layers.
+
+    Reference:
+        Hu et al., "Squeeze-and-Excitation Networks," CVPR 2018.
+    """
+
+    def __init__(self, channel: int, reduction: int = 16):
+        """Initialise the squeeze-and-excitation block."""
         super(SEBlock, self).__init__()
         reduced_channels = max(1, channel // reduction)
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
@@ -199,13 +318,41 @@ class SEBlock(nn.Module):
         )
 
     def forward(self, x):
+        """Apply channel-wise squeeze-and-excitation recalibration.
+
+        Args:
+            x: Feature map of shape ``(batch, channel, H, W)``.
+
+        Returns:
+            Rescaled feature map of the same shape.
+        """
         b, c, _, _ = x.size()
         y = self.avg_pool(x).view(b, c)
         y = self.fc(y).view(b, c, 1, 1)
         return x * y.expand_as(x)
 
+
 class CNNModel(BaseModel):
-    def __init__(self, input_dim, num_elements, hidden_dim, num_layers, dropout, config=None):
+    """CNN with Squeeze-and-Excitation attention for RIS phase prediction.
+
+    Interprets the RIS pixel grid as a 2-D image and applies convolutional
+    layers interleaved with SE channel attention.  A shared feature encoder
+    maps the input CSI vector to a context tensor that is added to a
+    learnable spatial embedding before the convolutional trunk.
+
+    Args:
+        input_dim: Dimensionality of the input feature vector.
+        num_elements: Number of RIS elements; must equal ``grid_rows × grid_cols``.
+        hidden_dim: Width of the feature encoder projection.
+        num_layers: Unused (reserved for API consistency with other models).
+        dropout: Dropout probability in the feature encoder.
+        config: Optional :class:`Config` instance for ``PIXEL_GRID_ROWS``,
+            ``PIXEL_GRID_COLS``, ``CNN_HIDDEN_CHANNELS``, and ``CNN_SE_REDUCTION``.
+    """
+
+    def __init__(self, input_dim: int, num_elements: int, hidden_dim: int,
+                 num_layers: int, dropout: float, config=None):
+        """Build feature encoder, spatial embedding, and convolutional trunk."""
         super().__init__()
         self.num_elements = num_elements
         self.grid_rows = getattr(config, 'PIXEL_GRID_ROWS', 8) if config else 8
@@ -242,6 +389,14 @@ class CNNModel(BaseModel):
         self.out_conv = nn.Conv2d(channels, 1, kernel_size=1)
         
     def forward(self, x):
+        """Forward pass: encode CSI, fuse spatial embedding, apply CNN trunk.
+
+        Args:
+            x: Input tensor of shape ``(batch, input_dim)``.
+
+        Returns:
+            Predicted phase shifts of shape ``(batch, num_elements)``.
+        """
         b = x.size(0)
         context = self.feature_encoder(x).view(b, -1, 1, 1)
         h = context + self.spatial_embedding.expand(b, -1, -1, -1)
@@ -253,7 +408,17 @@ class CNNModel(BaseModel):
 class RISNetCNN(BaseModel):
     """Backward-compatible CNN for scripts that pass image-like RIS grids."""
 
-    def __init__(self, input_channels=4, grid_size=(8, 8), hidden_channels=64, se_reduction=16):
+    def __init__(self, input_channels: int = 4, grid_size: tuple = (8, 8),
+                 hidden_channels: int = 64, se_reduction: int = 16):
+        """Initialise the backward-compatible image-input CNN.
+
+        Args:
+            input_channels: Number of channels in the input image tensor
+                (e.g. 4 for a stacked amplitude/phase representation).
+            grid_size: ``(rows, cols)`` spatial size of each RIS tile grid.
+            hidden_channels: Number of feature maps in both conv layers.
+            se_reduction: SE bottleneck reduction ratio.
+        """
         super().__init__()
         self.grid_size = grid_size
         self.num_elements = grid_size[0] * grid_size[1]
@@ -270,12 +435,42 @@ class RISNetCNN(BaseModel):
         self.out_conv = nn.Conv2d(hidden_channels, 1, kernel_size=1)
 
     def forward(self, x):
+        """Apply the convolutional trunk to an image-format input.
+
+        Args:
+            x: Input image tensor of shape
+                ``(batch, input_channels, grid_rows, grid_cols)``.
+
+        Returns:
+            Predicted phase shifts of shape ``(batch, num_elements)``.
+        """
         b = x.size(0)
         return self.out_conv(self.conv_net(x)).view(b, self.num_elements)
 
 
 class TransformerModel(BaseModel):
-    def __init__(self, input_dim, num_elements, hidden_dim, num_layers, dropout, config=None):
+    """Transformer encoder for RIS phase prediction.
+
+    Treats each RIS element as a token in a sequence.  A shared feature
+    encoder maps the input CSI vector to a single context embedding; learnable
+    positional embeddings are added per element before the transformer encoder
+    processes inter-element attention.  A final per-token linear projection
+    yields per-element phase shifts.
+
+    Args:
+        input_dim: Dimensionality of the input feature vector.
+        num_elements: Number of RIS elements (sequence length).
+        hidden_dim: Unused (overridden by ``config.TRANSFORMER_D_MODEL``).
+        num_layers: Unused (overridden by ``config.TRANSFORMER_NUM_LAYERS``).
+        dropout: Dropout probability in encoder layers.
+        config: Optional :class:`Config` for ``TRANSFORMER_D_MODEL``,
+            ``TRANSFORMER_NUM_HEADS``, ``TRANSFORMER_NUM_LAYERS``,
+            ``TRANSFORMER_FF_DIM``.
+    """
+
+    def __init__(self, input_dim: int, num_elements: int, hidden_dim: int,
+                 num_layers: int, dropout: float, config=None):
+        """Build the feature encoder, positional embedding, and transformer encoder stack."""
         super().__init__()
         self.num_elements = num_elements
         
@@ -304,6 +499,14 @@ class TransformerModel(BaseModel):
         self.out_proj = nn.Linear(d_model, 1)
 
     def forward(self, x):
+        """Forward pass: encode CSI, add positional embeddings, apply transformer.
+
+        Args:
+            x: Input tensor of shape ``(batch, input_dim)``.
+
+        Returns:
+            Predicted phase shifts of shape ``(batch, num_elements)``.
+        """
         b = x.size(0)
         context = self.feature_encoder(x)
         h = context.unsqueeze(1) + self.pos_emb.expand(b, -1, -1)
@@ -313,16 +516,28 @@ class TransformerModel(BaseModel):
 
 
 def create_model(
-    model_type,
-    input_dim,
-    num_elements,
-    hidden_dim=None,
-    num_layers=None,
-    dropout=None,
-    config=None
-):
+    model_type: str,
+    input_dim: int,
+    num_elements: int,
+    hidden_dim: int = None,
+    num_layers: int = None,
+    dropout: float = None,
+    config = None
+) -> nn.Module:
     """
     Factory function to create the requested neural network model.
+    
+    Args:
+        model_type: Type of the model (e.g., 'MLP', 'GNN', 'CNN', 'Transformer')
+        input_dim: Dimension of the input features
+        num_elements: Number of elements in the RIS tile
+        hidden_dim: Number of hidden units
+        num_layers: Number of layers
+        dropout: Dropout probability
+        config: Configuration object containing hyperparameters
+        
+    Returns:
+        PyTorch model instance inheriting from nn.Module
     """
     if config is None:
         config = Config

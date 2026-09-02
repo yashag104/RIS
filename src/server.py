@@ -8,6 +8,7 @@ import numpy as np
 import copy
 from utils.logger import logger
 from collections import OrderedDict
+from typing import Any, Dict, List, Optional
 
 
 class FederatedServer:
@@ -16,6 +17,14 @@ class FederatedServer:
     """
 
     def __init__(self, global_model, config):
+        """Initialise the federated learning server.
+
+        Args:
+            global_model: The shared global PyTorch model whose weights will be
+                broadcast to clients and updated by aggregation each round.
+            config: :class:`~config.Config` instance supplying aggregation
+                method, device, and communication settings.
+        """
         self.global_model = global_model
         self.config = config
         self.device = config.DEVICE
@@ -38,7 +47,7 @@ class FederatedServer:
             for name, param in global_model.named_parameters()
         }
 
-    def aggregate_weights_fedavg(self, client_weights, client_sizes):
+    def aggregate_weights_fedavg(self, client_weights: List[Dict], client_sizes: List[int]) -> Dict:
         """
         FedAvg: Weighted average of client models
 
@@ -69,7 +78,7 @@ class FederatedServer:
 
         return aggregated_weights
 
-    def aggregate_weights_fedprox(self, client_weights, client_sizes, mu=0.01):
+    def aggregate_weights_fedprox(self, client_weights: List[Dict], client_sizes: List[int], mu: float = 0.01) -> Dict:
         """
         FedProx: FedAvg with proximal term (useful for non-IID)
 
@@ -96,7 +105,7 @@ class FederatedServer:
 
         return aggregated_weights
 
-    def aggregate_weights_scaffold(self, client_weights, client_sizes, c_deltas):
+    def aggregate_weights_scaffold(self, client_weights: List[Dict], client_sizes: List[int], c_deltas: List[Dict]) -> Dict:
         """
         SCAFFOLD: FedAvg + control variate correction
         
@@ -125,7 +134,7 @@ class FederatedServer:
 
         return aggregated_weights
 
-    def aggregate_weights(self, client_weights, client_sizes, **kwargs):
+    def aggregate_weights(self, client_weights: List[Dict], client_sizes: List[int], **kwargs) -> Dict:
         """
         Main aggregation function - routes to specific method
 
@@ -147,7 +156,7 @@ class FederatedServer:
         else:
             raise ValueError(f"Unknown aggregation method: {self.aggregation_method}")
 
-    def broadcast_model(self, clients):
+    def broadcast_model(self, clients: List) -> None:
         """
         Send global model to all clients.
         Also sets FedProx reference and SCAFFOLD controls.
@@ -180,7 +189,7 @@ class FederatedServer:
             logger.info(f"  [Server] Broadcasted model to {len(clients)} clients "
                   f"({total_bytes / 1024:.2f} KB total)")
 
-    def aggregate_round(self, clients, round_num):
+    def aggregate_round(self, clients: List, round_num: int) -> Dict[str, Any]:
         """
         Execute one round of federated learning.
         Supports FedAvg, FedProx, and SCAFFOLD.
@@ -273,15 +282,15 @@ class FederatedServer:
 
         return round_metric
 
-    def get_global_model(self):
+    def get_global_model(self) -> "torch.nn.Module":
         """Return the global model"""
         return self.global_model
 
-    def get_global_weights(self):
+    def get_global_weights(self) -> Dict:
         """Return global model weights"""
         return self.global_model.state_dict()
 
-    def get_communication_summary(self):
+    def get_communication_summary(self) -> Dict[str, Any]:
         """
         Get summary of communication costs
 
@@ -319,7 +328,7 @@ class FederatedServer:
 
         return summary
 
-    def get_convergence_metrics(self):
+    def get_convergence_metrics(self) -> Dict[str, Any]:
         """
         Analyze convergence behavior
 

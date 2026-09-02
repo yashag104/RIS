@@ -129,6 +129,39 @@ Use these files when comparing the Python NoC simulator with hardware-accurate N
 - The repo currently uses a class-based `Config`; several experiments mutate config values at class scope, so isolate experiment overrides carefully.
 - Some scripts generate results and plots as part of normal operation.
 
+## Architecture Diagram
+
+```mermaid
+graph TD
+    subgraph Federated Server
+    S[Global Server] --> |Broadcasts global model| C
+    C --> |Uploads local updates| S
+    end
+    
+    subgraph RIS Array
+    C[RIS Tiles] --> |Local training on| D[Tile Dataset]
+    C --> |Phase predictions| R[RIS Elements]
+    end
+    
+    subgraph Environment
+    R -.-> |Beamforming| U[Users]
+    BS[Base Station] -.-> |Direct/Cascaded Channel| R
+    BS -.-> |Direct Channel| U
+    end
+```
+
+## Results / Figures
+
+The results of the experiments will be saved automatically in the `plots/` and `results/` directories.
+Some typical results you will find include:
+- **Convergence Curves**: Loss vs Communication Rounds
+- **SNR Improvement**: SNR comparison between No RIS, Random RIS, Baseline methods, and FL RIS
+- **NoC Metrics**: Latency, Bandwidth, and Energy utilization of different communication protocols
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
 ## References
 
 Reference annotations used by plotting/report generation live in `utils/references.py`. The code comments cite the main methods used for FL aggregation, RIS optimization, GAT models, TD3, and NoC all-reduce protocols.

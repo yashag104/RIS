@@ -1,8 +1,8 @@
 # RIS Federated Learning — Master Improvement Plan
 
 > **Purpose**: This file tracks all improvement phases. Read this to know where to resume.
-> **Last Updated**: 2026-09-01
-> **Current Phase**: Phase 6 — Testing & Validation (PARTIAL; next: 6.1 Fix test files)
+> **Last Updated**: 2026-09-02
+> **Current Phase**: Phase 8 — Polish & Final Verification (next: 8.1 End-to-end verification)
 
 ---
 
@@ -29,8 +29,8 @@ using FL, enabling SNR improvements in mmWave communication. The project include
 | 3 | Code Quality & Bug Fixes | ✅ COMPLETE | 🟡 P1 |
 | 4 | Missing Modules & Import Chain | ✅ COMPLETE | 🟡 P1 |
 | 5 | Architecture & Design | ✅ COMPLETE | 🟢 P2 |
-| 6 | Testing & Validation | 🟡 PARTIAL | 🟢 P2 |
-| 7 | Documentation & README | 🟡 PARTIAL | 🟢 P2 |
+| 6 | Testing & Validation | ✅ COMPLETE | 🟢 P2 |
+| 7 | Documentation & README | ✅ COMPLETE | 🟢 P2 |
 | 8 | Polish & Final Verification | ⬜ NOT STARTED | 🔵 P3 |
 
 ---
@@ -206,7 +206,7 @@ using FL, enabling SNR improvements in mmWave communication. The project include
 ## Phase 6: Testing & Validation
 
 ### 6.1 Fix existing test files
-- [ ] `test_components.py` — fix imports, verify runs
+- [x] `test_components.py` — fix imports, verify runs
 - [x] `test_smoke.py` — fix `sys.path.insert(0, '.')` to work from any directory
 - [x] `test_validation.py` — fix `exit(main())` pattern; still script-style, not full pytest assertions
 - [x] `experiments_check.py` — replace commented/false-positive checks with real mini checks
@@ -216,10 +216,10 @@ using FL, enabling SNR improvements in mmWave communication. The project include
 - [x] Test model creation smoke coverage (`test_smoke.py`: MLP, CNN_Attention, GNN)
 - [x] Test channel model correctness/sanity coverage (`test_validation.py`)
 - [x] Test 1 FL round end-to-end (`experiments_check.py` mini-FL)
-- [ ] Test NoC simulator (all topologies × protocols)
-- [ ] Test baseline optimizers
-- [ ] Add Transformer to smoke/model-creation coverage
-- [ ] Convert script-style checks to pytest-compatible tests
+- [x] Test NoC simulator (all topologies × protocols)
+- [x] Test baseline optimizers
+- [x] Add Transformer to smoke/model-creation coverage
+- [x] Convert script-style checks to pytest-compatible tests
 
 ---
 
@@ -227,18 +227,18 @@ using FL, enabling SNR improvements in mmWave communication. The project include
 
 ### 7.1 Write proper README.md
 - [x] Project overview
-- [ ] Architecture diagram
+- [x] Architecture diagram
 - [x] Installation guide
 - [x] Quick start / usage
 - [x] Configuration reference
 - [x] Experiment guide
-- [ ] Results / figures
+- [x] Results / figures
 - [x] References / citations
-- [ ] License
+- [x] License
 
 ### 7.2 Add/fix docstrings
-- [ ] Audit all public functions
-- [ ] Add missing type hints
+- [x] Audit all public functions
+- [x] Add missing type hints
 
 ---
 
@@ -273,3 +273,4 @@ using FL, enabling SNR improvements in mmWave communication. The project include
 | Date | Phase | Items Completed | Notes |
 |------|-------|-----------------|-------|
 | 2026-08-25 | — | Plan created | Initial comprehensive analysis of all files |
+| 2026-09-02 | 7 | Type hints & Docs | Added typing to metrics.py, client.py, server.py, dataset_utils.py. Phase 7 Complete. |

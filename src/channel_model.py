@@ -831,6 +831,7 @@ class DeepMIMODatasetLoader:
 
     @property
     def is_available(self) -> bool:
+        """Return ``True`` if the DeepMIMOv3 package is installed and usable."""
         return self.is_installed
 
     def _check_scenario_present(self):

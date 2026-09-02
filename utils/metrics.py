@@ -4,11 +4,10 @@ Wireless performance, learning metrics, and hardware efficiency
 """
 
 import numpy as np
-import torch
-from scipy.stats import entropy
+from typing import Any, Dict, List
 
 
-def dbm_to_watts(dbm):
+def dbm_to_watts(dbm: float) -> float:
     """
     Convert dBm to Watts.
 
@@ -25,7 +24,7 @@ def dbm_to_watts(dbm):
     return 10.0 ** ((dbm - 30.0) / 10.0)
 
 
-def calculate_snr(signal_power, noise_power_dbm=-90):
+def calculate_snr(signal_power: float, noise_power_dbm: float = -90) -> float:
     """
     Calculate Signal-to-Noise Ratio
 
@@ -42,7 +41,7 @@ def calculate_snr(signal_power, noise_power_dbm=-90):
     return snr_db
 
 
-def compute_ris_snr_db(h_direct, h_ris_user, h_bs_ris, phases, tx_power, noise_power):
+def compute_ris_snr_db(h_direct: "np.ndarray", h_ris_user: "np.ndarray", h_bs_ris: "np.ndarray", phases: "np.ndarray", tx_power: float, noise_power: float) -> float:
     """
     Compute SNR for RIS-aided channel with cascaded model.
 
@@ -66,7 +65,7 @@ def compute_ris_snr_db(h_direct, h_ris_user, h_bs_ris, phases, tx_power, noise_p
     return 10 * np.log10(signal / noise_power)
 
 
-def calculate_sinr(signal_power, interference_power, noise_power_dbm=-90):
+def calculate_sinr(signal_power: float, interference_power: float, noise_power_dbm: float = -90) -> float:
     """
     Calculate Signal-to-Interference-plus-Noise Ratio
 
@@ -84,7 +83,7 @@ def calculate_sinr(signal_power, interference_power, noise_power_dbm=-90):
     return sinr_db
 
 
-def calculate_achievable_rate(snr_db):
+def calculate_achievable_rate(snr_db: float) -> float:
     """
     Calculate achievable data rate using Shannon capacity
 
@@ -99,7 +98,7 @@ def calculate_achievable_rate(snr_db):
     return rate
 
 
-def calculate_phase_error(predicted_phases, true_phases):
+def calculate_phase_error(predicted_phases: "np.ndarray", true_phases: "np.ndarray") -> Dict[str, float]:
     """
     Calculate phase prediction error (circular metric)
 
@@ -128,7 +127,7 @@ def calculate_phase_error(predicted_phases, true_phases):
     return metrics
 
 
-def calculate_beam_alignment(predicted_phases, true_phases, h_ris):
+def calculate_beam_alignment(predicted_phases: "np.ndarray", true_phases: "np.ndarray", h_ris: "np.ndarray") -> Dict[str, float]:
     """
     Calculate beam alignment quality
 
@@ -161,7 +160,7 @@ def calculate_beam_alignment(predicted_phases, true_phases, h_ris):
     return metrics
 
 
-def calculate_energy_efficiency(total_energy, achievable_rate):
+def calculate_energy_efficiency(total_energy: float, achievable_rate: float) -> Dict[str, float]:
     """
     Calculate energy efficiency (bits per Joule)
 
@@ -185,7 +184,7 @@ def calculate_energy_efficiency(total_energy, achievable_rate):
     return metrics
 
 
-def calculate_convergence_metrics(loss_history, threshold=0.01):
+def calculate_convergence_metrics(loss_history: List[float], threshold: float = 0.01) -> Dict[str, Any]:
     """
     Analyze convergence behavior
 
@@ -229,7 +228,7 @@ def calculate_convergence_metrics(loss_history, threshold=0.01):
     return metrics
 
 
-def calculate_communication_efficiency(bytes_transmitted, performance_gain):
+def calculate_communication_efficiency(bytes_transmitted: int, performance_gain: float) -> Dict[str, float]:
     """
     Calculate communication efficiency
 
@@ -251,7 +250,7 @@ def calculate_communication_efficiency(bytes_transmitted, performance_gain):
     return metrics
 
 
-def calculate_noc_metrics(bytes_transmitted, bandwidth_gbps, num_rounds):
+def calculate_noc_metrics(bytes_transmitted: int, bandwidth_gbps: float, num_rounds: int) -> Dict[str, float]:
     """
     Calculate Network-on-Chip metrics
 
@@ -287,15 +286,16 @@ def calculate_noc_metrics(bytes_transmitted, bandwidth_gbps, num_rounds):
     return metrics
 
 
-def calculate_data_heterogeneity(datasets):
+def calculate_data_heterogeneity(datasets: List) -> Dict[str, float]:
     """
     Measure data heterogeneity across clients (non-IID degree)
 
     Args:
-        datasets: List of datasets from different clients
-
+        datasets: List of RISChannelDataset instances (one per client tile);
+            each must have a ``features`` attribute of shape ``(N, D)``.
     Returns:
-        Heterogeneity metrics
+        Dictionary with keys ``mean_divergence``, ``std_divergence``,
+        and ``heterogeneity_score``.
     """
     # Simple approach: compare feature distributions
     feature_means = []
@@ -322,7 +322,7 @@ def calculate_data_heterogeneity(datasets):
     return metrics
 
 
-def calculate_fairness_index(client_performances):
+def calculate_fairness_index(client_performances: List[float]) -> Dict[str, float]:
     """
     Calculate Jain's fairness index across clients
 
@@ -349,7 +349,7 @@ def calculate_fairness_index(client_performances):
     }
 
 
-def create_comparison_table(fl_metrics, baselines):
+def create_comparison_table(fl_metrics: Dict, baselines: Dict) -> Dict[str, List]:
     """
     Create comparison table for paper
 
@@ -415,7 +415,7 @@ def create_comparison_table(fl_metrics, baselines):
 
 # ============ NoC Topology Metrics ============
 
-def calculate_noc_topology_metrics(num_tiles, topology, bytes_transmitted, bandwidth_gbps, num_rounds):
+def calculate_noc_topology_metrics(num_tiles: int, topology: str, bytes_transmitted: int, bandwidth_gbps: float, num_rounds: int) -> Dict[str, Any]:
     """
     Calculate NoC metrics for different topologies.
     
@@ -506,12 +506,17 @@ def calculate_noc_topology_metrics(num_tiles, topology, bytes_transmitted, bandw
     return metrics
 
 
-def compare_all_topologies(num_tiles, bytes_transmitted, bandwidth_gbps, num_rounds):
+def compare_all_topologies(num_tiles: int, bytes_transmitted: int, bandwidth_gbps: float, num_rounds: int) -> Dict[str, Any]:
     """
     Compare all NoC topologies and rank them.
-    
+
+    Args:
+        num_tiles: Number of tiles in the system.
+        bytes_transmitted: Total bytes to transmit across all rounds.
+        bandwidth_gbps: Available NoC bandwidth in Gbps.
+        num_rounds: Number of FL rounds.
     Returns:
-        Dictionary with comparison results and rankings
+        Dictionary with comparison results and rankings per topology.
     """
     topologies = ["Mesh", "Torus", "FoldedTorus", "Tree", "Butterfly"]
     results = {}
@@ -541,9 +546,9 @@ def compare_all_topologies(num_tiles, bytes_transmitted, bandwidth_gbps, num_rou
 
 # ============ Composite Optimization Score ============
 
-def calculate_composite_score(snr_db, energy_mj, comm_kb, 
-                              weight_snr=0.4, weight_energy=0.3, weight_comm=0.3,
-                              snr_ref=70.0, energy_ref=60000.0, comm_ref=2000000.0):
+def calculate_composite_score(snr_db: float, energy_mj: float, comm_kb: float,
+                              weight_snr: float = 0.4, weight_energy: float = 0.3, weight_comm: float = 0.3,
+                              snr_ref: float = 70.0, energy_ref: float = 60000.0, comm_ref: float = 2000000.0) -> Dict[str, float]:
     """
     Calculate composite optimization score.
     Higher score is better.
@@ -587,7 +592,7 @@ def calculate_composite_score(snr_db, energy_mj, comm_kb,
 
 # ============ Tile Efficiency Metrics ============
 
-def calculate_tile_efficiency(snr_gain, energy_j, num_tiles):
+def calculate_tile_efficiency(snr_gain: float, energy_j: float, num_tiles: int) -> Dict[str, float]:
     """
     Calculate SNR gain per tile per Joule.
     
@@ -610,7 +615,7 @@ def calculate_tile_efficiency(snr_gain, energy_j, num_tiles):
     }
 
 
-def calculate_area_coverage(num_tiles, pixels_per_tile, chip_area_m2, wavelength):
+def calculate_area_coverage(num_tiles: int, pixels_per_tile: int, chip_area_m2: float, wavelength: float) -> Dict[str, float]:
     """
     Calculate RIS coverage metrics.
     
@@ -646,8 +651,8 @@ def calculate_area_coverage(num_tiles, pixels_per_tile, chip_area_m2, wavelength
     }
 
 
-def calculate_optimal_tiles_formula(chip_area_m2, pixels_per_tile, bandwidth_gbps, fl_rounds,
-                                     target_utilization=0.8, target_snr_per_tile=8.0):
+def calculate_optimal_tiles_formula(chip_area_m2: float, pixels_per_tile: int, bandwidth_gbps: float, fl_rounds: int,
+                                     target_utilization: float = 0.8, target_snr_per_tile: float = 8.0) -> Dict[str, Any]:
     """
     Calculate optimal number of tiles based on constraints (Golden Ratio).
     
@@ -709,8 +714,8 @@ def calculate_optimal_tiles_formula(chip_area_m2, pixels_per_tile, bandwidth_gbp
 
 # ============ Sleep Scheduling Metrics ============
 
-def calculate_sleep_energy_savings(num_tiles, num_rounds, active_power_w, sleep_power_w,
-                                   sleep_ratio=0.3, round_duration_sec=1.0):
+def calculate_sleep_energy_savings(num_tiles: int, num_rounds: int, active_power_w: float, sleep_power_w: float,
+                                   sleep_ratio: float = 0.3, round_duration_sec: float = 1.0) -> Dict[str, float]:
     """
     Calculate energy savings from sleep scheduling.
     

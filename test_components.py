@@ -66,6 +66,7 @@ def test_dataset_generation():
 
     except Exception as e:
         print(f"✗ FAILED: {e}")
+        assert False, "Test Failed"
         return False
 
 
@@ -122,6 +123,7 @@ def test_model_architecture():
 
     except Exception as e:
         print(f"✗ FAILED: {e}")
+        assert False, "Test Failed"
         return False
 
 
@@ -193,6 +195,7 @@ def test_client():
         print(f"✗ FAILED: {e}")
         import traceback
         traceback.print_exc()
+        assert False, "Test Failed"
         return False
 
 
@@ -260,6 +263,7 @@ def test_server():
         print(f"✗ FAILED: {e}")
         import traceback
         traceback.print_exc()
+        assert False, "Test Failed"
         return False
 
 
@@ -293,6 +297,7 @@ def test_metrics():
 
     except Exception as e:
         print(f"✗ FAILED: {e}")
+        assert False, "Test Failed"
         return False
 
 
@@ -349,6 +354,7 @@ def test_plotting():
         print(f"✗ FAILED: {e}")
         import traceback
         traceback.print_exc()
+        assert False, "Test Failed"
         return False
 
 

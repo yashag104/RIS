@@ -5,13 +5,13 @@ Each RIS tile trains its local model on its data
 
 import torch
 from utils.logger import logger
-import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 import copy
 import numpy as np
 
 from utils.metrics import dbm_to_watts
+from typing import Any, Dict, List, Optional
 
 
 class RISClient:
@@ -24,7 +24,18 @@ class RISClient:
     STATE_ACTIVE = "ACTIVE"
     STATE_SLEEP = "SLEEP"
 
-    def __init__(self, client_id, model, dataset, config):
+    def __init__(self, client_id: int, model, dataset, config):
+        """Initialise a RIS tile client.
+
+        Args:
+            client_id: Unique integer identifier for this tile/client.
+            model: PyTorch model instance (e.g. :class:`~models.ris_net.GNNModel`)
+                that will be trained locally.
+            dataset: A ``torch.utils.data.Dataset`` of ``(features, labels)`` pairs
+                for this tile, or ``None`` if the tile has no local data.
+            config: :class:`~config.Config` instance supplying training
+                hyper-parameters (batch size, learning rate, device, …).
+        """
         self.client_id = client_id
         self.model = model
         self.dataset = dataset
@@ -117,7 +128,7 @@ class RISClient:
         """Circular signed phase error in [-pi, pi]."""
         return torch.remainder(pred - target + torch.pi, 2 * torch.pi) - torch.pi
 
-    def train_local_model(self, epochs):
+    def train_local_model(self, epochs: int) -> Dict[str, Any]:
         """
         Train the local model for specified epochs
 
@@ -219,12 +230,12 @@ class RISClient:
 
         return metrics
 
-    def set_global_reference(self, global_weights):
+    def set_global_reference(self, global_weights: Dict) -> None:
         """Store global model weights for FedProx proximal term."""
         import copy
         self.global_model_weights = copy.deepcopy(global_weights)
 
-    def set_scaffold_controls(self, c_global, c_local=None):
+    def set_scaffold_controls(self, c_global: Dict, c_local: Optional[Dict] = None) -> None:
         """Set SCAFFOLD control variates."""
         import copy
         self.scaffold_c_global = copy.deepcopy(c_global)
@@ -235,7 +246,7 @@ class RISClient:
             self.scaffold_c_local = {name: torch.zeros_like(param) 
                                      for name, param in self.model.named_parameters()}
 
-    def compute_scaffold_update(self, old_weights, new_weights, lr, num_steps):
+    def compute_scaffold_update(self, old_weights: Dict, new_weights: Dict, lr: float, num_steps: int) -> Dict:
         """Compute SCAFFOLD control variate update after local training."""
         import copy
         c_new = {}
@@ -253,15 +264,15 @@ class RISClient:
         self.scaffold_c_local = c_new
         return c_delta
 
-    def get_model_weights(self):
+    def get_model_weights(self) -> Dict:
         """Return current model weights"""
         return copy.deepcopy(self.model.state_dict())
 
-    def set_model_weights(self, weights):
+    def set_model_weights(self, weights: Dict) -> None:
         """Update model with new weights from server"""
         self.model.load_state_dict(weights)
 
-    def evaluate(self, test_loader):
+    def evaluate(self, test_loader) -> Dict[str, Any]:
         """
         Evaluate the local model
 
@@ -337,7 +348,7 @@ class RISClient:
 
         return metrics
 
-    def compute_snr_improvement(self, test_dataset, num_samples=100):
+    def compute_snr_improvement(self, test_dataset, num_samples: int = 100) -> Dict[str, Any]:
         """
         Compute SNR improvement using predicted phase shifts
 
@@ -445,7 +456,7 @@ class RISClient:
 
         return metrics
 
-    def get_communication_cost(self):
+    def get_communication_cost(self) -> Dict[str, float]:
         """
         Calculate communication cost (model size in bytes, INT8 quantized)
         """
@@ -462,7 +473,7 @@ class RISClient:
 
     # ============ Sleep Scheduling Methods ============
 
-    def update_sleep_state(self, signal_strength=None):
+    def update_sleep_state(self, signal_strength: Optional[float] = None) -> str:
         """
         Update sleep state based on signal strength.
         
@@ -497,7 +508,7 @@ class RISClient:
         
         return self.sleep_state
 
-    def should_participate(self):
+    def should_participate(self) -> bool:
         """
         Check if this tile should participate in the current round.
         
@@ -508,7 +519,7 @@ class RISClient:
             return True
         return self.sleep_state == self.STATE_ACTIVE
 
-    def get_current_power(self):
+    def get_current_power(self) -> float:
         """
         Get current power consumption based on sleep state.
         
@@ -519,7 +530,7 @@ class RISClient:
             return self.sleep_power
         return self.active_power
 
-    def get_sleep_metrics(self):
+    def get_sleep_metrics(self) -> Dict[str, Any]:
         """
         Get sleep scheduling metrics.
         
@@ -548,19 +559,19 @@ class RISClient:
             'savings_percentage': (energy_saved / energy_if_always_active * 100) if energy_if_always_active > 0 else 0
         }
 
-    def force_wake(self):
+    def force_wake(self) -> None:
         """Force tile to wake up (useful for aggregation rounds)"""
         self.sleep_state = self.STATE_ACTIVE
         self.rounds_since_check = 0
 
-    def force_sleep(self):
+    def force_sleep(self) -> None:
         """Force tile to sleep (for testing)"""
         if self.sleep_enabled:
             self.sleep_state = self.STATE_SLEEP
 
     # ============ Pixel-Level Duty Cycling Methods ============
 
-    def compute_pixel_mask(self, csi_vector):
+    def compute_pixel_mask(self, csi_vector: "np.ndarray") -> "np.ndarray":
         """
         Compute pixel ON/OFF mask based on CSI and strategy.
         
@@ -611,7 +622,7 @@ class RISClient:
         self.dc_history.append(float(np.mean(mask)))
         return mask
     
-    def apply_duty_cycle_to_phases(self, phases, csi_vector=None):
+    def apply_duty_cycle_to_phases(self, phases: "np.ndarray", csi_vector: Optional["np.ndarray"] = None):
         """
         Apply duty cycling mask to phase shifts.
         Inactive pixels get phase 0 (effectively disconnected).
@@ -632,7 +643,7 @@ class RISClient:
         
         return masked_phases, self.pixel_mask
     
-    def get_duty_cycle_metrics(self):
+    def get_duty_cycle_metrics(self) -> Dict[str, Any]:
         """
         Get pixel-level duty cycling metrics.
         

@@ -69,6 +69,7 @@ def test_dbm_to_watts():
     passed &= ok
 
     print(f"\n  Overall: {'PASS' if passed else 'FAIL'}")
+    assert passed, f"{__name__} failed"
     return passed
 
 
@@ -109,6 +110,7 @@ def test_path_loss():
     passed &= ok
 
     print(f"\n  Overall: {'PASS' if passed else 'FAIL'}")
+    assert passed, f"{__name__} failed"
     return passed
 
 
@@ -171,6 +173,7 @@ def test_no_ris_snr():
 
     print("  Note: Negative SNR reflects the obstructed direct path (exponent=3.5).")
     print(f"\n  Overall: {'PASS' if passed else 'FAIL'}")
+    assert passed, f"{__name__} failed"
     return passed
 
 
@@ -248,6 +251,7 @@ def test_genie_aided_upper_bound():
     passed &= ok
 
     print(f"\n  Overall: {'PASS' if passed else 'FAIL'}")
+    assert passed, f"{__name__} failed"
     return passed
 
 
@@ -296,6 +300,7 @@ def test_torus_adjacency():
 
     print(f"  Each node has 4 neighbors + self-loop: {'PASS' if passed else 'FAIL'}")
     print(f"\n  Overall: {'PASS' if passed else 'FAIL'}")
+    assert passed, f"{__name__} failed"
     return passed
 
 
@@ -358,6 +363,7 @@ def test_communication_volume():
     passed &= ok
 
     print(f"\n  Overall: {'PASS' if passed else 'FAIL'}")
+    assert passed, f"{__name__} failed"
     return passed
 
 
@@ -421,6 +427,7 @@ def test_gnn_forward():
             passed &= gat_has_grad
 
     print(f"\n  Overall: {'PASS' if passed else 'FAIL'}")
+    assert passed, f"{__name__} failed"
     return passed
 
 
@@ -459,6 +466,7 @@ def test_steering_vector_norm():
         print("  All steering vectors have expected norm (sqrt(N)):\tPASS")
     else:
         print("  All steering vectors have expected norm:\t\tFAIL")
+    assert passed, f"{__name__} failed"
     return passed
 
 
@@ -511,6 +519,7 @@ def test_snr_formula():
     passed &= ok
 
     print(f"\n  Overall: {'PASS' if passed else 'FAIL'}")
+    assert passed, f"{__name__} failed"
     return passed
 
 
@@ -595,6 +604,7 @@ def test_dataset_dimension_contract():
         passed &= ok
 
     print(f"\n  Overall: {'PASS' if passed else 'FAIL'}")
+    assert passed, f"{__name__} failed"
     return passed
 
 

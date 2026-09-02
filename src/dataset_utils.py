@@ -12,21 +12,17 @@ Supports:
 import numpy as np
 from utils.logger import logger
 import torch
-from torch.utils.data import Dataset, DataLoader
-from scipy.spatial.distance import euclidean
+from torch.utils.data import Dataset
 import os
 import pickle
+from typing import Any, Dict, List, Optional, Tuple
 
 from src.channel_model import (
     generate_ris_channel_dataset,
-    apply_csi_error,
-    apply_phase_noise,
-    quantize_phases,
-    RicianChannel,
 )
 
 
-def expected_feature_dim(num_ris_elements, num_users):
+def expected_feature_dim(num_ris_elements: int, num_users: int) -> int:
     """
     Return the expected flat feature dimension for generated RIS datasets.
 
@@ -38,12 +34,12 @@ def expected_feature_dim(num_ris_elements, num_users):
     return int(num_users * (2 * num_ris_elements + 5))
 
 
-def expected_label_dim(num_ris_elements):
+def expected_label_dim(num_ris_elements: int) -> int:
     """Return the expected phase-label dimension for one RIS tile."""
     return int(num_ris_elements)
 
 
-def validate_dataset_feature_dim(dataset, config, dataset_name="dataset"):
+def validate_dataset_feature_dim(dataset, config, dataset_name: str = "dataset") -> bool:
     """Validate that a dataset matches the active Config dimensions."""
     if dataset is None:
         raise ValueError(f"{dataset_name} is None")
@@ -87,7 +83,7 @@ def validate_dataset_feature_dim(dataset, config, dataset_name="dataset"):
     return True
 
 
-def validate_dataset_collection(train_datasets, test_dataset, config, expected_num_tiles=None):
+def validate_dataset_collection(train_datasets: List, test_dataset, config, expected_num_tiles: Optional[int] = None) -> int:
     """
     Validate train/test datasets before model creation.
 
@@ -133,13 +129,44 @@ class RISChannelDataset(Dataset):
     Supports both DeepMIMO and synthetic Rician channel generation.
     """
 
-    def __init__(self, num_samples, num_ris_elements, num_users,
-                 room_size, frequency, tile_position=None, non_iid_bias=None,
-                 k_factor_db=10.0, num_paths=5, spatial_corr_rho=0.7,
-                 scenario="LoS", csi_error_variance=0.0,
-                 grid_rows=8, grid_cols=8,
-                 use_deepmimo=False, deepmimo_scenario='O1_28',
-                 deepmimo_data_dir='data/deepmimo'):
+    def __init__(self, num_samples: int, num_ris_elements: int, num_users: int,
+                 room_size, frequency: float, tile_position=None, non_iid_bias=None,
+                 k_factor_db: float = 10.0, num_paths: int = 5,
+                 spatial_corr_rho: float = 0.7, scenario: str = "LoS",
+                 csi_error_variance: float = 0.0, grid_rows: int = 8,
+                 grid_cols: int = 8, use_deepmimo: bool = False,
+                 deepmimo_scenario: str = 'O1_28',
+                 deepmimo_data_dir: str = 'data/deepmimo'):
+        """Generate a synthetic RIS dataset using the configured channel model.
+
+        Args:
+            num_samples: Number of (feature, label) training examples to generate.
+            num_ris_elements: Total number of phase-controllable RIS elements.
+            num_users: Number of single-antenna users in the scene.
+            room_size: 3-tuple ``(x, y, z)`` of room dimensions in metres.
+            frequency: Carrier frequency in Hz (e.g. ``28e9`` for 28 GHz).
+            tile_position: Optional (x, y) position of this tile in the room.
+                When set, channel statistics reflect tile-specific geometry.
+            non_iid_bias: Optional bias vector introducing non-IID heterogeneity
+                across tiles (simulates spatial data skew).
+            k_factor_db: Rician K-factor in dB; controls LoS dominance.
+            num_paths: Number of multi-path components in the channel model.
+            spatial_corr_rho: Spatial correlation coefficient ρ ∈ [0, 1].
+            scenario: Channel scenario label; e.g. ``'LoS'`` or ``'NLoS'``.
+            csi_error_variance: Variance of additive Gaussian CSI estimation noise.
+            grid_rows: Number of pixel rows per RIS tile (must satisfy
+                ``grid_rows × grid_cols == num_ris_elements``).
+            grid_cols: Number of pixel columns per RIS tile.
+            use_deepmimo: If ``True``, use DeepMIMO ray-tracing data instead of
+                the synthetic Rician model (requires DeepMIMOv3 package).
+            deepmimo_scenario: DeepMIMO scenario name (e.g. ``'O1_28'``).
+            deepmimo_data_dir: Path to the directory containing DeepMIMO
+                scenario data files.
+
+        Raises:
+            ValueError: If the generated feature dimension does not match the
+                expected value computed from ``num_ris_elements`` and ``num_users``.
+        """
         self.num_samples = num_samples
         self.num_ris_elements = num_ris_elements
         self.num_users = num_users
@@ -179,27 +206,45 @@ class RISChannelDataset(Dataset):
                 f"got {self.features.shape[1]}"
             )
 
-    def __len__(self):
+    def __len__(self) -> int:
+        """Return the number of samples in the dataset."""
         return self.num_samples
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int):
+        """Return the ``(features, labels)`` pair at the given index.
+
+        Args:
+            idx: Sample index in ``[0, len(self))``.
+
+        Returns:
+            Tuple of ``(torch.FloatTensor, torch.FloatTensor)`` for the
+            feature vector and phase-shift label vector respectively.
+        """
         return (
             torch.FloatTensor(self.features[idx]),
             torch.FloatTensor(self.labels[idx])
         )
 
-    def get_input_dim(self):
+    def get_input_dim(self) -> int:
         """Return input feature dimension"""
         return self.features.shape[1]
 
 
-def create_non_iid_datasets(config, num_tiles):
-    """
-    Create non-IID datasets for different RIS tiles.
-    Each tile sees different spatial distributions.
-    
-    Uses Dirichlet-based non-IID bias where tiles observe
-    users near their physical location.
+def create_non_iid_datasets(config, num_tiles: int) -> Tuple[List, List]:
+    """Create spatially non-IID datasets for a fleet of RIS tiles.
+
+    Each tile's dataset is generated from a distinct spatial location in the
+    room, with a non-IID bias proportional to the tile's displacement from
+    the room centre, simulating real heterogeneity in user distributions.
+
+    Args:
+        config: :class:`~config.Config` instance with room and FL settings.
+        num_tiles: Number of RIS tiles (one dataset is generated per tile).
+
+    Returns:
+        Tuple of:
+        - ``datasets``: List of :class:`RISChannelDataset` instances, one per tile.
+        - ``tile_positions``: List of ``[x, y, z]`` position vectors for each tile.
     """
     datasets = []
 
@@ -243,12 +288,17 @@ def create_non_iid_datasets(config, num_tiles):
     return datasets, tile_positions
 
 
-def create_test_dataset(config):
-    """
-    Create global test dataset (IID).
-    
-    Test data is generated from a different spatial region 
-    (no non-IID bias) to ensure held-out evaluation.
+def create_test_dataset(config) -> "RISChannelDataset":
+    """Create a global IID test dataset from a randomly distributed user population.
+
+    Test data is generated without any non-IID spatial bias so that evaluation
+    reflects the full environment distribution.
+
+    Args:
+        config: :class:`~config.Config` instance with dataset and channel settings.
+
+    Returns:
+        A :class:`RISChannelDataset` with ``config.TEST_SAMPLES`` samples.
     """
     return RISChannelDataset(
         num_samples=config.TEST_SAMPLES,
@@ -272,8 +322,16 @@ def create_test_dataset(config):
     )
 
 
-def save_datasets(datasets, test_dataset, save_path):
-    """Save datasets to disk"""
+def save_datasets(datasets: List, test_dataset, save_path: str) -> None:
+    """Save datasets to disk.
+
+    Args:
+        datasets: List of training :class:`RISChannelDataset` instances.
+        test_dataset: Global test :class:`RISChannelDataset` instance.
+        save_path: Directory path where ``datasets.pkl`` will be written.
+    Returns:
+        None
+    """
     os.makedirs(save_path, exist_ok=True)
 
     data = {
@@ -287,8 +345,14 @@ def save_datasets(datasets, test_dataset, save_path):
     logger.info(f"Datasets saved to {save_path}")
 
 
-def load_datasets(load_path):
-    """Load datasets from disk"""
+def load_datasets(load_path: str) -> Tuple[List, Any]:
+    """Load datasets from disk.
+
+    Args:
+        load_path: Directory containing a previously saved ``datasets.pkl``.
+    Returns:
+        Tuple of ``(train_datasets, test_dataset)``.
+    """
     with open(os.path.join(load_path, 'datasets.pkl'), 'rb') as f:
         data = pickle.load(f)
 
