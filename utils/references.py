@@ -361,7 +361,7 @@ def format_reference_list(experiment_tag):
     """Return a formatted multi-line reference list for reports."""
     refs = get_references_for_experiment(experiment_tag)
     lines = []
-    for key, ref in refs.items():
+    for ref in refs.values():
         lines.append(
             f"  [{ref['key']}] {ref['authors']}, \"{ref['title']},\" "
             f"{ref['venue']}, {ref['year']}."

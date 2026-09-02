@@ -12,9 +12,9 @@ References:
 - Ring-AllReduce: Patarasuk & Yuan, "Bandwidth Optimal All-reduce Algorithms," 2009
 """
 
-import numpy as np
-from typing import Any, Dict, List, Optional, Tuple
 from collections import defaultdict
+
+import numpy as np
 
 try:
     import networkx as nx
@@ -32,7 +32,7 @@ class NoCTopology:
     """
     
     @staticmethod
-    def build_mesh(rows: int, cols: int) -> Dict:
+    def build_mesh(rows: int, cols: int) -> dict:
         """
         2D Mesh topology. Each node connects to up to 4 neighbors.
         Routing: XY deterministic routing.
@@ -67,7 +67,7 @@ class NoCTopology:
         }
     
     @staticmethod
-    def build_torus(rows: int, cols: int) -> Dict:
+    def build_torus(rows: int, cols: int) -> dict:
         """
         2D Torus: Mesh with wrap-around edges.
         Reduces diameter and average hops.
@@ -101,7 +101,7 @@ class NoCTopology:
         }
     
     @staticmethod
-    def build_folded_torus(rows: int, cols: int) -> Dict:
+    def build_folded_torus(rows: int, cols: int) -> dict:
         """
         Folded Torus: Torus with halved wrap-around distances.
         Each wrap-around link is the same length as internal links.
@@ -115,7 +115,7 @@ class NoCTopology:
         return torus
     
     @staticmethod
-    def build_tree(num_nodes: int, branching_factor: int = 2) -> Dict:
+    def build_tree(num_nodes: int, branching_factor: int = 2) -> dict:
         """
         Fat Tree topology. Root is node 0.
         Good for aggregation-heavy traffic (FL).
@@ -149,7 +149,7 @@ class NoCTopology:
         }
     
     @staticmethod
-    def build_butterfly(num_nodes: int) -> Dict:
+    def build_butterfly(num_nodes: int) -> dict:
         """
         Butterfly network. Used in FFT-like communication patterns.
         Stages of log(N) with N switches each.
@@ -184,7 +184,7 @@ class NoCTopology:
         }
     
     @staticmethod
-    def build_ring(num_nodes: int) -> Dict:
+    def build_ring(num_nodes: int) -> dict:
         """
         Ring topology. Optimal for Ring-AllReduce protocol.
         """
@@ -227,8 +227,8 @@ class NoCSimulator:
         num_tiles: int,
         topology: str = "Mesh",
         bandwidth_gbps: float = 10.0,
-        tile_rows: int = None,
-        tile_cols: int = None,
+        tile_rows: int | None = None,
+        tile_cols: int | None = None,
     ):
         """
         Args:
@@ -257,7 +257,7 @@ class NoCSimulator:
         # Precompute shortest paths using BFS
         self.shortest_paths = self._compute_shortest_paths()
     
-    def _build_topology(self, name: str) -> Dict:
+    def _build_topology(self, name: str) -> dict:
         """Build the specified topology."""
         builders = {
             'Mesh': lambda: NoCTopology.build_mesh(self.tile_rows, self.tile_cols),
@@ -271,7 +271,7 @@ class NoCSimulator:
             raise ValueError(f"Unknown topology: {name}. Options: {list(builders.keys())}")
         return builders[name]()
     
-    def _compute_shortest_paths(self) -> Dict:
+    def _compute_shortest_paths(self) -> dict:
         """BFS-based all-pairs shortest path computation."""
         paths = {}
         adj = self.topology['adjacency']
@@ -299,7 +299,7 @@ class NoCSimulator:
         self,
         model_size_bytes: int,
         protocol: str = "ParameterServer",
-    ) -> Dict:
+    ) -> dict:
         """
         Simulate one FL round of communication.
         
@@ -322,7 +322,7 @@ class NoCSimulator:
         
         return protocols[protocol](model_size_bytes)
     
-    def _simulate_parameter_server(self, model_size_bytes: int) -> Dict:
+    def _simulate_parameter_server(self, model_size_bytes: int) -> dict:
         """
         Parameter Server protocol: all tiles send to node 0, node 0 broadcasts back.
         
@@ -394,7 +394,7 @@ class NoCSimulator:
             'num_phases': 2,
         }
     
-    def _simulate_all_reduce(self, model_size_bytes: int) -> Dict:
+    def _simulate_all_reduce(self, model_size_bytes: int) -> dict:
         """
         All-Reduce: reduce-to-all pattern.
         Phase 1: Reduce (tree reduction to root)
@@ -463,7 +463,7 @@ class NoCSimulator:
             'num_phases': 2 * depth,
         }
     
-    def _simulate_ring_allreduce(self, model_size_bytes: int) -> Dict:
+    def _simulate_ring_allreduce(self, model_size_bytes: int) -> dict:
         """
         Ring-AllReduce: bandwidth-optimal all-reduce.
         Phase 1: Scatter-Reduce (N-1 steps around ring)
@@ -531,7 +531,7 @@ class NoCSimulator:
             'chunk_size_bytes': chunk_size,
         }
     
-    def _simulate_gossip(self, model_size_bytes: int) -> Dict:
+    def _simulate_gossip(self, model_size_bytes: int) -> dict:
         """
         Gossip protocol: each node randomly selects a peer and exchanges models.
         
@@ -607,7 +607,7 @@ class NoCSimulator:
         model_size_bytes: int,
         num_rounds: int,
         protocol: str = "ParameterServer"
-    ) -> Dict:
+    ) -> dict:
         """
         Simulate communication for a full FL training session.
         
@@ -639,7 +639,7 @@ class NoCSimulator:
             'topology_bisection_bw': self.topology.get('bisection_bandwidth', -1),
         }
     
-    def get_topology_info(self) -> Dict:
+    def get_topology_info(self) -> dict:
         """Return topology properties."""
         return {
             'name': self.topology_name,
@@ -657,7 +657,7 @@ def compare_topologies_and_protocols(
     model_size_bytes: int,
     num_rounds: int = 20,
     bandwidth_gbps: float = 10.0,
-) -> Dict:
+) -> dict:
     """
     Comprehensive comparison of all topologies × all protocols.
     

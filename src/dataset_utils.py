@@ -9,17 +9,18 @@ Supports:
 - CSI estimation error and phase noise
 """
 
-import numpy as np
-from utils.logger import logger
-import torch
-from torch.utils.data import Dataset
 import os
 import pickle
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
+
+import numpy as np
+import torch
+from torch.utils.data import Dataset
 
 from src.channel_model import (
     generate_ris_channel_dataset,
 )
+from utils.logger import logger
 
 
 def expected_feature_dim(num_ris_elements: int, num_users: int) -> int:
@@ -83,7 +84,7 @@ def validate_dataset_feature_dim(dataset, config, dataset_name: str = "dataset")
     return True
 
 
-def validate_dataset_collection(train_datasets: List, test_dataset, config, expected_num_tiles: Optional[int] = None) -> int:
+def validate_dataset_collection(train_datasets: list, test_dataset, config, expected_num_tiles: int | None = None) -> int:
     """
     Validate train/test datasets before model creation.
 
@@ -230,7 +231,7 @@ class RISChannelDataset(Dataset):
         return self.features.shape[1]
 
 
-def create_non_iid_datasets(config, num_tiles: int) -> Tuple[List, List]:
+def create_non_iid_datasets(config, num_tiles: int) -> tuple[list, list]:
     """Create spatially non-IID datasets for a fleet of RIS tiles.
 
     Each tile's dataset is generated from a distinct spatial location in the
@@ -322,7 +323,7 @@ def create_test_dataset(config) -> "RISChannelDataset":
     )
 
 
-def save_datasets(datasets: List, test_dataset, save_path: str) -> None:
+def save_datasets(datasets: list, test_dataset, save_path: str) -> None:
     """Save datasets to disk.
 
     Args:
@@ -345,7 +346,7 @@ def save_datasets(datasets: List, test_dataset, save_path: str) -> None:
     logger.info(f"Datasets saved to {save_path}")
 
 
-def load_datasets(load_path: str) -> Tuple[List, Any]:
+def load_datasets(load_path: str) -> tuple[list, Any]:
     """Load datasets from disk.
 
     Args:

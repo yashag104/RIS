@@ -2,6 +2,7 @@ with open("src/server.py", "r") as f:
     content = f.read()
 
 import re
+
 content = re.sub(r'import copy\n', 'import copy\nfrom utils.logger import logger\n', content, count=1)
 
 content = content.replace('print(f"  [Server] Broadcasted model to {len(clients)} clients "', 'logger.info(f"  [Server] Broadcasted model to {len(clients)} clients "')

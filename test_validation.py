@@ -11,6 +11,7 @@ Tests for the specific issues identified in the anomalous results:
 
 import sys
 from pathlib import Path
+
 import numpy as np
 import torch
 
@@ -20,14 +21,14 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from config import Config
-from utils.metrics import dbm_to_watts, calculate_snr, compute_ris_snr_db
+from models.ris_net import create_model
 from src.channel_model import (
-    RicianChannel, ThreeGPPUMiChannel, generate_ris_channel_dataset, _channels_to_dataset
+    RicianChannel,
+    ThreeGPPUMiChannel,
 )
 from src.dataset_utils import expected_feature_dim, validate_dataset_collection
-from models.ris_net import create_model
 from src.noc_simulator import NoCTopology
-
+from utils.metrics import compute_ris_snr_db, dbm_to_watts
 
 # ============================================================================
 # Test 1: dBm-to-Watts conversion
@@ -164,7 +165,7 @@ def test_no_ris_snr():
 
     # For 10m room with these parameters, no-RIS SNR should be ~10 to 30 dB
     ok = -40 <= mean_snr <= 40
-    print(f"  Range check (expected -40 to 40 dB):\t\t\t", end="")
+    print("  Range check (expected -40 to 40 dB):\t\t\t", end="")
     if -40 <= mean_snr <= 40:
         print("PASS")
     else:

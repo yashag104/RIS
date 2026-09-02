@@ -7,12 +7,13 @@ Generates comparison plots for the GlobeCom paper.
 import json
 import os
 import sys
+
 import matplotlib
+
 matplotlib.use('Agg')
+
 import matplotlib.pyplot as plt
 import numpy as np
-from pathlib import Path
-
 
 # --- Python analytical results (from experiments) ---
 PYTHON_RESULTS = {
@@ -175,7 +176,7 @@ def plot_injection_rate_sweep(noxim_results, output_dir):
     delays = [x[0].get('global_avg_delay_cycles', 0) for x in pir_results]
     throughputs = [x[0].get('network_throughput_flits_per_cycle', 0) for x in pir_results]
     
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+    _fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
     
     ax1.plot(pirs, delays, 'o-', color='#2196F3', linewidth=2, markersize=8)
     ax1.set_xlabel('Packet Injection Rate')
@@ -215,7 +216,7 @@ def plot_buffer_sweep(noxim_results, output_dir):
     delays = [x[0].get('global_avg_delay_cycles', 0) for x in buf_results]
     energies = [x[0].get('total_energy_j', 0) * 1e9 for x in buf_results]
     
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
+    _fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
     
     ax1.bar(range(len(depths)), delays, tick_label=depths, color='#4CAF50', alpha=0.8)
     ax1.set_xlabel('Buffer Depth (flits)')
@@ -252,7 +253,7 @@ if __name__ == '__main__':
         print("[WARN] No Noxim results found. Generating Python-only plots...")
         noxim_results = []
     
-    print(f"\nGenerating comparison plots...")
+    print("\nGenerating comparison plots...")
     plot_topology_comparison(noxim_results, output_dir)
     plot_protocol_comparison(noxim_results, output_dir)
     plot_injection_rate_sweep(noxim_results, output_dir)

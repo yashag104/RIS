@@ -3,15 +3,16 @@ RIS Tile Client - Local Training Logic
 Each RIS tile trains its local model on its data
 """
 
-import torch
-from utils.logger import logger
-import torch.optim as optim
-from torch.utils.data import DataLoader
 import copy
-import numpy as np
+from typing import Any, Optional
 
+import numpy as np
+import torch
+from torch import optim
+from torch.utils.data import DataLoader
+
+from utils.logger import logger
 from utils.metrics import dbm_to_watts
-from typing import Any, Dict, List, Optional
 
 
 class RISClient:
@@ -128,7 +129,7 @@ class RISClient:
         """Circular signed phase error in [-pi, pi]."""
         return torch.remainder(pred - target + torch.pi, 2 * torch.pi) - torch.pi
 
-    def train_local_model(self, epochs: int) -> Dict[str, Any]:
+    def train_local_model(self, epochs: int) -> dict[str, Any]:
         """
         Train the local model for specified epochs
 
@@ -230,12 +231,12 @@ class RISClient:
 
         return metrics
 
-    def set_global_reference(self, global_weights: Dict) -> None:
+    def set_global_reference(self, global_weights: dict) -> None:
         """Store global model weights for FedProx proximal term."""
         import copy
         self.global_model_weights = copy.deepcopy(global_weights)
 
-    def set_scaffold_controls(self, c_global: Dict, c_local: Optional[Dict] = None) -> None:
+    def set_scaffold_controls(self, c_global: dict, c_local: dict | None = None) -> None:
         """Set SCAFFOLD control variates."""
         import copy
         self.scaffold_c_global = copy.deepcopy(c_global)
@@ -246,9 +247,8 @@ class RISClient:
             self.scaffold_c_local = {name: torch.zeros_like(param) 
                                      for name, param in self.model.named_parameters()}
 
-    def compute_scaffold_update(self, old_weights: Dict, new_weights: Dict, lr: float, num_steps: int) -> Dict:
+    def compute_scaffold_update(self, old_weights: dict, new_weights: dict, lr: float, num_steps: int) -> dict:
         """Compute SCAFFOLD control variate update after local training."""
-        import copy
         c_new = {}
         c_delta = {}
         for name in old_weights:
@@ -264,15 +264,15 @@ class RISClient:
         self.scaffold_c_local = c_new
         return c_delta
 
-    def get_model_weights(self) -> Dict:
+    def get_model_weights(self) -> dict:
         """Return current model weights"""
         return copy.deepcopy(self.model.state_dict())
 
-    def set_model_weights(self, weights: Dict) -> None:
+    def set_model_weights(self, weights: dict) -> None:
         """Update model with new weights from server"""
         self.model.load_state_dict(weights)
 
-    def evaluate(self, test_loader) -> Dict[str, Any]:
+    def evaluate(self, test_loader) -> dict[str, Any]:
         """
         Evaluate the local model
 
@@ -348,7 +348,7 @@ class RISClient:
 
         return metrics
 
-    def compute_snr_improvement(self, test_dataset, num_samples: int = 100) -> Dict[str, Any]:
+    def compute_snr_improvement(self, test_dataset, num_samples: int = 100) -> dict[str, Any]:
         """
         Compute SNR improvement using predicted phase shifts
 
@@ -456,7 +456,7 @@ class RISClient:
 
         return metrics
 
-    def get_communication_cost(self) -> Dict[str, float]:
+    def get_communication_cost(self) -> dict[str, float]:
         """
         Calculate communication cost (model size in bytes, INT8 quantized)
         """
@@ -473,7 +473,7 @@ class RISClient:
 
     # ============ Sleep Scheduling Methods ============
 
-    def update_sleep_state(self, signal_strength: Optional[float] = None) -> str:
+    def update_sleep_state(self, signal_strength: float | None = None) -> str:
         """
         Update sleep state based on signal strength.
         
@@ -530,7 +530,7 @@ class RISClient:
             return self.sleep_power
         return self.active_power
 
-    def get_sleep_metrics(self) -> Dict[str, Any]:
+    def get_sleep_metrics(self) -> dict[str, Any]:
         """
         Get sleep scheduling metrics.
         
@@ -643,7 +643,7 @@ class RISClient:
         
         return masked_phases, self.pixel_mask
     
-    def get_duty_cycle_metrics(self) -> Dict[str, Any]:
+    def get_duty_cycle_metrics(self) -> dict[str, Any]:
         """
         Get pixel-level duty cycling metrics.
         

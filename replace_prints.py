@@ -1,5 +1,5 @@
 import re
-import glob
+
 
 def process_file(filepath):
     with open(filepath, 'r') as f:

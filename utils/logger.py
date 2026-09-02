@@ -1,7 +1,6 @@
 import logging
 import sys
 from pathlib import Path
-from typing import Optional, Union
 
 # Setup default formats
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -9,8 +8,8 @@ DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 def setup_logger(
     name: str = "ris_fl",
-    level: Union[int, str] = logging.INFO,
-    log_file: Optional[Union[str, Path]] = None
+    level: int | str = logging.INFO,
+    log_file: str | Path | None = None
 ) -> logging.Logger:
     """Set up and return a configured logger."""
     if isinstance(level, str):

@@ -5,14 +5,14 @@ Generates a report/ directory with all figures, tables, and a summary
 document from saved experiment JSON results.
 """
 
-import os
-from utils.logger import logger
-import json
 import csv
-import numpy as np
+import json
+import os
 
+from utils.logger import logger
 from utils.references import (
-    get_figure_annotation, format_reference_list, EXPERIMENT_REFERENCES, REFERENCES
+    format_reference_list,
+    get_figure_annotation,
 )
 
 
@@ -259,17 +259,17 @@ class ReportGenerator:
             '',
             '| Parameter | Value |',
             '|-----------|-------|',
-            f'| Model Architecture | GNN (GAT) |',
-            f'| NoC Topology | Torus |',
-            f'| Aggregation Protocol | RingAllReduce |',
-            f'| FL Algorithm | FedAvg |',
+            '| Model Architecture | GNN (GAT) |',
+            '| NoC Topology | Torus |',
+            '| Aggregation Protocol | RingAllReduce |',
+            '| FL Algorithm | FedAvg |',
             f'| Tile Grid | {Config.TILE_GRID_ROWS}x{Config.TILE_GRID_COLS} ({Config.NUM_TILES} tiles) |',
             f'| Pixels per Tile | {Config.PIXEL_GRID_ROWS}x{Config.PIXEL_GRID_COLS} ({Config.ELEMENTS_PER_TILE} elements) |',
             f'| Total RIS Elements | {Config.TOTAL_RIS_ELEMENTS} |',
             f'| Frequency | {Config.FREQUENCY/1e9:.0f} GHz |',
             f'| FL Rounds | {Config.FL_ROUNDS} |',
             f'| Local Epochs | {Config.LOCAL_EPOCHS} |',
-            f'| Duty Cycling | Threshold -10 dB |',
+            '| Duty Cycling | Threshold -10 dB |',
             '',
             '## Experiment Results',
             '',

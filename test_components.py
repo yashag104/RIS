@@ -10,14 +10,18 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-import torch
 import numpy as np
+import torch
+from torch.utils.data import DataLoader
+
 from config import Config
 from models.ris_net import create_model
-from src.dataset_utils import RISChannelDataset, create_non_iid_datasets, create_test_dataset
 from src.client import RISClient
+from src.dataset_utils import (
+    RISChannelDataset,
+    create_non_iid_datasets,
+)
 from src.server import FederatedServer
-from torch.utils.data import DataLoader
 from utils.metrics import (
     calculate_achievable_rate,
     calculate_energy_efficiency,
@@ -42,7 +46,7 @@ def test_dataset_generation():
             frequency=28e9
         )
 
-        print(f"✓ Dataset created")
+        print("✓ Dataset created")
         print(f"  Samples: {len(dataset)}")
         print(f"  Input dim: {dataset.get_input_dim()}")
         print(f"  Features shape: {dataset.features.shape}")
@@ -50,7 +54,7 @@ def test_dataset_generation():
 
         # Test data loading
         features, labels = dataset[0]
-        print(f"\n✓ Sample data loaded")
+        print("\n✓ Sample data loaded")
         print(f"  Features shape: {features.shape}")
         print(f"  Labels shape: {labels.shape}")
         print(f"  Features range: [{features.min():.3f}, {features.max():.3f}]")
@@ -58,7 +62,7 @@ def test_dataset_generation():
 
         # Test non-IID datasets
         datasets, positions = create_non_iid_datasets(Config, num_tiles=4)
-        print(f"\n✓ Non-IID datasets created")
+        print("\n✓ Non-IID datasets created")
         print(f"  Number of datasets: {len(datasets)}")
         print(f"  Tile positions: {len(positions)}")
 
@@ -89,7 +93,7 @@ def test_model_architecture():
             dropout=0.1
         )
 
-        print(f"✓ MLP model created")
+        print("✓ MLP model created")
         print(f"  Parameters: {model.count_parameters():,}")
 
         # Test forward pass
@@ -97,7 +101,7 @@ def test_model_architecture():
         x = torch.randn(batch_size, input_dim)
         output = model(x)
 
-        print(f"\n✓ Forward pass successful")
+        print("\n✓ Forward pass successful")
         print(f"  Input shape: {x.shape}")
         print(f"  Output shape: {output.shape}")
         print(f"  Output range: [{output.min():.3f}, {output.max():.3f}]")
@@ -115,7 +119,7 @@ def test_model_architecture():
 
         output_grid = cnn_model(x)
 
-        print(f"\n✓ CNN model created")
+        print("\n✓ CNN model created")
         print(f"  Input shape: {x.shape}")
         print(f"  Output shape: {output_grid.shape}")
 
@@ -161,7 +165,7 @@ def test_client():
             config=Config
         )
 
-        print(f"✓ Client created")
+        print("✓ Client created")
         print(f"  Client ID: {client.client_id}")
         print(f"  Dataset size: {len(client.dataset)}")
 
@@ -169,7 +173,7 @@ def test_client():
         print("\n  Testing local training...")
         metrics = client.train_local_model(epochs=2)
 
-        print(f"✓ Local training successful")
+        print("✓ Local training successful")
         print(f"  Average loss: {metrics['avg_loss']:.6f}")
         print(f"  Energy consumed: {metrics['energy_consumed']:.6f} J")
 
@@ -177,14 +181,14 @@ def test_client():
         test_loader = DataLoader(dataset, batch_size=32, shuffle=False)
         eval_metrics = client.evaluate(test_loader)
 
-        print(f"\n✓ Evaluation successful")
+        print("\n✓ Evaluation successful")
         print(f"  Test loss: {eval_metrics['loss']:.6f}")
         print(f"  Phase error: {np.rad2deg(eval_metrics['phase_error_mean']):.2f}°")
 
         # Test SNR computation
         snr_metrics = client.compute_snr_improvement(dataset, num_samples=20)
 
-        print(f"\n✓ SNR computation successful")
+        print("\n✓ SNR computation successful")
         print(f"  SNR (no RIS): {snr_metrics['snr_no_ris_mean']:.2f} dB")
         print(f"  SNR (optimized): {snr_metrics['snr_optimized_ris_mean']:.2f} dB")
         print(f"  SNR gain: {snr_metrics['snr_gain_over_no_ris']:.2f} dB")
@@ -223,7 +227,7 @@ def test_server():
         # Create server
         server = FederatedServer(global_model, Config)
 
-        print(f"✓ Server created")
+        print("✓ Server created")
 
         # Create clients
         clients = []
@@ -245,7 +249,7 @@ def test_server():
         print("\n  Testing FL round...")
         round_metric = server.aggregate_round(clients, round_num=0)
 
-        print(f"\n✓ FL round successful")
+        print("\n✓ FL round successful")
         print(f"  Avg client loss: {round_metric['avg_client_loss']:.6f}")
         print(f"  Total energy: {round_metric['total_energy']:.6f} J")
         print(f"  Communication: {round_metric['total_bytes'] / 1024:.2f} KB")
@@ -253,7 +257,7 @@ def test_server():
         # Test communication summary
         comm_summary = server.get_communication_summary()
 
-        print(f"\n✓ Communication summary")
+        print("\n✓ Communication summary")
         print(f"  Total bytes: {comm_summary['total_kilobytes']:.2f} KB")
         print(f"  Avg latency: {comm_summary['avg_packet_latency_ms']:.3f} ms")
 
@@ -308,12 +312,13 @@ def test_plotting():
     print("=" * 60)
 
     try:
+        import tempfile
+
         from utils.plotting import (
             plot_communication_overhead,
             plot_convergence_curve,
             plot_energy_consumption,
         )
-        import tempfile
 
         # Create temporary directory
         temp_dir = tempfile.mkdtemp()
@@ -336,15 +341,15 @@ def test_plotting():
 
         # Test convergence plot
         plot_convergence_curve(round_metrics, temp_dir)
-        print(f"✓ Convergence plot created")
+        print("✓ Convergence plot created")
 
         # Test communication plot
         plot_communication_overhead(round_metrics, temp_dir)
-        print(f"✓ Communication plot created")
+        print("✓ Communication plot created")
 
         # Test energy plot
         plot_energy_consumption(round_metrics, temp_dir)
-        print(f"✓ Energy plot created")
+        print("✓ Energy plot created")
 
         print(f"\n  Plots saved to: {temp_dir}")
 

@@ -1,11 +1,11 @@
-import pytest
 import numpy as np
-import torch
-from config import Config
+
 from baselines.alternating_optimization import AlternatingOptimization
-from baselines.random_search import RandomSearch
 from baselines.centralized_learning import CentralizedRIS
+from baselines.random_search import RandomSearch
+from config import Config
 from models.ris_net import create_model
+
 
 def test_random_search():
     rs = RandomSearch(num_elements=64, num_trials=10)

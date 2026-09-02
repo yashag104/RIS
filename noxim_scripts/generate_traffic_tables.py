@@ -18,8 +18,8 @@ Flit: 128 bits = 16 bytes
 Total flits per model: 176,528
 """
 
-import os
 import math
+import os
 
 # --- FL-RIS Parameters (from Python experiments) ---
 GRID_X = 4
@@ -61,12 +61,11 @@ def write_traffic(filename, entries, header_comment=""):
     filepath = os.path.join(OUTPUT_DIR, filename)
     with open(filepath, 'w') as f:
         f.write(f"% FL-RIS Traffic Table: {header_comment}\n")
-        f.write(f"% Format: src dst pir por t_on t_off t_period\n")
+        f.write("% Format: src dst pir por t_on t_off t_period\n")
         f.write(f"% Model: {MODEL_BYTES} bytes = {FLITS_PER_MODEL} flits\n")
         f.write(f"% FL Rounds: {FL_ROUNDS}\n")
-        f.write(f"%\n")
-        for entry in entries:
-            f.write(" ".join(str(x) for x in entry) + "\n")
+        f.write("%\n")
+        f.writelines(" ".join(str(x) for x in entry) + "\n" for entry in entries)
     print(f"  Written: {filepath} ({len(entries)} entries)")
 
 def gen_ringallreduce():

@@ -9,14 +9,13 @@ Comparison with Federated Learning:
 - Federated: Comparable accuracy, privacy-preserving, lower latency
 """
 
-import torch
-from utils.logger import logger
-import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import DataLoader, ConcatDataset
-import copy
-from typing import List, Dict
+
 import numpy as np
+import torch
+from torch import nn, optim
+from torch.utils.data import ConcatDataset, DataLoader
+
+from utils.logger import logger
 
 
 class CentralizedRIS:
@@ -42,11 +41,11 @@ class CentralizedRIS:
         
     def train_centralized(
         self,
-        tile_datasets: List,
-        epochs: int = None,
-        batch_size: int = None,
-        learning_rate: float = None
-    ) -> Dict:
+        tile_datasets: list,
+        epochs: int | None = None,
+        batch_size: int | None = None,
+        learning_rate: float | None = None
+    ) -> dict:
         """
         Train on pooled dataset from all tiles.
         
@@ -128,7 +127,7 @@ class CentralizedRIS:
         
         return metrics
     
-    def evaluate(self, test_loader: DataLoader) -> Dict:
+    def evaluate(self, test_loader: DataLoader) -> dict:
         """
         Evaluate the trained model.
         
@@ -176,7 +175,7 @@ class CentralizedRIS:
         """Return the trained model."""
         return self.model
     
-    def compute_communication_cost(self, tile_datasets: List) -> Dict:
+    def compute_communication_cost(self, tile_datasets: list) -> dict:
         """
         Estimate communication cost for centralized approach.
         
@@ -222,7 +221,7 @@ def compare_centralized_vs_federated(
     federated_model: nn.Module,
     test_loader: DataLoader,
     config
-) -> Dict:
+) -> dict:
     """
     Direct comparison between centralized and federated models.
     

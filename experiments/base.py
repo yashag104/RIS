@@ -2,26 +2,21 @@
 
 """Shared imports for the RIS experiment package."""
 
-import copy
 import json
 import os
-import pickle
-from datetime import datetime
 
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from config import Config
 from models.ris_net import create_model
 from src.client import RISClient
 from src.dataset_utils import (
     create_non_iid_datasets,
     create_test_dataset,
-    validate_dataset_feature_dim,
     validate_dataset_collection,
+    validate_dataset_feature_dim,
 )
-from src.server import FederatedServer
 from utils.metrics import *
 from utils.metrics import dbm_to_watts
 from utils.plotting import *
@@ -51,7 +46,7 @@ class ExperimentBase:
         Args:
             config_overrides: Dictionary of config parameters to override for this run only
         """
-        from main import train_federated, evaluate_baselines
+        from main import evaluate_baselines, train_federated
         
         # Create a temporary config modification
         original_values = {}
@@ -64,7 +59,7 @@ class ExperimentBase:
         try:
             # Create datasets (re-create if params changed that affect data)
             # For efficiency, we could cache them, but for robustness, we re-create
-            train_datasets, tile_positions = create_non_iid_datasets(self.config, self.config.NUM_TILES)
+            train_datasets, _tile_positions = create_non_iid_datasets(self.config, self.config.NUM_TILES)
             test_dataset = create_test_dataset(self.config)
             validate_dataset_collection(
                 train_datasets,
@@ -130,7 +125,6 @@ class ExperimentBase:
         result = self._run_single_fl_experiment()
         
         # Now simulate compression on the global model for evaluation
-        from main import train_federated, evaluate_baselines
         from models.ris_net import create_model
         
         # Create test dataset for re-evaluation
@@ -209,7 +203,7 @@ class ExperimentBase:
             time_delta = 0.05 # 50ms (typical 5G frame/processing delay)
             
             fd = speed_mps / self.config.WAVELENGTH
-            rho = np.i0(2 * np.pi * fd * time_delta) # approximation: numpy has i0 (modified Bessel). 
+            np.i0(2 * np.pi * fd * time_delta) # approximation: numpy has i0 (modified Bessel). 
             # Wait, J0 is Bessel function of first kind. i0 is modified.
             # Numpy doesn't have j0 natively without scipy.
             # Standard approximation for small x: J0(x) ~ 1 - x^2/4
@@ -224,7 +218,7 @@ class ExperimentBase:
                 # For small x, J0(x) approx 1 - x^2/4
                 arg = 2 * np.pi * fd * time_delta
                 correlation = 1.0 - (arg**2) / 4.0
-                if correlation < 0: correlation = 0
+                correlation = max(correlation, 0)
             
             # Generate "aged" test dataset
             # h_new = rho * h_old + sqrt(1 - rho^2) * noise
@@ -304,7 +298,7 @@ class ExperimentBase:
         """Run FL with different pilot strategies (Simulated Overhead)"""
         result = self._run_single_fl_experiment()
         
-        method = pilot_config['method']
+        pilot_config['method']
         pilots_per_round = pilot_config['pilots_per_round']
         
         # Calculate overhead based on real convergence rounds
@@ -320,12 +314,11 @@ class ExperimentBase:
 
     def _run_centralized_experiment(self):
         """Run centralized learning (All data at server)"""
-        from main import train_federated, evaluate_baselines
         from baselines.centralized_learning import CentralizedRIS
         from models.ris_net import create_model
         
         # Create datasets
-        train_datasets, tile_positions = create_non_iid_datasets(self.config, self.config.NUM_TILES)
+        train_datasets, _tile_positions = create_non_iid_datasets(self.config, self.config.NUM_TILES)
         test_dataset = create_test_dataset(self.config)
         
         input_dim = validate_dataset_collection(
@@ -344,13 +337,13 @@ class ExperimentBase:
         
         # Evaluate
         test_loader = DataLoader(test_dataset, batch_size=self.config.BATCH_SIZE, shuffle=False)
-        cent_eval = centralized.evaluate(test_loader)
+        centralized.evaluate(test_loader)
         
         # Calc SNR
-        features, optimal_phases = test_dataset[0]
+        features, _optimal_phases = test_dataset[0]
         cent_model.eval()
         with torch.no_grad():
-             pred = cent_model(features.unsqueeze(0).to(self.config.DEVICE))
+             cent_model(features.unsqueeze(0).to(self.config.DEVICE))
         # (Simplified SNR calc for summary)
         
         # Communication: all raw data
@@ -371,7 +364,7 @@ class ExperimentBase:
         from models.ris_net import create_model
         
         # Create datasets
-        train_datasets, tile_positions = create_non_iid_datasets(self.config, self.config.NUM_TILES)
+        train_datasets, _tile_positions = create_non_iid_datasets(self.config, self.config.NUM_TILES)
         test_dataset = create_test_dataset(self.config)
         test_loader = DataLoader(test_dataset, batch_size=self.config.BATCH_SIZE, shuffle=False)
         

@@ -7,12 +7,17 @@ if str(PROJECT_ROOT) not in sys.path:
 
 import numpy as np
 import torch
+
 from config import Config
-from src.channel_model import RicianChannel, generate_ris_channel_dataset
-from src.dataset_utils import RISChannelDataset, create_non_iid_datasets, create_test_dataset
 from models.ris_net import create_model
+from src.channel_model import RicianChannel
 from src.client import RISClient
+from src.dataset_utils import (
+    create_non_iid_datasets,
+    create_test_dataset,
+)
 from src.server import FederatedServer
+
 
 def test_smoke_end_to_end():
     """Quick smoke test for Phase 1-3 changes"""
@@ -31,7 +36,7 @@ def test_smoke_end_to_end():
     torch.manual_seed(42)
     
     print("=== Generating Non-IID Datasets ===")
-    datasets, tile_pos = create_non_iid_datasets(Config, Config.NUM_TILES)
+    datasets, _tile_pos = create_non_iid_datasets(Config, Config.NUM_TILES)
     print(f"Created {len(datasets)} datasets, sizes: {[len(d) for d in datasets]}")
     print(f"Feature dim: {datasets[0].get_input_dim()}, Label dim: {datasets[0].labels.shape[1]}")
     

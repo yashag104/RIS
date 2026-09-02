@@ -13,11 +13,11 @@ from models.ris_net import (
 
 __all__ = [
     "BaseModel",
-    "MLPModel",
-    "GNNModel",
     "CNNModel",
-    "TransformerModel",
+    "GNNModel",
+    "MLPModel",
     "RISNet",
     "RISNetCNN",
+    "TransformerModel",
     "create_model",
 ]

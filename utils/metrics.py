@@ -3,8 +3,9 @@ Metrics calculation for RIS Federated Learning
 Wireless performance, learning metrics, and hardware efficiency
 """
 
+from typing import Any
+
 import numpy as np
-from typing import Any, Dict, List
 
 
 def dbm_to_watts(dbm: float) -> float:
@@ -98,7 +99,7 @@ def calculate_achievable_rate(snr_db: float) -> float:
     return rate
 
 
-def calculate_phase_error(predicted_phases: "np.ndarray", true_phases: "np.ndarray") -> Dict[str, float]:
+def calculate_phase_error(predicted_phases: "np.ndarray", true_phases: "np.ndarray") -> dict[str, float]:
     """
     Calculate phase prediction error (circular metric)
 
@@ -127,7 +128,7 @@ def calculate_phase_error(predicted_phases: "np.ndarray", true_phases: "np.ndarr
     return metrics
 
 
-def calculate_beam_alignment(predicted_phases: "np.ndarray", true_phases: "np.ndarray", h_ris: "np.ndarray") -> Dict[str, float]:
+def calculate_beam_alignment(predicted_phases: "np.ndarray", true_phases: "np.ndarray", h_ris: "np.ndarray") -> dict[str, float]:
     """
     Calculate beam alignment quality
 
@@ -160,7 +161,7 @@ def calculate_beam_alignment(predicted_phases: "np.ndarray", true_phases: "np.nd
     return metrics
 
 
-def calculate_energy_efficiency(total_energy: float, achievable_rate: float) -> Dict[str, float]:
+def calculate_energy_efficiency(total_energy: float, achievable_rate: float) -> dict[str, float]:
     """
     Calculate energy efficiency (bits per Joule)
 
@@ -184,7 +185,7 @@ def calculate_energy_efficiency(total_energy: float, achievable_rate: float) -> 
     return metrics
 
 
-def calculate_convergence_metrics(loss_history: List[float], threshold: float = 0.01) -> Dict[str, Any]:
+def calculate_convergence_metrics(loss_history: list[float], threshold: float = 0.01) -> dict[str, Any]:
     """
     Analyze convergence behavior
 
@@ -228,7 +229,7 @@ def calculate_convergence_metrics(loss_history: List[float], threshold: float = 
     return metrics
 
 
-def calculate_communication_efficiency(bytes_transmitted: int, performance_gain: float) -> Dict[str, float]:
+def calculate_communication_efficiency(bytes_transmitted: int, performance_gain: float) -> dict[str, float]:
     """
     Calculate communication efficiency
 
@@ -250,7 +251,7 @@ def calculate_communication_efficiency(bytes_transmitted: int, performance_gain:
     return metrics
 
 
-def calculate_noc_metrics(bytes_transmitted: int, bandwidth_gbps: float, num_rounds: int) -> Dict[str, float]:
+def calculate_noc_metrics(bytes_transmitted: int, bandwidth_gbps: float, num_rounds: int) -> dict[str, float]:
     """
     Calculate Network-on-Chip metrics
 
@@ -286,7 +287,7 @@ def calculate_noc_metrics(bytes_transmitted: int, bandwidth_gbps: float, num_rou
     return metrics
 
 
-def calculate_data_heterogeneity(datasets: List) -> Dict[str, float]:
+def calculate_data_heterogeneity(datasets: list) -> dict[str, float]:
     """
     Measure data heterogeneity across clients (non-IID degree)
 
@@ -322,7 +323,7 @@ def calculate_data_heterogeneity(datasets: List) -> Dict[str, float]:
     return metrics
 
 
-def calculate_fairness_index(client_performances: List[float]) -> Dict[str, float]:
+def calculate_fairness_index(client_performances: list[float]) -> dict[str, float]:
     """
     Calculate Jain's fairness index across clients
 
@@ -349,7 +350,7 @@ def calculate_fairness_index(client_performances: List[float]) -> Dict[str, floa
     }
 
 
-def create_comparison_table(fl_metrics: Dict, baselines: Dict) -> Dict[str, List]:
+def create_comparison_table(fl_metrics: dict, baselines: dict) -> dict[str, list]:
     """
     Create comparison table for paper
 
@@ -415,7 +416,7 @@ def create_comparison_table(fl_metrics: Dict, baselines: Dict) -> Dict[str, List
 
 # ============ NoC Topology Metrics ============
 
-def calculate_noc_topology_metrics(num_tiles: int, topology: str, bytes_transmitted: int, bandwidth_gbps: float, num_rounds: int) -> Dict[str, Any]:
+def calculate_noc_topology_metrics(num_tiles: int, topology: str, bytes_transmitted: int, bandwidth_gbps: float, num_rounds: int) -> dict[str, Any]:
     """
     Calculate NoC metrics for different topologies.
     
@@ -506,7 +507,7 @@ def calculate_noc_topology_metrics(num_tiles: int, topology: str, bytes_transmit
     return metrics
 
 
-def compare_all_topologies(num_tiles: int, bytes_transmitted: int, bandwidth_gbps: float, num_rounds: int) -> Dict[str, Any]:
+def compare_all_topologies(num_tiles: int, bytes_transmitted: int, bandwidth_gbps: float, num_rounds: int) -> dict[str, Any]:
     """
     Compare all NoC topologies and rank them.
 
@@ -548,7 +549,7 @@ def compare_all_topologies(num_tiles: int, bytes_transmitted: int, bandwidth_gbp
 
 def calculate_composite_score(snr_db: float, energy_mj: float, comm_kb: float,
                               weight_snr: float = 0.4, weight_energy: float = 0.3, weight_comm: float = 0.3,
-                              snr_ref: float = 70.0, energy_ref: float = 60000.0, comm_ref: float = 2000000.0) -> Dict[str, float]:
+                              snr_ref: float = 70.0, energy_ref: float = 60000.0, comm_ref: float = 2000000.0) -> dict[str, float]:
     """
     Calculate composite optimization score.
     Higher score is better.
@@ -592,7 +593,7 @@ def calculate_composite_score(snr_db: float, energy_mj: float, comm_kb: float,
 
 # ============ Tile Efficiency Metrics ============
 
-def calculate_tile_efficiency(snr_gain: float, energy_j: float, num_tiles: int) -> Dict[str, float]:
+def calculate_tile_efficiency(snr_gain: float, energy_j: float, num_tiles: int) -> dict[str, float]:
     """
     Calculate SNR gain per tile per Joule.
     
@@ -615,7 +616,7 @@ def calculate_tile_efficiency(snr_gain: float, energy_j: float, num_tiles: int) 
     }
 
 
-def calculate_area_coverage(num_tiles: int, pixels_per_tile: int, chip_area_m2: float, wavelength: float) -> Dict[str, float]:
+def calculate_area_coverage(num_tiles: int, pixels_per_tile: int, chip_area_m2: float, wavelength: float) -> dict[str, float]:
     """
     Calculate RIS coverage metrics.
     
@@ -652,7 +653,7 @@ def calculate_area_coverage(num_tiles: int, pixels_per_tile: int, chip_area_m2: 
 
 
 def calculate_optimal_tiles_formula(chip_area_m2: float, pixels_per_tile: int, bandwidth_gbps: float, fl_rounds: int,
-                                     target_utilization: float = 0.8, target_snr_per_tile: float = 8.0) -> Dict[str, Any]:
+                                     target_utilization: float = 0.8, target_snr_per_tile: float = 8.0) -> dict[str, Any]:
     """
     Calculate optimal number of tiles based on constraints (Golden Ratio).
     
@@ -715,7 +716,7 @@ def calculate_optimal_tiles_formula(chip_area_m2: float, pixels_per_tile: int, b
 # ============ Sleep Scheduling Metrics ============
 
 def calculate_sleep_energy_savings(num_tiles: int, num_rounds: int, active_power_w: float, sleep_power_w: float,
-                                   sleep_ratio: float = 0.3, round_duration_sec: float = 1.0) -> Dict[str, float]:
+                                   sleep_ratio: float = 0.3, round_duration_sec: float = 1.0) -> dict[str, float]:
     """
     Calculate energy savings from sleep scheduling.
     

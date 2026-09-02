@@ -19,7 +19,6 @@ import os
 import sys
 from pathlib import Path
 
-
 # ── Package-wide root logger name ──────────────────────────────────
 ROOT_LOGGER_NAME = "ris"
 
@@ -30,8 +29,8 @@ _DATE_FMT = "%Y-%m-%d %H:%M:%S"
 
 def setup_logging(
     level: str = "INFO",
-    log_file: str = None,
-    results_dir: str = None,
+    log_file: str | None = None,
+    results_dir: str | None = None,
     log_filename: str = "ris.log",
 ):
     """
@@ -83,7 +82,7 @@ def setup_logging(
     return root
 
 
-def get_logger(name: str = None) -> logging.Logger:
+def get_logger(name: str | None = None) -> logging.Logger:
     """
     Return a child logger under the ``ris.*`` namespace.
 

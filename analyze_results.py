@@ -3,13 +3,11 @@ Results Analysis Script
 Analyze and compare results from multiple FL runs
 """
 
-import os
 import json
+import os
 import pickle
-import numpy as np
+
 import matplotlib.pyplot as plt
-import seaborn as sns
-from pathlib import Path
 import pandas as pd
 
 
@@ -125,7 +123,7 @@ def compare_runs(results_dir='results/'):
 
 def plot_runs_comparison(df, save_dir='results/'):
     """Create comparison plots across runs"""
-    fig, axes = plt.subplots(2, 3, figsize=(18, 12))
+    _fig, axes = plt.subplots(2, 3, figsize=(18, 12))
 
     # SNR comparison
     ax = axes[0, 0]
@@ -185,7 +183,7 @@ def plot_runs_comparison(df, save_dir='results/'):
 
 def analyze_convergence_patterns(runs, save_dir='results/'):
     """Analyze convergence patterns across runs"""
-    fig, ax = plt.subplots(figsize=(12, 6))
+    _fig, ax = plt.subplots(figsize=(12, 6))
 
     for i, run in enumerate(runs):
         metrics = run['metrics']

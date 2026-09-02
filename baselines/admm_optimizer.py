@@ -23,9 +23,10 @@ Disadvantages:
 - Penalty parameter tuning affects convergence speed
 """
 
+
 import numpy as np
+
 from utils.logger import logger
-from typing import Dict, List, Optional
 
 
 class ADMMOptimizer:
@@ -87,7 +88,7 @@ class ADMMOptimizer:
         h_bs_ris: np.ndarray,
         noise_power: float,
         initial_phases: np.ndarray = None
-    ) -> Dict:
+    ) -> dict:
         """
         Optimize RIS phase shifts using ADMM.
         
@@ -227,7 +228,7 @@ class ADMMOptimizer:
         noise_power: float,
         num_tiles: int,
         initial_phases: np.ndarray = None
-    ) -> Dict:
+    ) -> dict:
         """
         Distributed ADMM: each tile optimizes its own subset of phases.
         
@@ -341,9 +342,9 @@ class ADMMOptimizer:
     
     def batch_optimize(
         self,
-        channel_samples: List[Dict],
+        channel_samples: list[dict],
         noise_power: float
-    ) -> Dict:
+    ) -> dict:
         """
         Run ADMM on multiple channel realizations.
         """
@@ -377,7 +378,7 @@ class ADMMOptimizer:
             'all_snrs': snrs,
         }
     
-    def compute_complexity(self) -> Dict:
+    def compute_complexity(self) -> dict:
         """Estimate computational complexity."""
         N = self.num_elements
         avg_iters = np.mean(self.iteration_counts) if self.iteration_counts else self.max_iterations

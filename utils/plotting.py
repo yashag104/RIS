@@ -9,11 +9,12 @@ literature reference annotations, and consistent professional styling.
 """
 
 import matplotlib
+
 matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
-import numpy as np
 import os
+
+import matplotlib.pyplot as plt
+import numpy as np
 
 from utils.references import get_figure_annotation
 
@@ -100,8 +101,8 @@ def _annotate_bars(ax, bars, fmt='{:.1f}', fontsize=6.5, offset=0.3):
 
 def _style_legend(ax, **kwargs):
     """Apply consistent legend styling."""
-    defaults = dict(frameon=True, fancybox=False, edgecolor='#cccccc',
-                    framealpha=0.9, borderpad=0.4, handlelength=1.5)
+    defaults = {'frameon': True, 'fancybox': False, 'edgecolor': '#cccccc',
+                    'framealpha': 0.9, 'borderpad': 0.4, 'handlelength': 1.5}
     defaults.update(kwargs)
     return ax.legend(**defaults)
 
@@ -186,7 +187,7 @@ def plot_communication_overhead(round_metrics, save_path=None):
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(7.16, 2.8))
 
-    bars = ax1.bar(rounds, kb, color=C[0], edgecolor='black',
+    ax1.bar(rounds, kb, color=C[0], edgecolor='black',
                    linewidth=0.3, width=0.7, zorder=3)
     ax1.set_xlabel('Communication Round')
     ax1.set_ylabel('Data Transmitted (KB)')
@@ -348,7 +349,7 @@ def plot_noc_metrics(comm_summary, save_path=None, round_metrics=None):
 
         # (a) Per-round uplink vs downlink stacked bar
         # Each round: server sends model (downlink) and receives updates (uplink)
-        n_clients = round_metrics[0].get('num_clients', 16)
+        round_metrics[0].get('num_clients', 16)
         model_bytes = per_round_kb[0] / 2  # approx half up, half down
         uplink_kb = [model_bytes] * len(rounds)
         downlink_kb = [pk - model_bytes for pk in per_round_kb]
@@ -392,7 +393,7 @@ def plot_noc_metrics(comm_summary, save_path=None, round_metrics=None):
         lines1, labels1 = ax3.get_legend_handles_labels()
         lines2, labels2 = ax3_twin.get_legend_handles_labels()
         _style_legend(ax3, fontsize=6, loc='upper left',
-                      **{'handles': lines1 + lines2, 'labels': labels1 + labels2})
+                      handles=lines1 + lines2, labels=labels1 + labels2)
 
         # (d) Convergence loss vs cumulative communication trade-off
         losses = [m['avg_client_loss'] for m in round_metrics]
@@ -468,7 +469,7 @@ def create_summary_dashboard(all_metrics, save_path=None):
     methods = ['No RIS', 'Random', 'FL', 'Optimal']
     vals = [snr['snr_no_ris_mean'], snr['snr_random_ris_mean'],
             snr['snr_optimized_ris_mean'], snr['snr_optimal_mean']]
-    bars = ax2.bar(range(4), vals, color=[C[7], C[3], C[0], C[2]],
+    ax2.bar(range(4), vals, color=[C[7], C[3], C[0], C[2]],
                    edgecolor='black', linewidth=0.4, zorder=3)
     ax2.set_xticks(range(4))
     ax2.set_xticklabels(methods, rotation=45, ha='right', fontsize=6)

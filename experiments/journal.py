@@ -2,26 +2,12 @@
 
 """Shared imports for the RIS experiment package."""
 
-import copy
-import json
-import os
-import pickle
-from datetime import datetime
 
 import numpy as np
-import torch
-from torch.utils.data import DataLoader
 
-from config import Config
-from models.ris_net import create_model
-from src.client import RISClient
-from src.dataset_utils import create_non_iid_datasets, create_test_dataset
-from src.server import FederatedServer
 from utils.metrics import *
 from utils.metrics import dbm_to_watts
 from utils.plotting import *
-
-from .logging_utils import get_experiment_logger
 
 
 class JournalExperimentsMixin:
@@ -239,10 +225,10 @@ class JournalExperimentsMixin:
         self.logger.info("EXPERIMENT 16: Optimization Technique Comparison")
         self.logger.info("=" * 60)
 
-        from src.channel_model import RicianChannel
+        from baselines.admm_optimizer import ADMMOptimizer
         from baselines.alternating_optimization import AlternatingOptimization
         from baselines.sca_optimizer import SCAOptimizer
-        from baselines.admm_optimizer import ADMMOptimizer
+        from src.channel_model import RicianChannel
         
         num_elements = self.config.ELEMENTS_PER_TILE
         num_samples = 50  # Channel realizations for comparison
@@ -427,7 +413,7 @@ class JournalExperimentsMixin:
                     avg_snr = np.mean(snrs)
                     
                     # NoC cost
-                    sqrt_t = max(1, int(np.sqrt(n_tiles)))
+                    max(1, int(np.sqrt(n_tiles)))
                     try:
                         sim = NoCSimulator(num_tiles=n_tiles, topology='Mesh')
                         model_size = actual_pixels * 4 * 256
@@ -472,7 +458,7 @@ class JournalExperimentsMixin:
         # Derive golden ratio formula
         if results:
             # Fit: optimal_tiles = a * sqrt(area) + b
-            areas_seen = sorted(set(r['chip_area_m2'] for r in results))
+            areas_seen = sorted({r['chip_area_m2'] for r in results})
             optimal_per_area = {}
             for a in areas_seen:
                 area_results = [r for r in results if r['chip_area_m2'] == a]

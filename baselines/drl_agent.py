@@ -18,12 +18,13 @@ Reference:
 - Fujimoto et al., "Addressing Function Approximation Error in Actor-Critic Methods", ICML 2018
 """
 
+import copy
+
 import numpy as np
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-import copy
-import os
+from torch import nn
+
 
 class RISEnv:
     """
@@ -65,7 +66,7 @@ class RISEnv:
 
 class Actor(nn.Module):
     def __init__(self, state_dim, action_dim, max_action):
-        super(Actor, self).__init__()
+        super().__init__()
         
         self.l1 = nn.Linear(state_dim, 400)
         self.l2 = nn.Linear(400, 300)
@@ -81,7 +82,7 @@ class Actor(nn.Module):
 
 class Critic(nn.Module):
     def __init__(self, state_dim, action_dim):
-        super(Critic, self).__init__()
+        super().__init__()
 
         # Q1 architecture
         self.l1 = nn.Linear(state_dim + action_dim, 400)

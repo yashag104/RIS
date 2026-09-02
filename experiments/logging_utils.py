@@ -1,10 +1,8 @@
 """Logging helpers for experiment runs."""
 
 import logging
-import os
 import sys
 from pathlib import Path
-
 
 DEFAULT_FORMAT = "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
 

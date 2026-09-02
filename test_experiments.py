@@ -4,19 +4,21 @@ Verifies that critical components and new implementations are working correctly.
 Runs "mini" versions of experiments to catch errors fast.
 """
 
-import sys
 import os
-import torch
-import numpy as np
+import sys
 import traceback
+
+import numpy as np
+import torch
 
 # Add src to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config import Config
-from src.dataset_utils import create_non_iid_datasets, create_test_dataset
 from experiments import AdvancedExperiments
 from models.ris_net import create_model
+from src.dataset_utils import create_non_iid_datasets
+
 
 def test_drl_agent():
     print("\n>>> Testing DRL Agent (TD3)...")
@@ -103,7 +105,7 @@ def test_experiments_suite():
             res = experiments._run_single_fl_experiment()
             assert res['round_metrics'], "mini-FL produced no round metrics"
             assert np.isfinite(res['final_loss']), "mini-FL final loss is not finite"
-            assert 'global_weights' in res and res['global_weights'], "mini-FL did not return global weights"
+            assert res.get('global_weights'), "mini-FL did not return global weights"
             print("  [OK] Mini-FL experiment ran successfully")
             checks.append(True)
         except Exception as e:

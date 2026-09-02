@@ -3,14 +3,14 @@ Main training script for Federated Learning on RIS Tiles
 Orchestrates the complete FL process and evaluation
 """
 
-import os
-import sys
-import torch
-import numpy as np
 import json
+import os
 import pickle
-from torch.utils.data import DataLoader
 from datetime import datetime
+
+import numpy as np
+import torch
+from torch.utils.data import DataLoader
 
 from utils.log import get_logger, setup_logging
 
@@ -19,13 +19,12 @@ logger = get_logger("main")
 # Import project modules
 from config import Config
 from models.ris_net import create_model
+from src.client import RISClient
 from src.dataset_utils import (
     create_non_iid_datasets,
     create_test_dataset,
-    save_datasets,
     validate_dataset_collection,
 )
-from src.client import RISClient
 from src.server import FederatedServer
 from utils.metrics import *
 from utils.metrics import dbm_to_watts
@@ -99,7 +98,7 @@ def initialize_datasets(config):
         logger.info("[OK] Datasets saved to {dataset_path}")
 
     # Print dataset info
-    logger.info(f"\nDataset Summary:")
+    logger.info("\nDataset Summary:")
     logger.info(f"  Number of RIS Tiles: {len(train_datasets)}")
     logger.info(f"  Samples per Tile: {len(train_datasets[0])}")
     logger.info(f"  Test Samples: {len(test_dataset)}")
@@ -234,7 +233,7 @@ def train_federated(config, train_datasets, test_dataset):
     expected_total = (model_params * config.COMM_BYTES_PER_PARAM *
                       2 * len(clients) * config.FL_ROUNDS)
     actual_total = comm_summary['total_bytes']
-    logger.info(f"\n  Communication check:")
+    logger.info("\n  Communication check:")
     logger.info(f"    Model parameters: {model_params:,}")
     logger.info(f"    Expected total: {expected_total / (1024*1024):.2f} MB")
     logger.info(f"    Actual total:   {actual_total / (1024*1024):.2f} MB")
@@ -558,7 +557,7 @@ def main():
     setup_directories(Config)
 
     # Prepare datasets
-    train_datasets, test_dataset, tile_positions = initialize_datasets(Config)
+    train_datasets, test_dataset, _tile_positions = initialize_datasets(Config)
 
     # Evaluate baselines
     baselines = evaluate_baselines(Config, test_dataset)

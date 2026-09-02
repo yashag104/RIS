@@ -12,11 +12,11 @@ Implements:
 Reference channel model follows 3GPP TR 38.901 conventions for mmWave.
 """
 
-import numpy as np
-from utils.logger import logger
-from typing import Tuple, Dict, Optional, List
 import os
 
+import numpy as np
+
+from utils.logger import logger
 
 # ============================================================================
 # Phase Quantization Utilities
@@ -250,7 +250,7 @@ class RicianChannel:
     def _compute_path_loss(
         self,
         distance: float,
-        override_exponent: Optional[float] = None
+        override_exponent: float | None = None
     ) -> float:
         """
         Compute free-space-like path loss in linear power scale.
@@ -262,8 +262,7 @@ class RicianChannel:
         Returns:
             Path loss (linear scale, < 1)
         """
-        if distance < 0.1:
-            distance = 0.1  # Minimum distance to avoid singularity
+        distance = max(distance, 0.1)  # Minimum distance to avoid singularity
             
         exp = override_exponent if override_exponent is not None else self.path_loss_exponent
         pl = (self.wavelength / (4 * np.pi * distance)) ** exp
@@ -274,7 +273,7 @@ class RicianChannel:
         tx_pos: np.ndarray,
         rx_pos: np.ndarray,
         ris_pos: np.ndarray
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray]:
         """
         Generate LoS channel component for BS-RIS and RIS-User links.
         
@@ -316,7 +315,7 @@ class RicianChannel:
         tx_pos: np.ndarray,
         rx_pos: np.ndarray,
         ris_pos: np.ndarray
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray]:
         """
         Generate NLoS (scattered) channel components with multiple paths.
         
@@ -372,7 +371,7 @@ class RicianChannel:
         rx_pos: np.ndarray,
         ris_pos: np.ndarray,
         scenario: str = "LoS"
-    ) -> Dict[str, np.ndarray]:
+    ) -> dict[str, np.ndarray]:
         """
         Generate complete realistic RIS channel.
         
@@ -659,7 +658,7 @@ class ThreeGPPUMiChannel:
         scenario: str = "LoS",
         num_clusters: int = 12,
         rays_per_cluster: int = 20,
-    ) -> Dict[str, np.ndarray]:
+    ) -> dict[str, np.ndarray]:
         """
         Generate 3GPP UMi channel realization.
         
@@ -796,7 +795,7 @@ class DeepMIMODatasetLoader:
         self,
         scenario: str = 'O1_28',
         data_dir: str = 'data/deepmimo',
-        active_bs: List[int] = None,
+        active_bs: list[int] | None = None,
         num_paths: int = 5,
         frequency_band: int = 0,
     ):
@@ -848,9 +847,9 @@ class DeepMIMODatasetLoader:
 
     def generate_dataset(
         self,
-        num_user_rows: Tuple[int, int] = (1, 100),
-        num_antennas_bs: Tuple[int, ...] = (1, 1, 1),
-        num_antennas_user: Tuple[int, ...] = (1, 1, 1),
+        num_user_rows: tuple[int, int] = (1, 100),
+        num_antennas_bs: tuple[int, ...] = (1, 1, 1),
+        num_antennas_user: tuple[int, ...] = (1, 1, 1),
     ) -> dict:
         """
         Generate DeepMIMO dataset with specified parameters.
@@ -887,7 +886,7 @@ class DeepMIMODatasetLoader:
         num_users: int = 4,
         ris_grid_rows: int = 8,
         ris_grid_cols: int = 8,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         Generate RIS channel samples from DeepMIMO data.
         
@@ -971,10 +970,10 @@ def generate_ris_channel_dataset(
     num_samples: int,
     num_ris_elements: int,
     num_users: int,
-    room_size: Tuple[float, float, float],
+    room_size: tuple[float, float, float],
     frequency: float = 28e9,
-    tile_position: Optional[np.ndarray] = None,
-    non_iid_bias: Optional[Tuple[float, float]] = None,
+    tile_position: np.ndarray | None = None,
+    non_iid_bias: tuple[float, float] | None = None,
     k_factor_db: float = 10.0,
     num_paths: int = 5,
     spatial_corr_rho: float = 0.7,
@@ -985,7 +984,7 @@ def generate_ris_channel_dataset(
     use_deepmimo: bool = False,
     deepmimo_scenario: str = 'O1_28',
     deepmimo_data_dir: str = 'data/deepmimo',
-) -> Tuple[np.ndarray, np.ndarray, List[Dict]]:
+) -> tuple[np.ndarray, np.ndarray, list[dict]]:
     """
     Generate a complete RIS channel dataset with realistic models.
     
@@ -1087,10 +1086,10 @@ def generate_ris_channel_dataset(
 
 
 def _channels_to_dataset(
-    channels: List[Dict],
+    channels: list[dict],
     num_ris_elements: int,
     csi_error_variance: float = 0.0,
-) -> Tuple[np.ndarray, np.ndarray, List[Dict]]:
+) -> tuple[np.ndarray, np.ndarray, list[dict]]:
     """
     Convert channel dictionaries to features/labels arrays.
     

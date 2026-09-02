@@ -1,7 +1,9 @@
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch import nn
+
 from config import Config
+
 
 class BaseModel(nn.Module):
     """Abstract base class for all RIS phase-prediction models.
@@ -85,7 +87,7 @@ class GraphAttentionLayer(nn.Module):
             concat: If ``True``, apply ELU activation after aggregation
                 (used for all layers except the final one).
         """
-        super(GraphAttentionLayer, self).__init__()
+        super().__init__()
         self.dropout = dropout
         self.in_features = in_features
         self.out_features = out_features
@@ -307,7 +309,7 @@ class SEBlock(nn.Module):
 
     def __init__(self, channel: int, reduction: int = 16):
         """Initialise the squeeze-and-excitation block."""
-        super(SEBlock, self).__init__()
+        super().__init__()
         reduced_channels = max(1, channel // reduction)
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
         self.fc = nn.Sequential(
@@ -519,9 +521,9 @@ def create_model(
     model_type: str,
     input_dim: int,
     num_elements: int,
-    hidden_dim: int = None,
-    num_layers: int = None,
-    dropout: float = None,
+    hidden_dim: int | None = None,
+    num_layers: int | None = None,
+    dropout: float | None = None,
     config = None
 ) -> nn.Module:
     """

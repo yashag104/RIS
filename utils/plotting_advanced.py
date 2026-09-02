@@ -6,14 +6,20 @@ Each function includes literature reference annotations.
 """
 
 import matplotlib
+
 matplotlib.use('Agg')
+
 import matplotlib.pyplot as plt
 import numpy as np
-import os
 
 from utils.plotting import (
-    C, MARKERS, HATCHES, CMAP_SEQ, IEEE_RC,
-    _save, _add_reference_note, _annotate_bars, _style_legend, _plot_with_ci,
+    IEEE_RC,
+    MARKERS,
+    C,
+    _add_reference_note,
+    _annotate_bars,
+    _save,
+    _style_legend,
 )
 
 plt.rcParams.update(IEEE_RC)
@@ -78,7 +84,7 @@ def plot_quantization_analysis(results, save_path):
     for i, lb in enumerate(labels):
         a3.annotate(lb, (errors[i], snrs[i]), textcoords='offset points',
                     xytext=(5, 5), fontsize=6.5,
-                    arrowprops=dict(arrowstyle='-', color='#999999', lw=0.5))
+                    arrowprops={'arrowstyle': '-', 'color': '#999999', 'lw': 0.5})
     a3.set_xlabel('Phase Error (\u00b0)')
     a3.set_ylabel('SNR (dB)')
     a3.set_title('(c) Trade-off', fontsize=9, loc='left')
@@ -185,7 +191,7 @@ def plot_pilot_analysis(results, save_path):
 
     fig, (a1, a2) = plt.subplots(1, 2, figsize=(7.16, 2.6))
 
-    bars1 = a1.bar(methods, pilots, color=colors, edgecolor='black',
+    a1.bar(methods, pilots, color=colors, edgecolor='black',
                    linewidth=0.5, width=0.5, zorder=3)
     a1.set_ylabel('Total Pilots')
     a1.set_yscale('log')
@@ -223,7 +229,7 @@ def plot_noc_traffic_analysis(results, save_path):
     a2.set_xlabel('Number of Tiles'); a2.set_ylabel('Latency (\u03bcs)')
     a2.set_title('(b) Aggregation Latency', fontsize=9, loc='left')
 
-    bars = a3.bar(tiles, comm, color=C[0], edgecolor='black', linewidth=0.4,
+    a3.bar(tiles, comm, color=C[0], edgecolor='black', linewidth=0.4,
                   width=max(1, tiles[0] * 0.3) if tiles else 1, zorder=3)
     a3.set_xlabel('Number of Tiles'); a3.set_ylabel('Communication (KB)')
     a3.set_title('(c) Data Volume', fontsize=9, loc='left')
@@ -259,7 +265,7 @@ def plot_approach_comparison(results, save_path):
     ]
     for gspec, data, ylabel, title, log in panels:
         ax = fig.add_subplot(gspec)
-        bars = ax.bar(methods, data, color=colors, edgecolor='black',
+        ax.bar(methods, data, color=colors, edgecolor='black',
                       linewidth=0.5, width=0.5, zorder=3)
         ax.set_ylabel(ylabel)
         ax.set_title(title, fontsize=9, loc='left')
@@ -338,7 +344,7 @@ def plot_baseline_comparison(results, save_path):
     _annotate_bars(a1, bars1, fmt='{:.1f}', fontsize=6, offset=0.2)
 
     # Communication cost
-    bars2 = a2.bar(range(n), comms, color=colors, edgecolor='black', linewidth=0.5, zorder=3)
+    a2.bar(range(n), comms, color=colors, edgecolor='black', linewidth=0.5, zorder=3)
     a2.set_xticks(range(n))
     a2.set_xticklabels(methods, rotation=30, ha='right', fontsize=6.5)
     a2.set_ylabel('Communication (KB)')
@@ -347,7 +353,7 @@ def plot_baseline_comparison(results, save_path):
         a2.set_yscale('symlog')
 
     # Energy cost
-    bars3 = a3.bar(range(n), energies, color=colors, edgecolor='black', linewidth=0.5, zorder=3)
+    a3.bar(range(n), energies, color=colors, edgecolor='black', linewidth=0.5, zorder=3)
     a3.set_xticks(range(n))
     a3.set_xticklabels(methods, rotation=30, ha='right', fontsize=6.5)
     a3.set_ylabel('Energy (mJ)')
@@ -394,7 +400,7 @@ def plot_multiuser_comparison(results, save_path):
     a1.set_title('(a) Sum Rate Scaling', fontsize=9, loc='left')
 
     colors = [C[i % len(C)] for i in range(len(n_users))]
-    bars = a2.bar(range(len(n_users)), per_user_snr, color=colors,
+    a2.bar(range(len(n_users)), per_user_snr, color=colors,
                   edgecolor='black', linewidth=0.5, zorder=3)
     a2.set_xticks(range(len(n_users)))
     a2.set_xticklabels([str(u) for u in n_users])
@@ -475,13 +481,13 @@ def plot_fl_algorithms_comparison(results, save_path):
     _annotate_bars(a2, bars2, fmt='{:.1f}', fontsize=6)
 
     # Communication bars
-    bars3 = a3.bar(algo_names, total_comms, color=colors, edgecolor='black',
+    a3.bar(algo_names, total_comms, color=colors, edgecolor='black',
                    linewidth=0.5, zorder=3)
     a3.set_ylabel('Total Communication (KB)')
     a3.set_title('(c) Communication Cost', fontsize=9, loc='left')
 
     # Convergence rounds
-    bars4 = a4.bar(algo_names, conv_rounds, color=colors, edgecolor='black',
+    a4.bar(algo_names, conv_rounds, color=colors, edgecolor='black',
                    linewidth=0.5, zorder=3)
     a4.set_ylabel('Convergence Round')
     a4.set_title('(d) Convergence Speed', fontsize=9, loc='left')
@@ -535,13 +541,13 @@ def plot_architecture_comparison(results, save_path):
         a2.set_ylabel('Loss (MSE)')
         _style_legend(a2, fontsize=6.5)
     else:
-        bars = a2.bar(arch_names, final_losses, color=colors, edgecolor='black',
+        a2.bar(arch_names, final_losses, color=colors, edgecolor='black',
                       linewidth=0.5, zorder=3)
         a2.set_ylabel('Final Loss')
     a2.set_title('(b) Convergence', fontsize=9, loc='left')
 
     # Communication
-    bars3 = a3.bar(range(n), total_comms, color=colors, edgecolor='black', linewidth=0.5, zorder=3)
+    a3.bar(range(n), total_comms, color=colors, edgecolor='black', linewidth=0.5, zorder=3)
     a3.set_xticks(range(n))
     a3.set_xticklabels(arch_names, rotation=20, ha='right', fontsize=7)
     a3.set_ylabel('Communication (KB)')
@@ -614,7 +620,7 @@ def plot_topology_comparison(results, save_path):
     hops = [r.get('avg_hops', 0) for r in results]
     diameters = [r.get('diameter', r.get('topology_diameter', 0)) for r in results]
     bisection = [r.get('bisection_bandwidth', r.get('topology_bisection_bw', 0)) for r in results]
-    degrees = [r.get('degree', 0) for r in results]
+    [r.get('degree', 0) for r in results]
 
     n = len(topos)
     colors = [C[i % len(C)] for i in range(n)]
@@ -624,7 +630,7 @@ def plot_topology_comparison(results, save_path):
 
     # Latency
     ax1 = fig.add_subplot(gs[0, 0])
-    bars1 = ax1.bar(range(n), latencies, color=colors, edgecolor='black', linewidth=0.5, zorder=3)
+    ax1.bar(range(n), latencies, color=colors, edgecolor='black', linewidth=0.5, zorder=3)
     ax1.set_xticks(range(n))
     ax1.set_xticklabels(topos, rotation=35, ha='right', fontsize=6)
     ax1.set_ylabel('Latency (ms)')
@@ -632,7 +638,7 @@ def plot_topology_comparison(results, save_path):
 
     # Energy
     ax2 = fig.add_subplot(gs[0, 1])
-    bars2 = ax2.bar(range(n), energies, color=colors, edgecolor='black', linewidth=0.5, zorder=3)
+    ax2.bar(range(n), energies, color=colors, edgecolor='black', linewidth=0.5, zorder=3)
     ax2.set_xticks(range(n))
     ax2.set_xticklabels(topos, rotation=35, ha='right', fontsize=6)
     ax2.set_ylabel('Energy (\u03bcJ)')
@@ -649,7 +655,7 @@ def plot_topology_comparison(results, save_path):
 
     # Diameter
     ax4 = fig.add_subplot(gs[1, 0])
-    bars4 = ax4.bar(range(n), diameters, color=colors, edgecolor='black', linewidth=0.5, zorder=3)
+    ax4.bar(range(n), diameters, color=colors, edgecolor='black', linewidth=0.5, zorder=3)
     ax4.set_xticks(range(n))
     ax4.set_xticklabels(topos, rotation=35, ha='right', fontsize=6)
     ax4.set_ylabel('Diameter')
@@ -657,7 +663,7 @@ def plot_topology_comparison(results, save_path):
 
     # Bisection bandwidth
     ax5 = fig.add_subplot(gs[1, 1])
-    bars5 = ax5.bar(range(n), bisection, color=colors, edgecolor='black', linewidth=0.5, zorder=3)
+    ax5.bar(range(n), bisection, color=colors, edgecolor='black', linewidth=0.5, zorder=3)
     ax5.set_xticks(range(n))
     ax5.set_xticklabels(topos, rotation=35, ha='right', fontsize=6)
     ax5.set_ylabel('Bisection BW')
@@ -710,7 +716,7 @@ def plot_protocol_comparison(results, save_path):
         topo_groups[topo][proto] = r
 
     topologies = sorted(topo_groups.keys())
-    all_protocols = sorted(set(p for t in topo_groups.values() for p in t.keys()))
+    all_protocols = sorted({p for t in topo_groups.values() for p in t})
 
     fig, ((a1, a2), (a3, a4)) = plt.subplots(2, 2, figsize=(7.16, 5.5))
 
@@ -786,7 +792,7 @@ def plot_optimization_comparison(results, save_path):
     fig, ((a1, a2), (a3, a4)) = plt.subplots(2, 2, figsize=(7.16, 5.5))
 
     # SNR with error bars
-    bars1 = a1.bar(range(n), snrs, yerr=stds, color=colors, edgecolor='black',
+    a1.bar(range(n), snrs, yerr=stds, color=colors, edgecolor='black',
                    linewidth=0.5, capsize=3, error_kw={'linewidth': 0.8}, zorder=3)
     a1.set_xticks(range(n))
     a1.set_xticklabels(methods, rotation=30, ha='right', fontsize=7)
@@ -795,7 +801,7 @@ def plot_optimization_comparison(results, save_path):
 
     # Solve time (log scale)
     times_plot = [max(t, 1e-6) for t in times]
-    bars2 = a2.bar(range(n), times_plot, color=colors, edgecolor='black', linewidth=0.5, zorder=3)
+    a2.bar(range(n), times_plot, color=colors, edgecolor='black', linewidth=0.5, zorder=3)
     a2.set_xticks(range(n))
     a2.set_xticklabels(methods, rotation=30, ha='right', fontsize=7)
     a2.set_ylabel('Solve Time (s)')
@@ -849,12 +855,12 @@ def plot_golden_ratio_analysis(results, save_path):
 
     # Separate config results from golden ratio metadata
     configs = [r for r in results if '_golden_ratio' not in r]
-    meta = [r for r in results if '_golden_ratio' in r]
+    [r for r in results if '_golden_ratio' in r]
 
     if not configs:
         return
 
-    areas = sorted(set(r.get('chip_area_m2', 0) for r in configs))
+    sorted({r.get('chip_area_m2', 0) for r in configs})
     tiles_list = [r.get('num_tiles', 0) for r in configs]
     pixels_list = [r.get('pixels_per_tile', 0) for r in configs]
     snrs = [r.get('avg_snr_db', 0) for r in configs]
@@ -868,7 +874,7 @@ def plot_golden_ratio_analysis(results, save_path):
 
     # SNR bars by configuration
     labels = [f'T={tiles_list[i]},P={pixels_list[i]}' for i in range(n)]
-    bars1 = a1.bar(range(n), snrs, color=colors, edgecolor='black', linewidth=0.5, zorder=3)
+    a1.bar(range(n), snrs, color=colors, edgecolor='black', linewidth=0.5, zorder=3)
     a1.set_xticks(range(n))
     a1.set_xticklabels(labels, rotation=35, ha='right', fontsize=6)
     a1.set_ylabel('Average SNR (dB)')
@@ -934,7 +940,7 @@ def plot_duty_cycling_analysis(results, save_path):
     fig, ((a1, a2), (a3, a4)) = plt.subplots(2, 2, figsize=(7.16, 5.0))
 
     # SNR with error bars
-    bars1 = a1.bar(range(n), snrs, yerr=stds, color=colors, edgecolor='black',
+    a1.bar(range(n), snrs, yerr=stds, color=colors, edgecolor='black',
                    linewidth=0.5, capsize=3, error_kw={'linewidth': 0.8}, zorder=3)
     a1.set_xticks(range(n))
     a1.set_xticklabels(strategies, rotation=30, ha='right', fontsize=6)
@@ -1001,7 +1007,7 @@ def plot_dataset_comparison(results, save_path):
     fig, ((a1, a2), (a3, a4)) = plt.subplots(2, 2, figsize=(7.16, 5.5))
 
     # Optimal SNR with error bars
-    bars1 = a1.bar(range(n), snrs, yerr=stds, color=colors, edgecolor='black',
+    a1.bar(range(n), snrs, yerr=stds, color=colors, edgecolor='black',
                    linewidth=0.5, capsize=3, error_kw={'linewidth': 0.8}, zorder=3)
     a1.set_xticks(range(n))
     a1.set_xticklabels(short_labels, rotation=35, ha='right', fontsize=5.5)
@@ -1009,14 +1015,14 @@ def plot_dataset_comparison(results, save_path):
     a1.set_title('(a) Optimal SNR by Scenario', fontsize=9, loc='left')
 
     # RIS gain
-    bars2 = a2.bar(range(n), gains, color=colors, edgecolor='black', linewidth=0.5, zorder=3)
+    a2.bar(range(n), gains, color=colors, edgecolor='black', linewidth=0.5, zorder=3)
     a2.set_xticks(range(n))
     a2.set_xticklabels(short_labels, rotation=35, ha='right', fontsize=5.5)
     a2.set_ylabel('RIS Gain (dB)')
     a2.set_title('(b) RIS Gain', fontsize=9, loc='left')
 
     # Channel gain
-    bars3 = a3.bar(range(n), ch_gains, color=colors, edgecolor='black', linewidth=0.5, zorder=3)
+    a3.bar(range(n), ch_gains, color=colors, edgecolor='black', linewidth=0.5, zorder=3)
     a3.set_xticks(range(n))
     a3.set_xticklabels(short_labels, rotation=35, ha='right', fontsize=5.5)
     a3.set_ylabel('Average Channel Gain')
@@ -1080,14 +1086,14 @@ def plot_phase_quantization_detailed(results, save_path):
     fig, ((a1, a2), (a3, a4)) = plt.subplots(2, 2, figsize=(7.16, 5.0))
 
     # SNR by quantization
-    bars1 = a1.bar(range(n), snrs, color=colors, edgecolor='black', linewidth=0.5, zorder=3)
+    a1.bar(range(n), snrs, color=colors, edgecolor='black', linewidth=0.5, zorder=3)
     a1.set_xticks(range(n))
     a1.set_xticklabels(labels, rotation=30, ha='right', fontsize=6)
     a1.set_ylabel('SNR (dB)')
     a1.set_title('(a) SNR by Quantization', fontsize=9, loc='left')
 
     # Phase error
-    bars2 = a2.bar(range(n), errors, color=colors, edgecolor='black', linewidth=0.5, zorder=3)
+    a2.bar(range(n), errors, color=colors, edgecolor='black', linewidth=0.5, zorder=3)
     a2.set_xticks(range(n))
     a2.set_xticklabels(labels, rotation=30, ha='right', fontsize=6)
     a2.set_ylabel('Phase Error (\u00b0)')
@@ -1107,7 +1113,7 @@ def plot_phase_quantization_detailed(results, save_path):
     if snrs:
         best_snr = max(snrs)
         losses = [best_snr - s for s in snrs]
-        bars4 = a4.bar(range(n), losses, color=colors, edgecolor='black',
+        a4.bar(range(n), losses, color=colors, edgecolor='black',
                        linewidth=0.5, zorder=3)
         a4.set_xticks(range(n))
         a4.set_xticklabels(labels, rotation=30, ha='right', fontsize=6)

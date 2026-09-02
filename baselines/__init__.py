@@ -3,11 +3,11 @@ Baselines package for RIS optimization
 Contains state-of-the-art comparison methods
 """
 
+from baselines.admm_optimizer import ADMMOptimizer
 from baselines.alternating_optimization import AlternatingOptimization
 from baselines.centralized_learning import CentralizedRIS
 from baselines.random_search import RandomSearch
 from baselines.sca_optimizer import SCAOptimizer
-from baselines.admm_optimizer import ADMMOptimizer
 
 # Optional imports (require extra dependencies)
 try:
@@ -22,6 +22,12 @@ except ImportError:
     TD3Agent = None
 
 __all__ = [
-    'AlternatingOptimization', 'CentralizedRIS', 'RandomSearch', 'TD3Agent',
-    'RISEnv', 'SDROptimizer', 'SCAOptimizer', 'ADMMOptimizer',
+    'ADMMOptimizer',
+    'AlternatingOptimization',
+    'CentralizedRIS',
+    'RISEnv',
+    'RandomSearch',
+    'SCAOptimizer',
+    'SDROptimizer',
+    'TD3Agent',
 ]

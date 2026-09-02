@@ -20,9 +20,10 @@ Disadvantages:
 - Not online / adaptive
 """
 
+
 import numpy as np
+
 from utils.logger import logger
-from typing import Dict, List, Optional
 
 try:
     import cvxpy as cp
@@ -114,7 +115,7 @@ class SDROptimizer:
         h_bs_ris: np.ndarray,
         noise_power: float,
         initial_phases: np.ndarray = None
-    ) -> Dict:
+    ) -> dict:
         """
         Optimize RIS phase shifts using SDR.
         
@@ -195,7 +196,7 @@ class SDROptimizer:
                 best_phases = phases
         
         # Also try the rank-1 approximation (SVD)
-        U, S, Vh = np.linalg.svd(V_opt)
+        U, S, _Vh = np.linalg.svd(V_opt)
         v_svd = U[:, 0] * np.sqrt(S[0])
         v_svd = v_svd / np.abs(v_svd)
         theta_svd = v_svd[:N] / v_svd[N]
@@ -252,9 +253,9 @@ class SDROptimizer:
     
     def batch_optimize(
         self,
-        channel_samples: List[Dict],
+        channel_samples: list[dict],
         noise_power: float
-    ) -> Dict:
+    ) -> dict:
         """
         Run SDR on multiple channel realizations.
         
@@ -301,7 +302,7 @@ class SDROptimizer:
         
         return metrics
     
-    def compute_complexity(self) -> Dict:
+    def compute_complexity(self) -> dict:
         """
         Estimate computational complexity.
         

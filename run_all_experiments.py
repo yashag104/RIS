@@ -1,8 +1,7 @@
 import argparse
-import os
-import sys
-import time
 import json
+import os
+import time
 import traceback
 
 from config import Config

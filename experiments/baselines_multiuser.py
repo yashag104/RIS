@@ -2,31 +2,21 @@
 
 """Shared imports for the RIS experiment package."""
 
-import copy
-import json
-import os
-import pickle
-from datetime import datetime
 
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from config import Config
 from models.ris_net import create_model
-from src.client import RISClient
 from src.dataset_utils import (
     create_non_iid_datasets,
     create_test_dataset,
-    validate_dataset_feature_dim,
     validate_dataset_collection,
+    validate_dataset_feature_dim,
 )
-from src.server import FederatedServer
 from utils.metrics import *
 from utils.metrics import dbm_to_watts
 from utils.plotting import *
-
-from .logging_utils import get_experiment_logger
 
 
 class BaselineMultiuserExperimentsMixin:
@@ -45,7 +35,7 @@ class BaselineMultiuserExperimentsMixin:
         from baselines.random_search import RandomSearch
 
         # Create datasets (same for all methods - fair comparison)
-        train_datasets, tile_positions = create_non_iid_datasets(self.config, self.config.NUM_TILES)
+        train_datasets, _tile_positions = create_non_iid_datasets(self.config, self.config.NUM_TILES)
         test_dataset = create_test_dataset(self.config)
         input_dim = validate_dataset_collection(
             train_datasets,
@@ -107,7 +97,7 @@ class BaselineMultiuserExperimentsMixin:
 
         # ---- 3. Random Search (1000 trials) ----
         self.logger.info("\n>>> Evaluating: Random Search (1000 trials)...")
-        rs = RandomSearch(
+        RandomSearch(
             num_elements=self.config.ELEMENTS_PER_TILE,
             num_trials=1000,
             seed=42
@@ -126,8 +116,7 @@ class BaselineMultiuserExperimentsMixin:
                 h_total = h_direct + np.sum(h_cascade * np.exp(1j * phases))
                 signal = tx_power * np.abs(h_total) ** 2
                 snr = 10 * np.log10(signal / noise_power)
-                if snr > best_snr:
-                    best_snr = snr
+                best_snr = max(best_snr, snr)
             snr_rs.append(best_snr)
         results['random_search'] = {
             'snr_db': np.mean(snr_rs),
@@ -155,11 +144,9 @@ class BaselineMultiuserExperimentsMixin:
         
         # Train DRL agent (Online Learning on Train Data)
         self.logger.info("  Training DRL agent...")
-        drl_losses = []
         drl_epochs = 50 # Short training for baseline
         
         for epoch in range(drl_epochs):
-            epoch_loss = 0
             for i, dataset in enumerate(train_datasets):
                 dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
                 for features, _ in dataloader:
@@ -170,7 +157,7 @@ class BaselineMultiuserExperimentsMixin:
                      # For DRL training, we treat this as a contextual bandit problem
                      # State s -> Action a -> Reward r
                      
-                     bs = features.size(0)
+                     features.size(0)
                      state = features.to(self.config.DEVICE)
                      
                      # Select action with noise
@@ -190,12 +177,10 @@ class BaselineMultiuserExperimentsMixin:
                      # Since we can't easily reconstruct H from just features in this loop without metadata,
                      # we will use the supervised proxy for this baseline implementation validity,
                      # OR better: use the validation loop style where we have metadata.
-                     pass 
             
             # Since proper DRL training requires an interactive environment (State -> Reward),
             # and our dataset is offline, we will simulate "online" training by iterating through data 
             # and calculating reward using the Channel Model helper.
-            pass
 
         # RE-IMPLEMENTATION: Use proper RISEnv
         from baselines.drl_agent import RISEnv
@@ -313,7 +298,7 @@ class BaselineMultiuserExperimentsMixin:
 
         # Evaluate centralized model on test set
         test_loader = DataLoader(test_dataset, batch_size=self.config.BATCH_SIZE, shuffle=False)
-        cent_eval = centralized.evaluate(test_loader)
+        centralized.evaluate(test_loader)
 
         # Compute centralized SNR
         cent_model_eval = centralized.get_model()
@@ -368,7 +353,7 @@ class BaselineMultiuserExperimentsMixin:
             'phase_error_deg': fl_result['phase_error_deg']
         }
         self.logger.info(f"  SNR: {results['federated_ours']['snr_db']:.2f} dB")
-        self.logger.info(f"  Privacy: YES")
+        self.logger.info("  Privacy: YES")
 
         # ---- 7. Genie-Aided Optimal ----
         self.logger.info("\n>>> Evaluating: Genie-Aided Optimal...")

@@ -1,5 +1,5 @@
-import pytest
-from src.noc_simulator import compare_topologies_and_protocols, NoCSimulator
+from src.noc_simulator import NoCSimulator, compare_topologies_and_protocols
+
 
 def test_noc_topologies_and_protocols():
     results = compare_topologies_and_protocols(

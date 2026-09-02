@@ -16,10 +16,10 @@ This serves as a strong baseline - achieves near-optimal performance but:
 - Not scalable to large-scale deployments
 """
 
+
 import numpy as np
+
 from utils.logger import logger
-import torch
-from typing import Tuple, Dict, List
 
 
 class AlternatingOptimization:
@@ -59,7 +59,7 @@ class AlternatingOptimization:
         h_bs_ris: np.ndarray,
         noise_power: float,
         initial_phases: np.ndarray = None
-    ) -> Tuple[np.ndarray, List[float]]:
+    ) -> tuple[np.ndarray, list[float]]:
         """
         Optimize RIS phase shifts using alternating optimization.
         
@@ -144,9 +144,9 @@ class AlternatingOptimization:
     
     def batch_optimize(
         self,
-        channel_samples: List[Dict],
+        channel_samples: list[dict],
         noise_power: float
-    ) -> Tuple[np.ndarray, Dict]:
+    ) -> tuple[np.ndarray, dict]:
         """
         Run AO on multiple channel realizations.
         
@@ -189,7 +189,7 @@ class AlternatingOptimization:
         
         return all_phases, metrics
     
-    def compute_complexity(self) -> Dict[str, float]:
+    def compute_complexity(self) -> dict[str, float]:
         """
         Estimate computational complexity.
         
@@ -223,7 +223,7 @@ def compare_with_random_init(
     h_bs_ris: np.ndarray,
     noise_power: float,
     num_trials: int = 10
-) -> Dict:
+) -> dict:
     """
     Test sensitivity to random initialization.
     

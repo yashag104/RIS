@@ -11,12 +11,11 @@ Noxim output format includes lines like:
   ...and per-router stats when -detailed is used.
 """
 
+import csv
+import json
 import os
 import re
-import json
-import csv
 import sys
-from pathlib import Path
 
 
 def parse_noxim_output(filepath):
@@ -159,7 +158,7 @@ if __name__ == '__main__':
     
     if not os.path.isdir(results_dir):
         print(f"[ERROR] Results directory not found: {results_dir}")
-        print(f"  Run run_all_noxim.sh first to generate results.")
+        print("  Run run_all_noxim.sh first to generate results.")
         sys.exit(1)
     
     print(f"Parsing Noxim results from: {results_dir}\n")

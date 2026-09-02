@@ -3,12 +3,14 @@ Base Station Server - Federated Aggregation Logic
 Coordinates federated learning across RIS tiles
 """
 
-import torch
-import numpy as np
 import copy
-from utils.logger import logger
 from collections import OrderedDict
-from typing import Any, Dict, List, Optional
+from typing import Any
+
+import numpy as np
+import torch
+
+from utils.logger import logger
 
 
 class FederatedServer:
@@ -47,7 +49,7 @@ class FederatedServer:
             for name, param in global_model.named_parameters()
         }
 
-    def aggregate_weights_fedavg(self, client_weights: List[Dict], client_sizes: List[int]) -> Dict:
+    def aggregate_weights_fedavg(self, client_weights: list[dict], client_sizes: list[int]) -> dict:
         """
         FedAvg: Weighted average of client models
 
@@ -65,7 +67,7 @@ class FederatedServer:
         # Initialize aggregated weights with first client
         aggregated_weights = OrderedDict()
 
-        for key in client_weights[0].keys():
+        for key in client_weights[0]:
             # Skip non-floating-point buffers (e.g. GNN edge_index)
             if client_weights[0][key].is_floating_point():
                 aggregated_weights[key] = sum(
@@ -78,7 +80,7 @@ class FederatedServer:
 
         return aggregated_weights
 
-    def aggregate_weights_fedprox(self, client_weights: List[Dict], client_sizes: List[int], mu: float = 0.01) -> Dict:
+    def aggregate_weights_fedprox(self, client_weights: list[dict], client_sizes: list[int], mu: float = 0.01) -> dict:
         """
         FedProx: FedAvg with proximal term (useful for non-IID)
 
@@ -97,7 +99,7 @@ class FederatedServer:
         aggregated_weights = self.aggregate_weights_fedavg(client_weights, client_sizes)
 
         # Add proximal term (only for floating-point parameters)
-        for key in aggregated_weights.keys():
+        for key in aggregated_weights:
             if aggregated_weights[key].is_floating_point():
                 aggregated_weights[key] = (
                     aggregated_weights[key] + mu * global_weights[key]
@@ -105,7 +107,7 @@ class FederatedServer:
 
         return aggregated_weights
 
-    def aggregate_weights_scaffold(self, client_weights: List[Dict], client_sizes: List[int], c_deltas: List[Dict]) -> Dict:
+    def aggregate_weights_scaffold(self, client_weights: list[dict], client_sizes: list[int], c_deltas: list[dict]) -> dict:
         """
         SCAFFOLD: FedAvg + control variate correction
         
@@ -134,7 +136,7 @@ class FederatedServer:
 
         return aggregated_weights
 
-    def aggregate_weights(self, client_weights: List[Dict], client_sizes: List[int], **kwargs) -> Dict:
+    def aggregate_weights(self, client_weights: list[dict], client_sizes: list[int], **kwargs) -> dict:
         """
         Main aggregation function - routes to specific method
 
@@ -156,7 +158,7 @@ class FederatedServer:
         else:
             raise ValueError(f"Unknown aggregation method: {self.aggregation_method}")
 
-    def broadcast_model(self, clients: List) -> None:
+    def broadcast_model(self, clients: list) -> None:
         """
         Send global model to all clients.
         Also sets FedProx reference and SCAFFOLD controls.
@@ -189,7 +191,7 @@ class FederatedServer:
             logger.info(f"  [Server] Broadcasted model to {len(clients)} clients "
                   f"({total_bytes / 1024:.2f} KB total)")
 
-    def aggregate_round(self, clients: List, round_num: int) -> Dict[str, Any]:
+    def aggregate_round(self, clients: list, round_num: int) -> dict[str, Any]:
         """
         Execute one round of federated learning.
         Supports FedAvg, FedProx, and SCAFFOLD.
@@ -286,11 +288,11 @@ class FederatedServer:
         """Return the global model"""
         return self.global_model
 
-    def get_global_weights(self) -> Dict:
+    def get_global_weights(self) -> dict:
         """Return global model weights"""
         return self.global_model.state_dict()
 
-    def get_communication_summary(self) -> Dict[str, Any]:
+    def get_communication_summary(self) -> dict[str, Any]:
         """
         Get summary of communication costs
 
@@ -328,7 +330,7 @@ class FederatedServer:
 
         return summary
 
-    def get_convergence_metrics(self) -> Dict[str, Any]:
+    def get_convergence_metrics(self) -> dict[str, Any]:
         """
         Analyze convergence behavior
 

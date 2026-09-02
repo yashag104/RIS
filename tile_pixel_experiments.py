@@ -4,28 +4,25 @@ Finds the "Golden Ratio" between tiles, pixels, and chip area
 Includes NoC topology comparison and sleep scheduling analysis
 """
 
-import numpy as np
-import torch
-from torch.utils.data import DataLoader
-import copy
-import os
 import json
-import pickle
-from datetime import datetime
+import os
+
+import numpy as np
+from torch.utils.data import DataLoader
 
 from config import Config
 from models.ris_net import RISNet
-from src.dataset_utils import create_non_iid_datasets, create_test_dataset
 from src.client import RISClient
+from src.dataset_utils import create_non_iid_datasets, create_test_dataset
 from src.server import FederatedServer
 from utils.metrics import (
-    calculate_noc_topology_metrics,
-    compare_all_topologies,
-    calculate_composite_score,
-    calculate_tile_efficiency,
     calculate_area_coverage,
+    calculate_composite_score,
+    calculate_noc_topology_metrics,
     calculate_optimal_tiles_formula,
-    calculate_sleep_energy_savings
+    calculate_sleep_energy_savings,
+    calculate_tile_efficiency,
+    compare_all_topologies,
 )
 
 
@@ -437,7 +434,7 @@ class TilePixelExperiments:
         Returns metrics dictionary.
         """
         # Create datasets
-        train_datasets, tile_positions = create_non_iid_datasets(
+        train_datasets, _tile_positions = create_non_iid_datasets(
             self.config, self.config.NUM_TILES
         )
         test_dataset = create_test_dataset(self.config)
@@ -579,7 +576,7 @@ class TilePixelExperiments:
             scores = [r['composite_score']['composite_score'] for r in results]
             utilization = [r['noc_metrics']['bandwidth_utilization'] * 100 for r in results]
             
-            fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+            _fig, axes = plt.subplots(2, 2, figsize=(12, 10))
             
             axes[0, 0].plot(tiles, snr, 'bo-', linewidth=2, markersize=8)
             axes[0, 0].set_xlabel('Number of Tiles')
@@ -629,7 +626,7 @@ class TilePixelExperiments:
             coverage = [r['area_coverage']['coverage_percentage'] for r in results]
             scores = [r['composite_score']['composite_score'] for r in results]
             
-            fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+            _fig, axes = plt.subplots(1, 3, figsize=(15, 5))
             
             axes[0].plot(pixels, snr, 'bo-', linewidth=2, markersize=8)
             axes[0].set_xlabel('Pixels per Tile')
@@ -665,8 +662,8 @@ class TilePixelExperiments:
             import matplotlib.pyplot as plt
             
             # Create heatmap data
-            areas = sorted(set(r['chip_area_m2'] for r in results))
-            tiles = sorted(set(r['num_tiles'] for r in results))
+            areas = sorted({r['chip_area_m2'] for r in results})
+            tiles = sorted({r['num_tiles'] for r in results})
             
             scores = np.zeros((len(tiles), len(areas)))
             for r in results:
@@ -674,7 +671,7 @@ class TilePixelExperiments:
                 j = areas.index(r['chip_area_m2'])
                 scores[i, j] = r['composite_score']['composite_score']
             
-            fig, ax = plt.subplots(figsize=(10, 8))
+            _fig, ax = plt.subplots(figsize=(10, 8))
             im = ax.imshow(scores, cmap='viridis', aspect='auto')
             
             ax.set_xticks(range(len(areas)))
@@ -711,7 +708,7 @@ class TilePixelExperiments:
             utilizations = [comparison['results'][t]['bandwidth_utilization'] * 100 for t in topologies]
             powers = [comparison['results'][t]['power_w'] for t in topologies]
             
-            fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+            _fig, axes = plt.subplots(1, 3, figsize=(15, 5))
             
             colors = ['blue', 'green', 'orange', 'red', 'purple']
             
@@ -745,7 +742,7 @@ class TilePixelExperiments:
         try:
             import matplotlib.pyplot as plt
             
-            fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+            _fig, axes = plt.subplots(1, 2, figsize=(12, 5))
             
             modes = ['Always-On', 'Dynamic Sleep']
             energy = [
@@ -778,7 +775,7 @@ class TilePixelExperiments:
         try:
             import matplotlib.pyplot as plt
             
-            fig, ax = plt.subplots(figsize=(10, 6))
+            _fig, ax = plt.subplots(figsize=(10, 6))
             
             labels = [f"T:{r['tile_config']}\nP:{r['pixel_config']}" for r in results]
             scores = [r['composite_score']['composite_score'] for r in results]

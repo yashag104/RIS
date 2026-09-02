@@ -5,8 +5,8 @@ Simple baseline that tries random phase configurations and returns the best.
 Serves as a sanity check - any intelligent method should beat this.
 """
 
+
 import numpy as np
-from typing import Dict, Tuple, List
 
 
 class RandomSearch:
@@ -17,7 +17,7 @@ class RandomSearch:
     with the highest SNR.
     """
     
-    def __init__(self, num_elements: int, num_trials: int = 1000, seed: int = None):
+    def __init__(self, num_elements: int, num_trials: int = 1000, seed: int | None = None):
         """
         Args:
             num_elements: Number of RIS elements
@@ -35,7 +35,7 @@ class RandomSearch:
         h_ris_user: np.ndarray,
         h_bs_ris: np.ndarray,
         noise_power: float
-    ) -> Tuple[np.ndarray, float, List[float]]:
+    ) -> tuple[np.ndarray, float, list[float]]:
         """
         Find best phase configuration via random search.
         
@@ -89,9 +89,9 @@ class RandomSearch:
     
     def batch_optimize(
         self,
-        channel_samples: List[Dict],
+        channel_samples: list[dict],
         noise_power: float
-    ) -> Tuple[np.ndarray, Dict]:
+    ) -> tuple[np.ndarray, dict]:
         """
         Run random search on multiple channel realizations.
         
@@ -134,7 +134,7 @@ def random_ris_single_trial(
     h_ris_user: np.ndarray,
     h_bs_ris: np.ndarray,
     noise_power: float
-) -> Tuple[np.ndarray, float]:
+) -> tuple[np.ndarray, float]:
     """
     Single random RIS configuration (for quick baseline).
     

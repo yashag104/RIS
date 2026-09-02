@@ -4,7 +4,6 @@ Checks if all dependencies are correctly installed
 """
 
 import sys
-import subprocess
 from pathlib import Path
 
 
@@ -50,11 +49,11 @@ def check_pytorch():
             print(f"    - CUDA version: {torch.version.cuda}")
             print(f"    - GPU memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
         else:
-            print(f"  ⚠ CUDA not available (will use CPU)")
+            print("  ⚠ CUDA not available (will use CPU)")
 
         return True
     except ImportError:
-        print(f"  ✗ PyTorch not installed")
+        print("  ✗ PyTorch not installed")
         return False
 
 
@@ -115,6 +114,7 @@ def run_minimal_test():
 
     try:
         import torch
+
         from models.ris_net import create_model
 
         # Create small model
@@ -127,7 +127,7 @@ def run_minimal_test():
         assert output.shape == (4, 16), "Output shape mismatch"
         assert torch.isfinite(output).all(), "Output contains non-finite values"
 
-        print(f"  ✓ Model creation and forward pass")
+        print("  ✓ Model creation and forward pass")
         print(f"    Input shape: {x.shape}")
         print(f"    Output shape: {output.shape}")
         print(f"    Output range: [{output.min():.3f}, {output.max():.3f}]")

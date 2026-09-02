@@ -20,9 +20,10 @@ Disadvantages:
 - Multiple iterations needed
 """
 
+
 import numpy as np
+
 from utils.logger import logger
-from typing import Dict, List, Optional
 
 
 class SCAOptimizer:
@@ -70,7 +71,7 @@ class SCAOptimizer:
         h_bs_ris: np.ndarray,
         noise_power: float,
         initial_phases: np.ndarray = None
-    ) -> Dict:
+    ) -> dict:
         """
         Optimize RIS phase shifts using SCA.
         
@@ -169,9 +170,9 @@ class SCAOptimizer:
     
     def batch_optimize(
         self,
-        channel_samples: List[Dict],
+        channel_samples: list[dict],
         noise_power: float
-    ) -> Dict:
+    ) -> dict:
         """
         Run SCA on multiple channel realizations.
         
@@ -213,7 +214,7 @@ class SCAOptimizer:
             'all_snrs': snrs,
         }
     
-    def compute_complexity(self) -> Dict:
+    def compute_complexity(self) -> dict:
         """
         Estimate computational complexity.
         
