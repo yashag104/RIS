@@ -1,0 +1,22 @@
+[
+    {
+        "architecture": "MLP",
+        "error": "Parent directory models/saved does not exist.",
+        "final_snr": 0
+    },
+    {
+        "architecture": "GNN",
+        "error": "Parent directory models/saved does not exist.",
+        "final_snr": 0
+    },
+    {
+        "architecture": "CNN_Attention",
+        "error": "Parent directory models/saved does not exist.",
+        "final_snr": 0
+    },
+    {
+        "architecture": "Transformer",
+        "error": "Parent directory models/saved does not exist.",
+        "final_snr": 0
+    }
+]

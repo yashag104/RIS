@@ -264,3 +264,913 @@ Starting Federated Learning for 1 rounds...
 2026-09-02 06:51:39,915 | INFO | ris.main |     Expected total: 2.37 MB
 2026-09-02 06:51:39,916 | INFO | ris.main |     Actual total:   2.37 MB
 2026-09-02 06:51:40,019 | INFO | ris.AdvancedExperiments |   Simulating mobility: 10 m/s...
+2026-09-03 11:02:37,574 | INFO | ris.AdvancedExperiments | 
+============================================================
+2026-09-03 11:02:37,574 | INFO | ris.AdvancedExperiments | EXPERIMENT 1: Local Epochs Variation
+2026-09-03 11:02:37,574 | INFO | ris.AdvancedExperiments | ============================================================
+2026-09-03 11:02:37,574 | INFO | ris.AdvancedExperiments | 
+>>> Testing with E = 1 local epochs...
+2026-09-03 11:09:02,772 | INFO | ris.AdvancedExperiments | 
+============================================================
+2026-09-03 11:09:02,772 | INFO | ris.AdvancedExperiments | EXPERIMENT 1: Local Epochs Variation
+2026-09-03 11:09:02,772 | INFO | ris.AdvancedExperiments | ============================================================
+2026-09-03 11:09:02,773 | INFO | ris.AdvancedExperiments | 
+>>> Testing with E = 1 local epochs...
+2026-09-03 11:22:30,634 | INFO | ris.main | ============================================================
+2026-09-03 11:22:30,635 | INFO | ris.main | BASELINE EVALUATION
+2026-09-03 11:22:30,635 | INFO | ris.main | ============================================================
+2026-09-03 11:22:30,635 | INFO | ris.main | Evaluating: No RIS (direct link)
+2026-09-03 11:22:30,635 | INFO | ris.main |   SNR: -13.72 dB
+2026-09-03 11:22:30,636 | INFO | ris.main |   Rate: 0.06 bps/Hz
+2026-09-03 11:22:30,636 | INFO | ris.main | 
+Evaluating: Random RIS
+2026-09-03 11:22:30,638 | INFO | ris.main |   SNR: -13.76 dB
+2026-09-03 11:22:30,638 | INFO | ris.main |   Rate: 0.06 bps/Hz
+2026-09-03 11:22:30,638 | INFO | ris.main | 
+Evaluating: Optimal (Genie-aided)
+2026-09-03 11:22:30,641 | INFO | ris.main |   SNR: -13.03 dB
+2026-09-03 11:22:30,641 | INFO | ris.main |   Rate: 0.07 bps/Hz
+2026-09-03 11:22:30,641 | INFO | ris.main | ============================================================
+2026-09-03 11:22:30,641 | INFO | ris.main | FEDERATED LEARNING TRAINING
+2026-09-03 11:22:30,641 | INFO | ris.main | ============================================================
+2026-09-03 11:22:30,641 | INFO | ris.main | ============================================================
+2026-09-03 11:22:30,641 | INFO | ris.main | MODEL INITIALIZATION
+2026-09-03 11:22:30,641 | INFO | ris.main | ============================================================
+2026-09-03 11:22:30,651 | INFO | ris.main | [OK] Global model ({config.MODEL_TYPE}) created
+2026-09-03 11:22:30,651 | INFO | ris.main |   Total parameters: 621,313
+2026-09-03 11:22:30,651 | INFO | ris.main |   Model size (FP32): 2427.00 KB
+2026-09-03 11:22:30,651 | INFO | ris.main |   Model size (INT8 for FL comm): 606.75 KB
+2026-09-03 11:22:30,651 | INFO | ris.main |   Expected comm per round: 19416.03 KB (= 621313 B x 2 x 16 tiles)
+2026-09-03 11:22:30,651 | INFO | ris.main |   Expected total comm (20 rounds): 388320.62 KB = 379.22 MB
+2026-09-03 11:22:32,130 | INFO | ris.main | [OK] Created {len(clients)} RIS tile clients
+2026-09-03 11:22:32,130 | INFO | ris.main | 
+Starting Federated Learning for 20 rounds...
+2026-09-03 11:22:32,130 | INFO | ris.main | Local epochs per round: 1
+2026-09-03 11:22:52,147 | INFO | ris.main | [Evaluation] Testing global model...
+2026-09-03 11:22:53,523 | INFO | ris.main |   Test Loss: 3.245847
+2026-09-03 11:22:53,523 | INFO | ris.main |   Phase Error: 1.5600 rad (89.38°)
+2026-09-03 11:22:53,523 | INFO | ris.main |   SNR (Optimized): -13.68 dB
+2026-09-03 11:22:53,523 | INFO | ris.main |   SNR Gain: 0.04 dB
+2026-09-03 11:22:53,562 | INFO | ris.AdvancedExperiments | 
+============================================================
+2026-09-03 11:22:53,563 | INFO | ris.AdvancedExperiments | EXPERIMENT 2: RIS Quantization Levels
+2026-09-03 11:22:53,564 | INFO | ris.AdvancedExperiments | ============================================================
+2026-09-03 11:22:53,565 | INFO | ris.AdvancedExperiments | 
+>>> Testing with 1-bit quantization...
+2026-09-03 11:43:28,041 | INFO | ris.main | ============================================================
+2026-09-03 11:43:28,042 | INFO | ris.main | BASELINE EVALUATION
+2026-09-03 11:43:28,042 | INFO | ris.main | ============================================================
+2026-09-03 11:43:28,042 | INFO | ris.main | Evaluating: No RIS (direct link)
+2026-09-03 11:43:28,043 | INFO | ris.main |   SNR: -12.62 dB
+2026-09-03 11:43:28,043 | INFO | ris.main |   Rate: 0.08 bps/Hz
+2026-09-03 11:43:28,043 | INFO | ris.main | 
+Evaluating: Random RIS
+2026-09-03 11:43:28,046 | INFO | ris.main |   SNR: -12.62 dB
+2026-09-03 11:43:28,047 | INFO | ris.main |   Rate: 0.08 bps/Hz
+2026-09-03 11:43:28,047 | INFO | ris.main | 
+Evaluating: Optimal (Genie-aided)
+2026-09-03 11:43:28,050 | INFO | ris.main |   SNR: -11.92 dB
+2026-09-03 11:43:28,051 | INFO | ris.main |   Rate: 0.09 bps/Hz
+2026-09-03 11:43:28,051 | INFO | ris.main | ============================================================
+2026-09-03 11:43:28,051 | INFO | ris.main | FEDERATED LEARNING TRAINING
+2026-09-03 11:43:28,051 | INFO | ris.main | ============================================================
+2026-09-03 11:43:28,051 | INFO | ris.main | ============================================================
+2026-09-03 11:43:28,051 | INFO | ris.main | MODEL INITIALIZATION
+2026-09-03 11:43:28,051 | INFO | ris.main | ============================================================
+2026-09-03 11:43:28,061 | INFO | ris.main | [OK] Global model ({config.MODEL_TYPE}) created
+2026-09-03 11:43:28,061 | INFO | ris.main |   Total parameters: 621,313
+2026-09-03 11:43:28,061 | INFO | ris.main |   Model size (FP32): 2427.00 KB
+2026-09-03 11:43:28,061 | INFO | ris.main |   Model size (INT8 for FL comm): 606.75 KB
+2026-09-03 11:43:28,061 | INFO | ris.main |   Expected comm per round: 19416.03 KB (= 621313 B x 2 x 16 tiles)
+2026-09-03 11:43:28,061 | INFO | ris.main |   Expected total comm (20 rounds): 388320.62 KB = 379.22 MB
+2026-09-03 11:43:28,624 | INFO | ris.main | [OK] Created {len(clients)} RIS tile clients
+2026-09-03 11:43:28,624 | INFO | ris.main | 
+Starting Federated Learning for 20 rounds...
+2026-09-03 11:43:28,624 | INFO | ris.main | Local epochs per round: 1
+2026-09-03 11:43:48,495 | INFO | ris.main | [Evaluation] Testing global model...
+2026-09-03 11:43:49,892 | INFO | ris.main |   Test Loss: 3.274014
+2026-09-03 11:43:49,893 | INFO | ris.main |   Phase Error: 1.5618 rad (89.48°)
+2026-09-03 11:43:49,893 | INFO | ris.main |   SNR (Optimized): -12.62 dB
+2026-09-03 11:43:49,893 | INFO | ris.main |   SNR Gain: 0.00 dB
+2026-09-03 11:43:49,904 | INFO | ris.AdvancedExperiments | 
+============================================================
+2026-09-03 11:43:49,904 | INFO | ris.AdvancedExperiments | EXPERIMENT 3: Model Compression
+2026-09-03 11:43:49,904 | INFO | ris.AdvancedExperiments | ============================================================
+2026-09-03 11:43:49,904 | INFO | ris.AdvancedExperiments | 
+>>> Testing with FP32 compression...
+2026-09-03 12:04:27,928 | INFO | ris.main | ============================================================
+2026-09-03 12:04:27,928 | INFO | ris.main | BASELINE EVALUATION
+2026-09-03 12:04:27,929 | INFO | ris.main | ============================================================
+2026-09-03 12:04:27,929 | INFO | ris.main | Evaluating: No RIS (direct link)
+2026-09-03 12:04:27,929 | INFO | ris.main |   SNR: -13.90 dB
+2026-09-03 12:04:27,929 | INFO | ris.main |   Rate: 0.06 bps/Hz
+2026-09-03 12:04:27,929 | INFO | ris.main | 
+Evaluating: Random RIS
+2026-09-03 12:04:27,932 | INFO | ris.main |   SNR: -13.89 dB
+2026-09-03 12:04:27,932 | INFO | ris.main |   Rate: 0.06 bps/Hz
+2026-09-03 12:04:27,932 | INFO | ris.main | 
+Evaluating: Optimal (Genie-aided)
+2026-09-03 12:04:27,934 | INFO | ris.main |   SNR: -13.28 dB
+2026-09-03 12:04:27,934 | INFO | ris.main |   Rate: 0.07 bps/Hz
+2026-09-03 12:04:27,934 | INFO | ris.main | ============================================================
+2026-09-03 12:04:27,935 | INFO | ris.main | FEDERATED LEARNING TRAINING
+2026-09-03 12:04:27,935 | INFO | ris.main | ============================================================
+2026-09-03 12:04:27,935 | INFO | ris.main | ============================================================
+2026-09-03 12:04:27,935 | INFO | ris.main | MODEL INITIALIZATION
+2026-09-03 12:04:27,935 | INFO | ris.main | ============================================================
+2026-09-03 12:04:27,943 | INFO | ris.main | [OK] Global model ({config.MODEL_TYPE}) created
+2026-09-03 12:04:27,944 | INFO | ris.main |   Total parameters: 621,313
+2026-09-03 12:04:27,944 | INFO | ris.main |   Model size (FP32): 2427.00 KB
+2026-09-03 12:04:27,944 | INFO | ris.main |   Model size (INT8 for FL comm): 606.75 KB
+2026-09-03 12:04:27,944 | INFO | ris.main |   Expected comm per round: 19416.03 KB (= 621313 B x 2 x 16 tiles)
+2026-09-03 12:04:27,944 | INFO | ris.main |   Expected total comm (20 rounds): 388320.62 KB = 379.22 MB
+2026-09-03 12:04:28,368 | INFO | ris.main | [OK] Created {len(clients)} RIS tile clients
+2026-09-03 12:04:28,368 | INFO | ris.main | 
+Starting Federated Learning for 20 rounds...
+2026-09-03 12:04:28,368 | INFO | ris.main | Local epochs per round: 1
+2026-09-03 12:04:48,280 | INFO | ris.main | [Evaluation] Testing global model...
+2026-09-03 12:04:49,654 | INFO | ris.main |   Test Loss: 3.270818
+2026-09-03 12:04:49,654 | INFO | ris.main |   Phase Error: 1.5717 rad (90.05°)
+2026-09-03 12:04:49,654 | INFO | ris.main |   SNR (Optimized): -13.91 dB
+2026-09-03 12:04:49,654 | INFO | ris.main |   SNR Gain: -0.01 dB
+2026-09-03 12:04:49,659 | INFO | ris.AdvancedExperiments | 
+============================================================
+2026-09-03 12:04:49,659 | INFO | ris.AdvancedExperiments | EXPERIMENT 4: User Mobility
+2026-09-03 12:04:49,659 | INFO | ris.AdvancedExperiments | ============================================================
+2026-09-03 12:04:49,659 | INFO | ris.AdvancedExperiments | 
+>>> Testing with Static mobility (0.0 m/s)...
+2026-09-03 12:25:27,759 | INFO | ris.main | ============================================================
+2026-09-03 12:25:27,760 | INFO | ris.main | BASELINE EVALUATION
+2026-09-03 12:25:27,760 | INFO | ris.main | ============================================================
+2026-09-03 12:25:27,760 | INFO | ris.main | Evaluating: No RIS (direct link)
+2026-09-03 12:25:27,761 | INFO | ris.main |   SNR: -14.11 dB
+2026-09-03 12:25:27,761 | INFO | ris.main |   Rate: 0.05 bps/Hz
+2026-09-03 12:25:27,761 | INFO | ris.main | 
+Evaluating: Random RIS
+2026-09-03 12:25:27,763 | INFO | ris.main |   SNR: -14.12 dB
+2026-09-03 12:25:27,763 | INFO | ris.main |   Rate: 0.05 bps/Hz
+2026-09-03 12:25:27,763 | INFO | ris.main | 
+Evaluating: Optimal (Genie-aided)
+2026-09-03 12:25:27,767 | INFO | ris.main |   SNR: -13.40 dB
+2026-09-03 12:25:27,767 | INFO | ris.main |   Rate: 0.06 bps/Hz
+2026-09-03 12:25:27,767 | INFO | ris.main | ============================================================
+2026-09-03 12:25:27,768 | INFO | ris.main | FEDERATED LEARNING TRAINING
+2026-09-03 12:25:27,768 | INFO | ris.main | ============================================================
+2026-09-03 12:25:27,768 | INFO | ris.main | ============================================================
+2026-09-03 12:25:27,768 | INFO | ris.main | MODEL INITIALIZATION
+2026-09-03 12:25:27,768 | INFO | ris.main | ============================================================
+2026-09-03 12:25:27,777 | INFO | ris.main | [OK] Global model ({config.MODEL_TYPE}) created
+2026-09-03 12:25:27,778 | INFO | ris.main |   Total parameters: 621,313
+2026-09-03 12:25:27,778 | INFO | ris.main |   Model size (FP32): 2427.00 KB
+2026-09-03 12:25:27,778 | INFO | ris.main |   Model size (INT8 for FL comm): 606.75 KB
+2026-09-03 12:25:27,778 | INFO | ris.main |   Expected comm per round: 19416.03 KB (= 621313 B x 2 x 16 tiles)
+2026-09-03 12:25:27,778 | INFO | ris.main |   Expected total comm (20 rounds): 388320.62 KB = 379.22 MB
+2026-09-03 12:25:28,213 | INFO | ris.main | [OK] Created {len(clients)} RIS tile clients
+2026-09-03 12:25:28,213 | INFO | ris.main | 
+Starting Federated Learning for 20 rounds...
+2026-09-03 12:25:28,213 | INFO | ris.main | Local epochs per round: 1
+2026-09-03 12:25:48,680 | INFO | ris.main | [Evaluation] Testing global model...
+2026-09-03 12:25:50,072 | INFO | ris.main |   Test Loss: 3.292838
+2026-09-03 12:25:50,072 | INFO | ris.main |   Phase Error: 1.5713 rad (90.03°)
+2026-09-03 12:25:50,072 | INFO | ris.main |   SNR (Optimized): -14.11 dB
+2026-09-03 12:25:50,072 | INFO | ris.main |   SNR Gain: 0.00 dB
+2026-09-03 12:25:50,078 | INFO | ris.AdvancedExperiments | 
+============================================================
+2026-09-03 12:25:50,079 | INFO | ris.AdvancedExperiments | EXPERIMENT 5: Non-IID Heterogeneity
+2026-09-03 12:25:50,079 | INFO | ris.AdvancedExperiments | ============================================================
+2026-09-03 12:46:31,390 | INFO | ris.main | ============================================================
+2026-09-03 12:46:31,390 | INFO | ris.main | BASELINE EVALUATION
+2026-09-03 12:46:31,392 | INFO | ris.main | ============================================================
+2026-09-03 12:46:31,392 | INFO | ris.main | Evaluating: No RIS (direct link)
+2026-09-03 12:46:31,392 | INFO | ris.main |   SNR: -13.32 dB
+2026-09-03 12:46:31,393 | INFO | ris.main |   Rate: 0.07 bps/Hz
+2026-09-03 12:46:31,393 | INFO | ris.main | 
+Evaluating: Random RIS
+2026-09-03 12:46:31,395 | INFO | ris.main |   SNR: -13.32 dB
+2026-09-03 12:46:31,395 | INFO | ris.main |   Rate: 0.07 bps/Hz
+2026-09-03 12:46:31,395 | INFO | ris.main | 
+Evaluating: Optimal (Genie-aided)
+2026-09-03 12:46:31,397 | INFO | ris.main |   SNR: -12.72 dB
+2026-09-03 12:46:31,397 | INFO | ris.main |   Rate: 0.08 bps/Hz
+2026-09-03 12:46:31,397 | INFO | ris.main | ============================================================
+2026-09-03 12:46:31,398 | INFO | ris.main | FEDERATED LEARNING TRAINING
+2026-09-03 12:46:31,398 | INFO | ris.main | ============================================================
+2026-09-03 12:46:31,398 | INFO | ris.main | ============================================================
+2026-09-03 12:46:31,398 | INFO | ris.main | MODEL INITIALIZATION
+2026-09-03 12:46:31,398 | INFO | ris.main | ============================================================
+2026-09-03 12:46:31,407 | INFO | ris.main | [OK] Global model ({config.MODEL_TYPE}) created
+2026-09-03 12:46:31,407 | INFO | ris.main |   Total parameters: 621,313
+2026-09-03 12:46:31,407 | INFO | ris.main |   Model size (FP32): 2427.00 KB
+2026-09-03 12:46:31,407 | INFO | ris.main |   Model size (INT8 for FL comm): 606.75 KB
+2026-09-03 12:46:31,407 | INFO | ris.main |   Expected comm per round: 19416.03 KB (= 621313 B x 2 x 16 tiles)
+2026-09-03 12:46:31,408 | INFO | ris.main |   Expected total comm (20 rounds): 388320.62 KB = 379.22 MB
+2026-09-03 12:46:31,833 | INFO | ris.main | [OK] Created {len(clients)} RIS tile clients
+2026-09-03 12:46:31,833 | INFO | ris.main | 
+Starting Federated Learning for 20 rounds...
+2026-09-03 12:46:31,833 | INFO | ris.main | Local epochs per round: 1
+2026-09-03 12:46:51,848 | INFO | ris.main | [Evaluation] Testing global model...
+2026-09-03 12:46:53,236 | INFO | ris.main |   Test Loss: 3.259751
+2026-09-03 12:46:53,236 | INFO | ris.main |   Phase Error: 1.5630 rad (89.55°)
+2026-09-03 12:46:53,236 | INFO | ris.main |   SNR (Optimized): -13.32 dB
+2026-09-03 12:46:53,237 | INFO | ris.main |   SNR Gain: 0.00 dB
+2026-09-03 12:46:53,241 | INFO | ris.AdvancedExperiments | 
+============================================================
+2026-09-03 12:46:53,241 | INFO | ris.AdvancedExperiments | EXPERIMENT 6: Pilot Overhead
+2026-09-03 12:46:53,241 | INFO | ris.AdvancedExperiments | ============================================================
+2026-09-03 12:46:53,242 | INFO | ris.AdvancedExperiments | 
+>>> Testing FL method (1 pilots/round)...
+2026-09-03 13:08:19,178 | INFO | ris.main | ============================================================
+2026-09-03 13:08:19,179 | INFO | ris.main | BASELINE EVALUATION
+2026-09-03 13:08:19,179 | INFO | ris.main | ============================================================
+2026-09-03 13:08:19,179 | INFO | ris.main | Evaluating: No RIS (direct link)
+2026-09-03 13:08:19,180 | INFO | ris.main |   SNR: -13.22 dB
+2026-09-03 13:08:19,180 | INFO | ris.main |   Rate: 0.07 bps/Hz
+2026-09-03 13:08:19,181 | INFO | ris.main | 
+Evaluating: Random RIS
+2026-09-03 13:08:19,183 | INFO | ris.main |   SNR: -13.22 dB
+2026-09-03 13:08:19,183 | INFO | ris.main |   Rate: 0.07 bps/Hz
+2026-09-03 13:08:19,183 | INFO | ris.main | 
+Evaluating: Optimal (Genie-aided)
+2026-09-03 13:08:19,186 | INFO | ris.main |   SNR: -12.51 dB
+2026-09-03 13:08:19,186 | INFO | ris.main |   Rate: 0.08 bps/Hz
+2026-09-03 13:08:19,186 | INFO | ris.main | ============================================================
+2026-09-03 13:08:19,186 | INFO | ris.main | FEDERATED LEARNING TRAINING
+2026-09-03 13:08:19,187 | INFO | ris.main | ============================================================
+2026-09-03 13:08:19,187 | INFO | ris.main | ============================================================
+2026-09-03 13:08:19,187 | INFO | ris.main | MODEL INITIALIZATION
+2026-09-03 13:08:19,187 | INFO | ris.main | ============================================================
+2026-09-03 13:08:19,196 | INFO | ris.main | [OK] Global model ({config.MODEL_TYPE}) created
+2026-09-03 13:08:19,196 | INFO | ris.main |   Total parameters: 621,313
+2026-09-03 13:08:19,197 | INFO | ris.main |   Model size (FP32): 2427.00 KB
+2026-09-03 13:08:19,197 | INFO | ris.main |   Model size (INT8 for FL comm): 606.75 KB
+2026-09-03 13:08:19,197 | INFO | ris.main |   Expected comm per round: 19416.03 KB (= 621313 B x 2 x 16 tiles)
+2026-09-03 13:08:19,197 | INFO | ris.main |   Expected total comm (20 rounds): 388320.62 KB = 379.22 MB
+2026-09-03 13:08:19,618 | INFO | ris.main | [OK] Created {len(clients)} RIS tile clients
+2026-09-03 13:08:19,618 | INFO | ris.main | 
+Starting Federated Learning for 20 rounds...
+2026-09-03 13:08:19,618 | INFO | ris.main | Local epochs per round: 1
+2026-09-03 13:08:39,779 | INFO | ris.main | [Evaluation] Testing global model...
+2026-09-03 13:08:41,152 | INFO | ris.main |   Test Loss: 3.271061
+2026-09-03 13:08:41,153 | INFO | ris.main |   Phase Error: 1.5673 rad (89.80°)
+2026-09-03 13:08:41,153 | INFO | ris.main |   SNR (Optimized): -13.26 dB
+2026-09-03 13:08:41,154 | INFO | ris.main |   SNR Gain: -0.04 dB
+2026-09-03 13:08:41,159 | INFO | ris.AdvancedExperiments | 
+============================================================
+2026-09-03 13:08:41,159 | INFO | ris.AdvancedExperiments | EXPERIMENT 7: NoC Traffic vs Power
+2026-09-03 13:08:41,160 | INFO | ris.AdvancedExperiments | ============================================================
+2026-09-03 13:08:41,160 | INFO | ris.AdvancedExperiments | 
+>>> Testing with 2 tiles...
+2026-09-03 13:12:24,802 | INFO | ris.main | ============================================================
+2026-09-03 13:12:24,802 | INFO | ris.main | BASELINE EVALUATION
+2026-09-03 13:12:24,803 | INFO | ris.main | ============================================================
+2026-09-03 13:12:24,803 | INFO | ris.main | Evaluating: No RIS (direct link)
+2026-09-03 13:12:24,803 | INFO | ris.main |   SNR: -13.94 dB
+2026-09-03 13:12:24,804 | INFO | ris.main |   Rate: 0.06 bps/Hz
+2026-09-03 13:12:24,804 | INFO | ris.main | 
+Evaluating: Random RIS
+2026-09-03 13:12:24,808 | INFO | ris.main |   SNR: -13.96 dB
+2026-09-03 13:12:24,808 | INFO | ris.main |   Rate: 0.06 bps/Hz
+2026-09-03 13:12:24,808 | INFO | ris.main | 
+Evaluating: Optimal (Genie-aided)
+2026-09-03 13:12:24,810 | INFO | ris.main |   SNR: -13.31 dB
+2026-09-03 13:12:24,811 | INFO | ris.main |   Rate: 0.07 bps/Hz
+2026-09-03 13:12:24,811 | INFO | ris.main | ============================================================
+2026-09-03 13:12:24,811 | INFO | ris.main | FEDERATED LEARNING TRAINING
+2026-09-03 13:12:24,811 | INFO | ris.main | ============================================================
+2026-09-03 13:12:24,811 | INFO | ris.main | ============================================================
+2026-09-03 13:12:24,811 | INFO | ris.main | MODEL INITIALIZATION
+2026-09-03 13:12:24,811 | INFO | ris.main | ============================================================
+2026-09-03 13:12:24,820 | INFO | ris.main | [OK] Global model ({config.MODEL_TYPE}) created
+2026-09-03 13:12:24,820 | INFO | ris.main |   Total parameters: 621,313
+2026-09-03 13:12:24,821 | INFO | ris.main |   Model size (FP32): 2427.00 KB
+2026-09-03 13:12:24,821 | INFO | ris.main |   Model size (INT8 for FL comm): 606.75 KB
+2026-09-03 13:12:24,821 | INFO | ris.main |   Expected comm per round: 2427.00 KB (= 621313 B x 2 x 2 tiles)
+2026-09-03 13:12:24,821 | INFO | ris.main |   Expected total comm (20 rounds): 48540.08 KB = 47.40 MB
+2026-09-03 13:12:24,890 | INFO | ris.main | [OK] Created {len(clients)} RIS tile clients
+2026-09-03 13:12:24,890 | INFO | ris.main | 
+Starting Federated Learning for 20 rounds...
+2026-09-03 13:12:24,890 | INFO | ris.main | Local epochs per round: 1
+2026-09-03 13:12:27,479 | INFO | ris.main | [Evaluation] Testing global model...
+2026-09-03 13:12:28,864 | INFO | ris.main |   Test Loss: 3.269916
+2026-09-03 13:12:28,865 | INFO | ris.main |   Phase Error: 1.5628 rad (89.54°)
+2026-09-03 13:12:28,865 | INFO | ris.main |   SNR (Optimized): -14.02 dB
+2026-09-03 13:12:28,865 | INFO | ris.main |   SNR Gain: -0.08 dB
+2026-09-03 13:12:28,870 | INFO | ris.AdvancedExperiments | 
+============================================================
+2026-09-03 13:12:28,870 | INFO | ris.AdvancedExperiments | EXPERIMENT 8: FL vs Centralized vs Local
+2026-09-03 13:12:28,870 | INFO | ris.AdvancedExperiments | ============================================================
+2026-09-03 13:12:28,870 | INFO | ris.AdvancedExperiments | 
+>>> Testing federated approach...
+2026-09-03 13:16:09,592 | INFO | ris.main | ============================================================
+2026-09-03 13:16:09,592 | INFO | ris.main | BASELINE EVALUATION
+2026-09-03 13:16:09,592 | INFO | ris.main | ============================================================
+2026-09-03 13:16:09,593 | INFO | ris.main | Evaluating: No RIS (direct link)
+2026-09-03 13:16:09,593 | INFO | ris.main |   SNR: -14.04 dB
+2026-09-03 13:16:09,593 | INFO | ris.main |   Rate: 0.06 bps/Hz
+2026-09-03 13:16:09,593 | INFO | ris.main | 
+Evaluating: Random RIS
+2026-09-03 13:16:09,595 | INFO | ris.main |   SNR: -14.08 dB
+2026-09-03 13:16:09,596 | INFO | ris.main |   Rate: 0.06 bps/Hz
+2026-09-03 13:16:09,596 | INFO | ris.main | 
+Evaluating: Optimal (Genie-aided)
+2026-09-03 13:16:09,598 | INFO | ris.main |   SNR: -13.29 dB
+2026-09-03 13:16:09,598 | INFO | ris.main |   Rate: 0.07 bps/Hz
+2026-09-03 13:16:09,598 | INFO | ris.main | ============================================================
+2026-09-03 13:16:09,598 | INFO | ris.main | FEDERATED LEARNING TRAINING
+2026-09-03 13:16:09,598 | INFO | ris.main | ============================================================
+2026-09-03 13:16:09,599 | INFO | ris.main | ============================================================
+2026-09-03 13:16:09,599 | INFO | ris.main | MODEL INITIALIZATION
+2026-09-03 13:16:09,599 | INFO | ris.main | ============================================================
+2026-09-03 13:16:09,608 | INFO | ris.main | [OK] Global model ({config.MODEL_TYPE}) created
+2026-09-03 13:16:09,608 | INFO | ris.main |   Total parameters: 621,313
+2026-09-03 13:16:09,608 | INFO | ris.main |   Model size (FP32): 2427.00 KB
+2026-09-03 13:16:09,608 | INFO | ris.main |   Model size (INT8 for FL comm): 606.75 KB
+2026-09-03 13:16:09,608 | INFO | ris.main |   Expected comm per round: 2427.00 KB (= 621313 B x 2 x 2 tiles)
+2026-09-03 13:16:09,608 | INFO | ris.main |   Expected total comm (20 rounds): 48540.08 KB = 47.40 MB
+2026-09-03 13:16:09,678 | INFO | ris.main | [OK] Created {len(clients)} RIS tile clients
+2026-09-03 13:16:09,679 | INFO | ris.main | 
+Starting Federated Learning for 20 rounds...
+2026-09-03 13:16:09,679 | INFO | ris.main | Local epochs per round: 1
+2026-09-03 13:16:12,352 | INFO | ris.main | [Evaluation] Testing global model...
+2026-09-03 13:16:13,736 | INFO | ris.main |   Test Loss: 3.348831
+2026-09-03 13:16:13,736 | INFO | ris.main |   Phase Error: 1.5907 rad (91.14°)
+2026-09-03 13:16:13,737 | INFO | ris.main |   SNR (Optimized): -14.04 dB
+2026-09-03 13:16:13,737 | INFO | ris.main |   SNR Gain: -0.01 dB
+2026-09-03 13:16:13,741 | INFO | ris.AdvancedExperiments | 
+============================================================
+2026-09-03 13:16:13,742 | INFO | ris.AdvancedExperiments | EXPERIMENT 9: Comprehensive Baseline Comparison
+2026-09-03 13:16:13,742 | INFO | ris.AdvancedExperiments | ============================================================
+2026-09-03 13:19:53,137 | INFO | ris.AdvancedExperiments | 
+>>> Evaluating: No RIS (direct link only)...
+2026-09-03 13:19:53,138 | INFO | ris.AdvancedExperiments |   SNR: -12.37 dB
+2026-09-03 13:19:53,138 | INFO | ris.AdvancedExperiments | 
+>>> Evaluating: Random RIS phases...
+2026-09-03 13:19:53,140 | INFO | ris.AdvancedExperiments |   SNR: -12.39 dB
+2026-09-03 13:19:53,140 | INFO | ris.AdvancedExperiments | 
+>>> Evaluating: Random Search (1000 trials)...
+2026-09-03 13:19:54,783 | INFO | ris.AdvancedExperiments |   SNR: -12.09 dB
+2026-09-03 13:19:54,783 | INFO | ris.AdvancedExperiments | 
+>>> Evaluating: Deep Reinforcement Learning (TD3)...
+2026-09-03 13:19:54,841 | INFO | ris.AdvancedExperiments |   Training DRL agent...
+2026-09-03 13:20:07,509 | INFO | ris.AdvancedExperiments |   SNR: -12.36 dB
+2026-09-03 13:20:07,510 | INFO | ris.AdvancedExperiments | 
+>>> Evaluating: Alternating Optimization...
+2026-09-03 13:20:08,511 | INFO | ris.AdvancedExperiments |   SNR: -12.38 dB
+2026-09-03 13:20:08,512 | INFO | ris.AdvancedExperiments |   Avg iterations: 2.0
+2026-09-03 13:20:08,512 | INFO | ris.AdvancedExperiments | 
+>>> Evaluating: Centralized Deep Learning...
+2026-09-03 13:20:52,598 | INFO | ris.AdvancedExperiments |   SNR: -12.37 dB
+2026-09-03 13:20:52,598 | INFO | ris.AdvancedExperiments |   Final Loss: 3.250558
+2026-09-03 13:20:52,598 | INFO | ris.AdvancedExperiments | 
+>>> Evaluating: Federated Learning (Ours)...
+2026-09-03 13:24:32,717 | INFO | ris.main | ============================================================
+2026-09-03 13:24:32,717 | INFO | ris.main | BASELINE EVALUATION
+2026-09-03 13:24:32,717 | INFO | ris.main | ============================================================
+2026-09-03 13:24:32,717 | INFO | ris.main | Evaluating: No RIS (direct link)
+2026-09-03 13:24:32,719 | INFO | ris.main |   SNR: -14.28 dB
+2026-09-03 13:24:32,719 | INFO | ris.main |   Rate: 0.05 bps/Hz
+2026-09-03 13:24:32,719 | INFO | ris.main | 
+Evaluating: Random RIS
+2026-09-03 13:24:32,721 | INFO | ris.main |   SNR: -14.29 dB
+2026-09-03 13:24:32,721 | INFO | ris.main |   Rate: 0.05 bps/Hz
+2026-09-03 13:24:32,721 | INFO | ris.main | 
+Evaluating: Optimal (Genie-aided)
+2026-09-03 13:24:32,723 | INFO | ris.main |   SNR: -13.45 dB
+2026-09-03 13:24:32,724 | INFO | ris.main |   Rate: 0.06 bps/Hz
+2026-09-03 13:24:32,724 | INFO | ris.main | ============================================================
+2026-09-03 13:24:32,724 | INFO | ris.main | FEDERATED LEARNING TRAINING
+2026-09-03 13:24:32,724 | INFO | ris.main | ============================================================
+2026-09-03 13:24:32,724 | INFO | ris.main | ============================================================
+2026-09-03 13:24:32,724 | INFO | ris.main | MODEL INITIALIZATION
+2026-09-03 13:24:32,724 | INFO | ris.main | ============================================================
+2026-09-03 13:24:32,734 | INFO | ris.main | [OK] Global model ({config.MODEL_TYPE}) created
+2026-09-03 13:24:32,735 | INFO | ris.main |   Total parameters: 621,313
+2026-09-03 13:24:32,736 | INFO | ris.main |   Model size (FP32): 2427.00 KB
+2026-09-03 13:24:32,736 | INFO | ris.main |   Model size (INT8 for FL comm): 606.75 KB
+2026-09-03 13:24:32,736 | INFO | ris.main |   Expected comm per round: 2427.00 KB (= 621313 B x 2 x 2 tiles)
+2026-09-03 13:24:32,736 | INFO | ris.main |   Expected total comm (20 rounds): 48540.08 KB = 47.40 MB
+2026-09-03 13:24:32,806 | INFO | ris.main | [OK] Created {len(clients)} RIS tile clients
+2026-09-03 13:24:32,806 | INFO | ris.main | 
+Starting Federated Learning for 20 rounds...
+2026-09-03 13:24:32,806 | INFO | ris.main | Local epochs per round: 1
+2026-09-03 13:24:35,424 | INFO | ris.main | [Evaluation] Testing global model...
+2026-09-03 13:24:36,813 | INFO | ris.main |   Test Loss: 3.307337
+2026-09-03 13:24:36,813 | INFO | ris.main |   Phase Error: 1.5763 rad (90.32°)
+2026-09-03 13:24:36,813 | INFO | ris.main |   SNR (Optimized): -14.23 dB
+2026-09-03 13:24:36,813 | INFO | ris.main |   SNR Gain: 0.05 dB
+2026-09-03 13:24:36,836 | INFO | ris.AdvancedExperiments | 
+============================================================
+2026-09-03 13:24:36,836 | INFO | ris.AdvancedExperiments | EXPERIMENT 10: Multi-User MIMO Comparison
+2026-09-03 13:24:36,836 | INFO | ris.AdvancedExperiments | ============================================================
+2026-09-03 13:24:36,837 | INFO | ris.AdvancedExperiments | 
+>>> Testing with 1 simultaneous users...
+2026-09-03 13:24:50,216 | INFO | ris.AdvancedExperiments |   Running FL training for 1 users...
+2026-09-03 13:25:30,310 | INFO | ris.main | ============================================================
+2026-09-03 13:25:30,310 | INFO | ris.main | BASELINE EVALUATION
+2026-09-03 13:25:30,310 | INFO | ris.main | ============================================================
+2026-09-03 13:25:30,310 | INFO | ris.main | Evaluating: No RIS (direct link)
+2026-09-03 13:25:30,311 | INFO | ris.main |   SNR: -13.55 dB
+2026-09-03 13:25:30,311 | INFO | ris.main |   Rate: 0.06 bps/Hz
+2026-09-03 13:25:30,311 | INFO | ris.main | 
+Evaluating: Random RIS
+2026-09-03 13:25:30,315 | INFO | ris.main |   SNR: -13.54 dB
+2026-09-03 13:25:30,315 | INFO | ris.main |   Rate: 0.06 bps/Hz
+2026-09-03 13:25:30,315 | INFO | ris.main | 
+Evaluating: Optimal (Genie-aided)
+2026-09-03 13:25:30,318 | INFO | ris.main |   SNR: -12.76 dB
+2026-09-03 13:25:30,318 | INFO | ris.main |   Rate: 0.07 bps/Hz
+2026-09-03 13:25:30,318 | INFO | ris.main | ============================================================
+2026-09-03 13:25:30,318 | INFO | ris.main | FEDERATED LEARNING TRAINING
+2026-09-03 13:25:30,318 | INFO | ris.main | ============================================================
+2026-09-03 13:25:30,318 | INFO | ris.main | ============================================================
+2026-09-03 13:25:30,318 | INFO | ris.main | MODEL INITIALIZATION
+2026-09-03 13:25:30,318 | INFO | ris.main | ============================================================
+2026-09-03 13:25:30,327 | INFO | ris.main | [OK] Global model ({config.MODEL_TYPE}) created
+2026-09-03 13:25:30,327 | INFO | ris.main |   Total parameters: 314,881
+2026-09-03 13:25:30,327 | INFO | ris.main |   Model size (FP32): 1230.00 KB
+2026-09-03 13:25:30,328 | INFO | ris.main |   Model size (INT8 for FL comm): 307.50 KB
+2026-09-03 13:25:30,328 | INFO | ris.main |   Expected comm per round: 1230.00 KB (= 314881 B x 2 x 2 tiles)
+2026-09-03 13:25:30,328 | INFO | ris.main |   Expected total comm (20 rounds): 24600.08 KB = 24.02 MB
+2026-09-03 13:25:30,379 | INFO | ris.main | [OK] Created {len(clients)} RIS tile clients
+2026-09-03 13:25:30,379 | INFO | ris.main | 
+Starting Federated Learning for 20 rounds...
+2026-09-03 13:25:30,379 | INFO | ris.main | Local epochs per round: 1
+2026-09-03 13:25:32,984 | INFO | ris.main | [Evaluation] Testing global model...
+2026-09-03 13:25:34,362 | INFO | ris.main |   Test Loss: 3.264709
+2026-09-03 13:25:34,363 | INFO | ris.main |   Phase Error: 1.5639 rad (89.60°)
+2026-09-03 13:25:34,363 | INFO | ris.main |   SNR (Optimized): -13.59 dB
+2026-09-03 13:25:34,363 | INFO | ris.main |   SNR Gain: -0.04 dB
+2026-09-03 13:25:34,368 | INFO | ris.AdvancedExperiments | 
+============================================================
+2026-09-03 13:25:34,368 | INFO | ris.AdvancedExperiments | EXPERIMENT 11: FL Algorithms Comparison
+2026-09-03 13:25:34,368 | INFO | ris.AdvancedExperiments | ============================================================
+2026-09-03 13:25:34,368 | INFO | ris.AdvancedExperiments | 
+>>> Testing FedAvg...
+2026-09-03 13:29:14,244 | INFO | ris.main | ============================================================
+2026-09-03 13:29:14,244 | INFO | ris.main | BASELINE EVALUATION
+2026-09-03 13:29:14,244 | INFO | ris.main | ============================================================
+2026-09-03 13:29:14,245 | INFO | ris.main | Evaluating: No RIS (direct link)
+2026-09-03 13:29:14,245 | INFO | ris.main |   SNR: -11.89 dB
+2026-09-03 13:29:14,245 | INFO | ris.main |   Rate: 0.09 bps/Hz
+2026-09-03 13:29:14,245 | INFO | ris.main | 
+Evaluating: Random RIS
+2026-09-03 13:29:14,248 | INFO | ris.main |   SNR: -11.87 dB
+2026-09-03 13:29:14,248 | INFO | ris.main |   Rate: 0.09 bps/Hz
+2026-09-03 13:29:14,248 | INFO | ris.main | 
+Evaluating: Optimal (Genie-aided)
+2026-09-03 13:29:14,251 | INFO | ris.main |   SNR: -11.34 dB
+2026-09-03 13:29:14,251 | INFO | ris.main |   Rate: 0.10 bps/Hz
+2026-09-03 13:29:14,252 | INFO | ris.main | ============================================================
+2026-09-03 13:29:14,252 | INFO | ris.main | FEDERATED LEARNING TRAINING
+2026-09-03 13:29:14,252 | INFO | ris.main | ============================================================
+2026-09-03 13:29:14,252 | INFO | ris.main | ============================================================
+2026-09-03 13:29:14,252 | INFO | ris.main | MODEL INITIALIZATION
+2026-09-03 13:29:14,252 | INFO | ris.main | ============================================================
+2026-09-03 13:29:14,262 | INFO | ris.main | [OK] Global model ({config.MODEL_TYPE}) created
+2026-09-03 13:29:14,262 | INFO | ris.main |   Total parameters: 621,313
+2026-09-03 13:29:14,262 | INFO | ris.main |   Model size (FP32): 2427.00 KB
+2026-09-03 13:29:14,262 | INFO | ris.main |   Model size (INT8 for FL comm): 606.75 KB
+2026-09-03 13:29:14,262 | INFO | ris.main |   Expected comm per round: 2427.00 KB (= 621313 B x 2 x 2 tiles)
+2026-09-03 13:29:14,263 | INFO | ris.main |   Expected total comm (20 rounds): 48540.08 KB = 47.40 MB
+2026-09-03 13:29:14,341 | INFO | ris.main | [OK] Created {len(clients)} RIS tile clients
+2026-09-03 13:29:14,341 | INFO | ris.main | 
+Starting Federated Learning for 20 rounds...
+2026-09-03 13:29:14,341 | INFO | ris.main | Local epochs per round: 1
+2026-09-03 13:29:16,923 | INFO | ris.main | [Evaluation] Testing global model...
+2026-09-03 13:29:18,306 | INFO | ris.main |   Test Loss: 3.259713
+2026-09-03 13:29:18,306 | INFO | ris.main |   Phase Error: 1.5609 rad (89.43°)
+2026-09-03 13:29:18,306 | INFO | ris.main |   SNR (Optimized): -11.84 dB
+2026-09-03 13:29:18,307 | INFO | ris.main |   SNR Gain: 0.05 dB
+2026-09-03 13:29:18,319 | INFO | ris.AdvancedExperiments | 
+============================================================
+2026-09-03 13:29:18,319 | INFO | ris.AdvancedExperiments | EXPERIMENT 12: Model Architectures Comparison
+2026-09-03 13:29:18,319 | INFO | ris.AdvancedExperiments | ============================================================
+2026-09-03 13:29:18,319 | INFO | ris.AdvancedExperiments | 
+>>> Testing MLP architecture...
+2026-09-03 13:32:57,875 | INFO | ris.main | ============================================================
+2026-09-03 13:32:57,875 | INFO | ris.main | BASELINE EVALUATION
+2026-09-03 13:32:57,875 | INFO | ris.main | ============================================================
+2026-09-03 13:32:57,875 | INFO | ris.main | Evaluating: No RIS (direct link)
+2026-09-03 13:32:57,876 | INFO | ris.main |   SNR: -12.90 dB
+2026-09-03 13:32:57,876 | INFO | ris.main |   Rate: 0.07 bps/Hz
+2026-09-03 13:32:57,876 | INFO | ris.main | 
+Evaluating: Random RIS
+2026-09-03 13:32:57,878 | INFO | ris.main |   SNR: -12.94 dB
+2026-09-03 13:32:57,878 | INFO | ris.main |   Rate: 0.07 bps/Hz
+2026-09-03 13:32:57,878 | INFO | ris.main | 
+Evaluating: Optimal (Genie-aided)
+2026-09-03 13:32:57,881 | INFO | ris.main |   SNR: -12.32 dB
+2026-09-03 13:32:57,881 | INFO | ris.main |   Rate: 0.08 bps/Hz
+2026-09-03 13:32:57,881 | INFO | ris.main | ============================================================
+2026-09-03 13:32:57,881 | INFO | ris.main | FEDERATED LEARNING TRAINING
+2026-09-03 13:32:57,881 | INFO | ris.main | ============================================================
+2026-09-03 13:32:57,882 | INFO | ris.main | ============================================================
+2026-09-03 13:32:57,882 | INFO | ris.main | MODEL INITIALIZATION
+2026-09-03 13:32:57,882 | INFO | ris.main | ============================================================
+2026-09-03 13:32:57,884 | INFO | ris.main | [OK] Global model ({config.MODEL_TYPE}) created
+2026-09-03 13:32:57,885 | INFO | ris.main |   Total parameters: 488,768
+2026-09-03 13:32:57,885 | INFO | ris.main |   Model size (FP32): 1909.25 KB
+2026-09-03 13:32:57,885 | INFO | ris.main |   Model size (INT8 for FL comm): 477.31 KB
+2026-09-03 13:32:57,885 | INFO | ris.main |   Expected comm per round: 1909.25 KB (= 488768 B x 2 x 2 tiles)
+2026-09-03 13:32:57,885 | INFO | ris.main |   Expected total comm (20 rounds): 38185.00 KB = 37.29 MB
+2026-09-03 13:32:57,930 | INFO | ris.main | [OK] Created {len(clients)} RIS tile clients
+2026-09-03 13:32:57,930 | INFO | ris.main | 
+Starting Federated Learning for 20 rounds...
+2026-09-03 13:32:57,930 | INFO | ris.main | Local epochs per round: 1
+2026-09-03 13:32:58,415 | INFO | ris.main | [Evaluation] Testing global model...
+2026-09-03 13:32:58,597 | INFO | ris.main |   Test Loss: 3.294607
+2026-09-03 13:32:58,598 | INFO | ris.main |   Phase Error: 1.5756 rad (90.27°)
+2026-09-03 13:32:58,598 | INFO | ris.main |   SNR (Optimized): -12.87 dB
+2026-09-03 13:32:58,598 | INFO | ris.main |   SNR Gain: 0.03 dB
+2026-09-03 13:32:58,598 | INFO | ris.AdvancedExperiments |   Failed MLP: Parent directory models/saved does not exist.
+2026-09-03 13:32:58,601 | INFO | ris.AdvancedExperiments | 
+>>> Testing GNN architecture...
+2026-09-03 13:36:38,405 | INFO | ris.main | ============================================================
+2026-09-03 13:36:38,405 | INFO | ris.main | BASELINE EVALUATION
+2026-09-03 13:36:38,406 | INFO | ris.main | ============================================================
+2026-09-03 13:36:38,406 | INFO | ris.main | Evaluating: No RIS (direct link)
+2026-09-03 13:36:38,406 | INFO | ris.main |   SNR: -14.29 dB
+2026-09-03 13:36:38,406 | INFO | ris.main |   Rate: 0.05 bps/Hz
+2026-09-03 13:36:38,407 | INFO | ris.main | 
+Evaluating: Random RIS
+2026-09-03 13:36:38,409 | INFO | ris.main |   SNR: -14.27 dB
+2026-09-03 13:36:38,409 | INFO | ris.main |   Rate: 0.05 bps/Hz
+2026-09-03 13:36:38,409 | INFO | ris.main | 
+Evaluating: Optimal (Genie-aided)
+2026-09-03 13:36:38,411 | INFO | ris.main |   SNR: -13.53 dB
+2026-09-03 13:36:38,412 | INFO | ris.main |   Rate: 0.06 bps/Hz
+2026-09-03 13:36:38,412 | INFO | ris.main | ============================================================
+2026-09-03 13:36:38,412 | INFO | ris.main | FEDERATED LEARNING TRAINING
+2026-09-03 13:36:38,412 | INFO | ris.main | ============================================================
+2026-09-03 13:36:38,412 | INFO | ris.main | ============================================================
+2026-09-03 13:36:38,412 | INFO | ris.main | MODEL INITIALIZATION
+2026-09-03 13:36:38,412 | INFO | ris.main | ============================================================
+2026-09-03 13:36:38,421 | INFO | ris.main | [OK] Global model ({config.MODEL_TYPE}) created
+2026-09-03 13:36:38,421 | INFO | ris.main |   Total parameters: 621,313
+2026-09-03 13:36:38,421 | INFO | ris.main |   Model size (FP32): 2427.00 KB
+2026-09-03 13:36:38,421 | INFO | ris.main |   Model size (INT8 for FL comm): 606.75 KB
+2026-09-03 13:36:38,421 | INFO | ris.main |   Expected comm per round: 2427.00 KB (= 621313 B x 2 x 2 tiles)
+2026-09-03 13:36:38,421 | INFO | ris.main |   Expected total comm (20 rounds): 48540.08 KB = 47.40 MB
+2026-09-03 13:36:38,494 | INFO | ris.main | [OK] Created {len(clients)} RIS tile clients
+2026-09-03 13:36:38,494 | INFO | ris.main | 
+Starting Federated Learning for 20 rounds...
+2026-09-03 13:36:38,494 | INFO | ris.main | Local epochs per round: 1
+2026-09-03 13:36:41,525 | INFO | ris.main | [Evaluation] Testing global model...
+2026-09-03 13:36:42,906 | INFO | ris.main |   Test Loss: 3.311310
+2026-09-03 13:36:42,906 | INFO | ris.main |   Phase Error: 1.5759 rad (90.29°)
+2026-09-03 13:36:42,907 | INFO | ris.main |   SNR (Optimized): -14.25 dB
+2026-09-03 13:36:42,907 | INFO | ris.main |   SNR Gain: 0.03 dB
+2026-09-03 13:36:42,907 | INFO | ris.AdvancedExperiments |   Failed GNN: Parent directory models/saved does not exist.
+2026-09-03 13:36:42,916 | INFO | ris.AdvancedExperiments | 
+>>> Testing CNN_Attention architecture...
+2026-09-03 13:40:21,909 | INFO | ris.main | ============================================================
+2026-09-03 13:40:21,910 | INFO | ris.main | BASELINE EVALUATION
+2026-09-03 13:40:21,910 | INFO | ris.main | ============================================================
+2026-09-03 13:40:21,910 | INFO | ris.main | Evaluating: No RIS (direct link)
+2026-09-03 13:40:21,910 | INFO | ris.main |   SNR: -14.28 dB
+2026-09-03 13:40:21,911 | INFO | ris.main |   Rate: 0.05 bps/Hz
+2026-09-03 13:40:21,911 | INFO | ris.main | 
+Evaluating: Random RIS
+2026-09-03 13:40:21,913 | INFO | ris.main |   SNR: -14.32 dB
+2026-09-03 13:40:21,913 | INFO | ris.main |   Rate: 0.05 bps/Hz
+2026-09-03 13:40:21,913 | INFO | ris.main | 
+Evaluating: Optimal (Genie-aided)
+2026-09-03 13:40:21,916 | INFO | ris.main |   SNR: -13.56 dB
+2026-09-03 13:40:21,916 | INFO | ris.main |   Rate: 0.06 bps/Hz
+2026-09-03 13:40:21,916 | INFO | ris.main | ============================================================
+2026-09-03 13:40:21,916 | INFO | ris.main | FEDERATED LEARNING TRAINING
+2026-09-03 13:40:21,916 | INFO | ris.main | ============================================================
+2026-09-03 13:40:21,916 | INFO | ris.main | ============================================================
+2026-09-03 13:40:21,916 | INFO | ris.main | MODEL INITIALIZATION
+2026-09-03 13:40:21,916 | INFO | ris.main | ============================================================
+2026-09-03 13:40:21,920 | INFO | ris.main | [OK] Global model ({config.MODEL_TYPE}) created
+2026-09-03 13:40:21,920 | INFO | ris.main |   Total parameters: 436,481
+2026-09-03 13:40:21,920 | INFO | ris.main |   Model size (FP32): 1705.00 KB
+2026-09-03 13:40:21,920 | INFO | ris.main |   Model size (INT8 for FL comm): 426.25 KB
+2026-09-03 13:40:21,920 | INFO | ris.main |   Expected comm per round: 1705.00 KB (= 436481 B x 2 x 2 tiles)
+2026-09-03 13:40:21,920 | INFO | ris.main |   Expected total comm (20 rounds): 34100.08 KB = 33.30 MB
+2026-09-03 13:40:21,961 | INFO | ris.main | [OK] Created {len(clients)} RIS tile clients
+2026-09-03 13:40:21,962 | INFO | ris.main | 
+Starting Federated Learning for 20 rounds...
+2026-09-03 13:40:21,962 | INFO | ris.main | Local epochs per round: 1
+2026-09-03 13:40:22,879 | INFO | ris.main | [Evaluation] Testing global model...
+2026-09-03 13:40:23,167 | INFO | ris.main |   Test Loss: 3.264773
+2026-09-03 13:40:23,167 | INFO | ris.main |   Phase Error: 1.5654 rad (89.69°)
+2026-09-03 13:40:23,167 | INFO | ris.main |   SNR (Optimized): -14.36 dB
+2026-09-03 13:40:23,167 | INFO | ris.main |   SNR Gain: -0.08 dB
+2026-09-03 13:40:23,168 | INFO | ris.AdvancedExperiments |   Failed CNN_Attention: Parent directory models/saved does not exist.
+2026-09-03 13:40:23,171 | INFO | ris.AdvancedExperiments | 
+>>> Testing Transformer architecture...
+2026-09-03 13:44:02,285 | INFO | ris.main | ============================================================
+2026-09-03 13:44:02,285 | INFO | ris.main | BASELINE EVALUATION
+2026-09-03 13:44:02,286 | INFO | ris.main | ============================================================
+2026-09-03 13:44:02,286 | INFO | ris.main | Evaluating: No RIS (direct link)
+2026-09-03 13:44:02,286 | INFO | ris.main |   SNR: -13.48 dB
+2026-09-03 13:44:02,286 | INFO | ris.main |   Rate: 0.06 bps/Hz
+2026-09-03 13:44:02,286 | INFO | ris.main | 
+Evaluating: Random RIS
+2026-09-03 13:44:02,288 | INFO | ris.main |   SNR: -13.48 dB
+2026-09-03 13:44:02,289 | INFO | ris.main |   Rate: 0.06 bps/Hz
+2026-09-03 13:44:02,289 | INFO | ris.main | 
+Evaluating: Optimal (Genie-aided)
+2026-09-03 13:44:02,291 | INFO | ris.main |   SNR: -12.68 dB
+2026-09-03 13:44:02,291 | INFO | ris.main |   Rate: 0.08 bps/Hz
+2026-09-03 13:44:02,291 | INFO | ris.main | ============================================================
+2026-09-03 13:44:02,291 | INFO | ris.main | FEDERATED LEARNING TRAINING
+2026-09-03 13:44:02,291 | INFO | ris.main | ============================================================
+2026-09-03 13:44:02,291 | INFO | ris.main | ============================================================
+2026-09-03 13:44:02,292 | INFO | ris.main | MODEL INITIALIZATION
+2026-09-03 13:44:02,292 | INFO | ris.main | ============================================================
+2026-09-03 13:44:02,306 | INFO | ris.main | [OK] Global model ({config.MODEL_TYPE}) created
+2026-09-03 13:44:02,306 | INFO | ris.main |   Total parameters: 2,531,585
+2026-09-03 13:44:02,307 | INFO | ris.main |   Model size (FP32): 9889.00 KB
+2026-09-03 13:44:02,307 | INFO | ris.main |   Model size (INT8 for FL comm): 2472.25 KB
+2026-09-03 13:44:02,307 | INFO | ris.main |   Expected comm per round: 9889.00 KB (= 2531585 B x 2 x 2 tiles)
+2026-09-03 13:44:02,307 | INFO | ris.main |   Expected total comm (20 rounds): 197780.08 KB = 193.14 MB
+2026-09-03 13:44:02,521 | INFO | ris.main | [OK] Created {len(clients)} RIS tile clients
+2026-09-03 13:44:02,521 | INFO | ris.main | 
+Starting Federated Learning for 20 rounds...
+2026-09-03 13:44:02,522 | INFO | ris.main | Local epochs per round: 1
+2026-09-03 13:44:04,026 | INFO | ris.main | [Evaluation] Testing global model...
+2026-09-03 13:44:04,424 | INFO | ris.main |   Test Loss: 3.340638
+2026-09-03 13:44:04,424 | INFO | ris.main |   Phase Error: 1.5801 rad (90.53°)
+2026-09-03 13:44:04,424 | INFO | ris.main |   SNR (Optimized): -13.46 dB
+2026-09-03 13:44:04,425 | INFO | ris.main |   SNR Gain: 0.02 dB
+2026-09-03 13:44:04,425 | INFO | ris.AdvancedExperiments |   Failed Transformer: Parent directory models/saved does not exist.
+2026-09-03 13:44:04,430 | INFO | ris.AdvancedExperiments | 
+[OK] Results saved to results/advanced_experiments\model_architectures_results.json
+2026-09-03 13:44:05,669 | INFO | ris.AdvancedExperiments | 
+============================================================
+2026-09-03 13:44:05,669 | INFO | ris.AdvancedExperiments | EXPERIMENT 13: CSI Robustness
+2026-09-03 13:44:05,669 | INFO | ris.AdvancedExperiments | ============================================================
+2026-09-03 13:44:05,669 | INFO | ris.AdvancedExperiments | 
+>>> Testing CSI Variance = 0.0...
+2026-09-03 13:47:46,168 | INFO | ris.main | ============================================================
+2026-09-03 13:47:46,169 | INFO | ris.main | BASELINE EVALUATION
+2026-09-03 13:47:46,169 | INFO | ris.main | ============================================================
+2026-09-03 13:47:46,169 | INFO | ris.main | Evaluating: No RIS (direct link)
+2026-09-03 13:47:46,169 | INFO | ris.main |   SNR: -12.09 dB
+2026-09-03 13:47:46,169 | INFO | ris.main |   Rate: 0.09 bps/Hz
+2026-09-03 13:47:46,170 | INFO | ris.main | 
+Evaluating: Random RIS
+2026-09-03 13:47:46,172 | INFO | ris.main |   SNR: -12.10 dB
+2026-09-03 13:47:46,172 | INFO | ris.main |   Rate: 0.09 bps/Hz
+2026-09-03 13:47:46,172 | INFO | ris.main | 
+Evaluating: Optimal (Genie-aided)
+2026-09-03 13:47:46,174 | INFO | ris.main |   SNR: -11.43 dB
+2026-09-03 13:47:46,174 | INFO | ris.main |   Rate: 0.10 bps/Hz
+2026-09-03 13:47:46,174 | INFO | ris.main | ============================================================
+2026-09-03 13:47:46,174 | INFO | ris.main | FEDERATED LEARNING TRAINING
+2026-09-03 13:47:46,174 | INFO | ris.main | ============================================================
+2026-09-03 13:47:46,175 | INFO | ris.main | ============================================================
+2026-09-03 13:47:46,175 | INFO | ris.main | MODEL INITIALIZATION
+2026-09-03 13:47:46,175 | INFO | ris.main | ============================================================
+2026-09-03 13:47:46,184 | INFO | ris.main | [OK] Global model ({config.MODEL_TYPE}) created
+2026-09-03 13:47:46,185 | INFO | ris.main |   Total parameters: 621,313
+2026-09-03 13:47:46,185 | INFO | ris.main |   Model size (FP32): 2427.00 KB
+2026-09-03 13:47:46,185 | INFO | ris.main |   Model size (INT8 for FL comm): 606.75 KB
+2026-09-03 13:47:46,185 | INFO | ris.main |   Expected comm per round: 2427.00 KB (= 621313 B x 2 x 2 tiles)
+2026-09-03 13:47:46,185 | INFO | ris.main |   Expected total comm (20 rounds): 48540.08 KB = 47.40 MB
+2026-09-03 13:47:46,255 | INFO | ris.main | [OK] Created {len(clients)} RIS tile clients
+2026-09-03 13:47:46,256 | INFO | ris.main | 
+Starting Federated Learning for 20 rounds...
+2026-09-03 13:47:46,256 | INFO | ris.main | Local epochs per round: 1
+2026-09-03 13:47:48,948 | INFO | ris.main | [Evaluation] Testing global model...
+2026-09-03 13:47:50,356 | INFO | ris.main |   Test Loss: 3.331393
+2026-09-03 13:47:50,356 | INFO | ris.main |   Phase Error: 1.5859 rad (90.87°)
+2026-09-03 13:47:50,356 | INFO | ris.main |   SNR (Optimized): -12.05 dB
+2026-09-03 13:47:50,356 | INFO | ris.main |   SNR Gain: 0.04 dB
+2026-09-03 13:47:50,361 | INFO | ris.AdvancedExperiments | 
+============================================================
+2026-09-03 13:47:50,361 | INFO | ris.AdvancedExperiments | EXPERIMENT 14: NoC Topology Comparison
+2026-09-03 13:47:50,361 | INFO | ris.AdvancedExperiments | ============================================================
+2026-09-03 13:47:50,630 | INFO | ris.AdvancedExperiments | 
+>>> Testing Mesh topology...
+2026-09-03 13:47:50,630 | INFO | ris.AdvancedExperiments |   Latency: 2097.27 us
+2026-09-03 13:47:50,630 | INFO | ris.AdvancedExperiments |   Energy: 221.18 nJ
+2026-09-03 13:47:50,630 | INFO | ris.AdvancedExperiments |   Diameter: 1
+2026-09-03 13:47:50,631 | INFO | ris.AdvancedExperiments | 
+>>> Testing Torus topology...
+2026-09-03 13:47:50,631 | INFO | ris.AdvancedExperiments |   Latency: 2097.27 us
+2026-09-03 13:47:50,632 | INFO | ris.AdvancedExperiments |   Energy: 221.18 nJ
+2026-09-03 13:47:50,633 | INFO | ris.AdvancedExperiments |   Diameter: 1
+2026-09-03 13:47:50,633 | INFO | ris.AdvancedExperiments | 
+>>> Testing FoldedTorus topology...
+2026-09-03 13:47:50,634 | INFO | ris.AdvancedExperiments |   Latency: 2097.27 us
+2026-09-03 13:47:50,634 | INFO | ris.AdvancedExperiments |   Energy: 221.18 nJ
+2026-09-03 13:47:50,635 | INFO | ris.AdvancedExperiments |   Diameter: 2
+2026-09-03 13:47:50,635 | INFO | ris.AdvancedExperiments | 
+>>> Testing Tree topology...
+2026-09-03 13:47:50,636 | INFO | ris.AdvancedExperiments |   Latency: 2097.27 us
+2026-09-03 13:47:50,637 | INFO | ris.AdvancedExperiments |   Energy: 221.18 nJ
+2026-09-03 13:47:50,637 | INFO | ris.AdvancedExperiments |   Diameter: 2
+2026-09-03 13:47:50,638 | INFO | ris.AdvancedExperiments | 
+>>> Testing Butterfly topology...
+2026-09-03 13:47:50,638 | INFO | ris.AdvancedExperiments |   Latency: 2097.27 us
+2026-09-03 13:47:50,638 | INFO | ris.AdvancedExperiments |   Energy: 221.18 nJ
+2026-09-03 13:47:50,638 | INFO | ris.AdvancedExperiments |   Diameter: 1
+2026-09-03 13:47:50,639 | INFO | ris.AdvancedExperiments | 
+>>> Testing Ring topology...
+2026-09-03 13:47:50,639 | INFO | ris.AdvancedExperiments |   Latency: 2097.27 us
+2026-09-03 13:47:50,639 | INFO | ris.AdvancedExperiments |   Energy: 221.18 nJ
+2026-09-03 13:47:50,639 | INFO | ris.AdvancedExperiments |   Diameter: 1
+2026-09-03 13:47:50,640 | INFO | ris.AdvancedExperiments | 
+[OK] Results saved to results/advanced_experiments\topology_comparison_results.json
+2026-09-03 13:47:52,180 | INFO | ris.AdvancedExperiments | 
+============================================================
+2026-09-03 13:47:52,181 | INFO | ris.AdvancedExperiments | EXPERIMENT 15: Communication Protocol Comparison
+2026-09-03 13:47:52,181 | INFO | ris.AdvancedExperiments | ============================================================
+2026-09-03 13:47:52,181 | INFO | ris.AdvancedExperiments | 
+>>> Mesh + ParameterServer...
+2026-09-03 13:47:52,181 | INFO | ris.AdvancedExperiments |   Total bytes: 2,621,440
+2026-09-03 13:47:52,181 | INFO | ris.AdvancedExperiments |   Latency: 2097.27 us
+2026-09-03 13:47:52,181 | INFO | ris.AdvancedExperiments |   Energy: 221.18 nJ
+2026-09-03 13:47:52,181 | INFO | ris.AdvancedExperiments | 
+>>> Mesh + AllReduce...
+2026-09-03 13:47:52,181 | INFO | ris.AdvancedExperiments |   Total bytes: 2,621,440
+2026-09-03 13:47:52,181 | INFO | ris.AdvancedExperiments |   Latency: 2097.27 us
+2026-09-03 13:47:52,182 | INFO | ris.AdvancedExperiments |   Energy: 221.18 nJ
+2026-09-03 13:47:52,182 | INFO | ris.AdvancedExperiments | 
+>>> Mesh + RingAllReduce...
+2026-09-03 13:47:52,182 | INFO | ris.AdvancedExperiments |   Total bytes: 2,621,440
+2026-09-03 13:47:52,182 | INFO | ris.AdvancedExperiments |   Latency: 1048.70 us
+2026-09-03 13:47:52,182 | INFO | ris.AdvancedExperiments |   Energy: 221.18 nJ
+2026-09-03 13:47:52,182 | INFO | ris.AdvancedExperiments | 
+>>> Mesh + Gossip...
+2026-09-03 13:47:52,182 | INFO | ris.AdvancedExperiments |   Total bytes: 5,242,880
+2026-09-03 13:47:52,182 | INFO | ris.AdvancedExperiments |   Latency: 2097.27 us
+2026-09-03 13:47:52,182 | INFO | ris.AdvancedExperiments |   Energy: 442.37 nJ
+2026-09-03 13:47:52,183 | INFO | ris.AdvancedExperiments | 
+>>> Torus + ParameterServer...
+2026-09-03 13:47:52,183 | INFO | ris.AdvancedExperiments |   Total bytes: 2,621,440
+2026-09-03 13:47:52,183 | INFO | ris.AdvancedExperiments |   Latency: 2097.27 us
+2026-09-03 13:47:52,183 | INFO | ris.AdvancedExperiments |   Energy: 221.18 nJ
+2026-09-03 13:47:52,183 | INFO | ris.AdvancedExperiments | 
+>>> Torus + AllReduce...
+2026-09-03 13:47:52,183 | INFO | ris.AdvancedExperiments |   Total bytes: 2,621,440
+2026-09-03 13:47:52,183 | INFO | ris.AdvancedExperiments |   Latency: 2097.27 us
+2026-09-03 13:47:52,183 | INFO | ris.AdvancedExperiments |   Energy: 221.18 nJ
+2026-09-03 13:47:52,183 | INFO | ris.AdvancedExperiments | 
+>>> Torus + RingAllReduce...
+2026-09-03 13:47:52,183 | INFO | ris.AdvancedExperiments |   Total bytes: 2,621,440
+2026-09-03 13:47:52,184 | INFO | ris.AdvancedExperiments |   Latency: 1048.70 us
+2026-09-03 13:47:52,184 | INFO | ris.AdvancedExperiments |   Energy: 221.18 nJ
+2026-09-03 13:47:52,184 | INFO | ris.AdvancedExperiments | 
+>>> Torus + Gossip...
+2026-09-03 13:47:52,184 | INFO | ris.AdvancedExperiments |   Total bytes: 5,242,880
+2026-09-03 13:47:52,184 | INFO | ris.AdvancedExperiments |   Latency: 2097.27 us
+2026-09-03 13:47:52,184 | INFO | ris.AdvancedExperiments |   Energy: 442.37 nJ
+2026-09-03 13:47:52,185 | INFO | ris.AdvancedExperiments | 
+[OK] Results saved to results/advanced_experiments\protocol_comparison_results.json
+2026-09-03 13:47:53,341 | INFO | ris.AdvancedExperiments | 
+============================================================
+2026-09-03 13:47:53,341 | INFO | ris.AdvancedExperiments | EXPERIMENT 16: Optimization Technique Comparison
+2026-09-03 13:47:53,341 | INFO | ris.AdvancedExperiments | ============================================================
+2026-09-03 13:47:53,341 | INFO | ris.AdvancedExperiments |   Generating channel samples...
+2026-09-03 13:47:53,710 | INFO | ris.AdvancedExperiments |   Testing Random Search...
+2026-09-03 13:47:53,711 | INFO | ris.AdvancedExperiments |     SNR: -15.51 dB
+2026-09-03 13:47:53,711 | INFO | ris.AdvancedExperiments |   Testing Alternating Optimization...
+2026-09-03 13:47:53,712 | INFO | ris.AdvancedExperiments |     Error: index 1 is out of bounds for axis 0 with size 1
+2026-09-03 13:47:53,712 | INFO | ris.AdvancedExperiments |   Testing Successive Convex Approximation...
+2026-09-03 13:47:53,714 | INFO | ris.AdvancedExperiments |     SNR: -15.54 dB
+2026-09-03 13:47:53,715 | INFO | ris.AdvancedExperiments |   Testing ADMM...
+2026-09-03 13:47:53,720 | INFO | ris.AdvancedExperiments |     SNR: -15.51 dB
+2026-09-03 13:47:53,720 | INFO | ris.AdvancedExperiments |   Testing SDR...
+2026-09-03 13:47:53,720 | INFO | ris.AdvancedExperiments |     Skipped (cvxpy not installed)
+2026-09-03 13:47:53,720 | INFO | ris.AdvancedExperiments |   Computing MRC upper bound...
+2026-09-03 13:47:53,721 | INFO | ris.AdvancedExperiments |     SNR: -14.62 dB
+2026-09-03 13:47:53,722 | INFO | ris.AdvancedExperiments | 
+[OK] Results saved to results/advanced_experiments\optimization_techniques_results.json
+2026-09-03 13:47:55,273 | INFO | ris.AdvancedExperiments | 
+============================================================
+2026-09-03 13:47:55,274 | INFO | ris.AdvancedExperiments | EXPERIMENT 17: Tile-Pixel Golden Ratio Sweep
+2026-09-03 13:47:55,274 | INFO | ris.AdvancedExperiments | ============================================================
+2026-09-03 13:48:09,815 | INFO | ris.AdvancedExperiments | 
+--- Golden Ratio Results ---
+2026-09-03 13:48:09,816 | INFO | ris.AdvancedExperiments |   Area=25m²: T=4, P=16, SNR=-6.7dB, Score=0.3490
+2026-09-03 13:48:09,816 | INFO | ris.AdvancedExperiments |   Area=50m²: T=4, P=16, SNR=-5.4dB, Score=0.3667
+2026-09-03 13:48:09,816 | INFO | ris.AdvancedExperiments |   Area=100m²: T=4, P=16, SNR=-10.4dB, Score=0.2991
+2026-09-03 13:48:09,816 | INFO | ris.AdvancedExperiments |   Area=200m²: T=4, P=16, SNR=-14.1dB, Score=0.2501
+2026-09-03 13:48:09,816 | INFO | ris.AdvancedExperiments |   Area=400m²: T=4, P=16, SNR=-16.4dB, Score=0.2201
+2026-09-03 13:48:09,823 | INFO | ris.AdvancedExperiments | 
+[OK] Results saved to results/advanced_experiments\tile_pixel_golden_ratio_results.json
+2026-09-03 13:48:24,470 | INFO | ris.AdvancedExperiments | 
+============================================================
+2026-09-03 13:48:24,471 | INFO | ris.AdvancedExperiments | EXPERIMENT 18: Dynamic Duty Cycling
+2026-09-03 13:48:24,471 | INFO | ris.AdvancedExperiments | ============================================================
+2026-09-03 13:48:25,155 | INFO | ris.AdvancedExperiments | 
+>>> Testing No DC...
+2026-09-03 13:48:25,160 | INFO | ris.AdvancedExperiments |   SNR: -12.29 dB
+2026-09-03 13:48:25,161 | INFO | ris.AdvancedExperiments |   Active ratio: 100.00%
+2026-09-03 13:48:25,161 | INFO | ris.AdvancedExperiments |   Energy savings: 0.0%
+2026-09-03 13:48:25,161 | INFO | ris.AdvancedExperiments | 
+>>> Testing Threshold (-10 dB)...
+2026-09-03 13:48:25,168 | INFO | ris.AdvancedExperiments |   SNR: -12.57 dB
+2026-09-03 13:48:25,168 | INFO | ris.AdvancedExperiments |   Active ratio: 25.00%
+2026-09-03 13:48:25,168 | INFO | ris.AdvancedExperiments |   Energy savings: 70.0%
+2026-09-03 13:48:25,168 | INFO | ris.AdvancedExperiments | 
+>>> Testing Threshold (-20 dB)...
+2026-09-03 13:48:25,175 | INFO | ris.AdvancedExperiments |   SNR: -12.57 dB
+2026-09-03 13:48:25,175 | INFO | ris.AdvancedExperiments |   Active ratio: 25.00%
+2026-09-03 13:48:25,175 | INFO | ris.AdvancedExperiments |   Energy savings: 70.0%
+2026-09-03 13:48:25,175 | INFO | ris.AdvancedExperiments | 
+>>> Testing Top-K (50%)...
+2026-09-03 13:48:25,181 | INFO | ris.AdvancedExperiments |   SNR: -12.44 dB
+2026-09-03 13:48:25,181 | INFO | ris.AdvancedExperiments |   Active ratio: 50.00%
+2026-09-03 13:48:25,181 | INFO | ris.AdvancedExperiments |   Energy savings: 46.7%
+2026-09-03 13:48:25,181 | INFO | ris.AdvancedExperiments | 
+>>> Testing Top-K (25%)...
+2026-09-03 13:48:25,189 | INFO | ris.AdvancedExperiments |   SNR: -12.57 dB
+2026-09-03 13:48:25,189 | INFO | ris.AdvancedExperiments |   Active ratio: 25.00%
+2026-09-03 13:48:25,189 | INFO | ris.AdvancedExperiments |   Energy savings: 70.0%
+2026-09-03 13:48:25,190 | INFO | ris.AdvancedExperiments | 
+>>> Testing Adaptive...
+2026-09-03 13:48:25,198 | INFO | ris.AdvancedExperiments |   SNR: -12.30 dB
+2026-09-03 13:48:25,199 | INFO | ris.AdvancedExperiments |   Active ratio: 87.92%
+2026-09-03 13:48:25,199 | INFO | ris.AdvancedExperiments |   Energy savings: 11.3%
+2026-09-03 13:48:25,202 | INFO | ris.AdvancedExperiments | 
+[OK] Results saved to results/advanced_experiments\duty_cycling_results.json
+2026-09-03 13:48:26,531 | INFO | ris.AdvancedExperiments | 
+============================================================
+2026-09-03 13:48:26,531 | INFO | ris.AdvancedExperiments | EXPERIMENT 19: Dataset/Channel Model Comparison
+2026-09-03 13:48:26,531 | INFO | ris.AdvancedExperiments | ============================================================
+2026-09-03 13:48:26,531 | INFO | ris.AdvancedExperiments | 
+>>> Synthetic Rician (LoS)...
+2026-09-03 13:48:27,875 | INFO | ris.AdvancedExperiments |   Optimal SNR: -12.90 ± 6.63 dB
+2026-09-03 13:48:27,876 | INFO | ris.AdvancedExperiments |   No RIS SNR: -13.57 dB
+2026-09-03 13:48:27,876 | INFO | ris.AdvancedExperiments |   RIS Gain: 0.67 dB
+2026-09-03 13:48:27,876 | INFO | ris.AdvancedExperiments | 
+>>> Synthetic Rician (NLoS)...
+2026-09-03 13:48:29,239 | INFO | ris.AdvancedExperiments |   Optimal SNR: -14.83 ± 8.94 dB
+2026-09-03 13:48:29,239 | INFO | ris.AdvancedExperiments |   No RIS SNR: -15.19 dB
+2026-09-03 13:48:29,239 | INFO | ris.AdvancedExperiments |   RIS Gain: 0.36 dB
+2026-09-03 13:48:29,239 | INFO | ris.AdvancedExperiments | 
+>>> Synthetic Rician (Mixed)...
+2026-09-03 13:48:30,589 | INFO | ris.AdvancedExperiments |   Optimal SNR: -13.17 ± 7.43 dB
+2026-09-03 13:48:30,589 | INFO | ris.AdvancedExperiments |   No RIS SNR: -13.83 dB
+2026-09-03 13:48:30,589 | INFO | ris.AdvancedExperiments |   RIS Gain: 0.66 dB
+2026-09-03 13:48:30,589 | INFO | ris.AdvancedExperiments | 
+>>> 3GPP UMi 28 GHz (LoS)...
+2026-09-03 13:48:31,410 | INFO | ris.AdvancedExperiments |   Optimal SNR: 42.57 ± 5.68 dB
+2026-09-03 13:48:31,410 | INFO | ris.AdvancedExperiments |   No RIS SNR: 42.49 dB
+2026-09-03 13:48:31,410 | INFO | ris.AdvancedExperiments |   RIS Gain: 0.09 dB
+2026-09-03 13:48:31,410 | INFO | ris.AdvancedExperiments | 
+>>> 3GPP UMi 28 GHz (NLoS)...
+2026-09-03 13:48:32,246 | INFO | ris.AdvancedExperiments |   Optimal SNR: 33.91 ± 9.91 dB
+2026-09-03 13:48:32,246 | INFO | ris.AdvancedExperiments |   No RIS SNR: 33.61 dB
+2026-09-03 13:48:32,246 | INFO | ris.AdvancedExperiments |   RIS Gain: 0.30 dB
+2026-09-03 13:48:32,246 | INFO | ris.AdvancedExperiments | 
+>>> 3GPP UMi 60 GHz (Mixed)...
+2026-09-03 13:48:33,071 | INFO | ris.AdvancedExperiments |   Optimal SNR: 36.45 ± 6.16 dB
+2026-09-03 13:48:33,072 | INFO | ris.AdvancedExperiments |   No RIS SNR: 36.41 dB
+2026-09-03 13:48:33,072 | INFO | ris.AdvancedExperiments |   RIS Gain: 0.04 dB
+2026-09-03 13:48:33,073 | INFO | ris.AdvancedExperiments | 
+[OK] Results saved to results/advanced_experiments\dataset_comparison_results.json
+2026-09-03 13:48:34,351 | INFO | ris.AdvancedExperiments | 
+============================================================
+2026-09-03 13:48:34,352 | INFO | ris.AdvancedExperiments | EXPERIMENT 20: Phase Quantization Loss Analysis
+2026-09-03 13:48:34,352 | INFO | ris.AdvancedExperiments | ============================================================
+2026-09-03 13:48:34,352 | INFO | ris.AdvancedExperiments | 
+--- Rician LoS ---
+2026-09-03 13:48:35,681 | INFO | ris.AdvancedExperiments |   >>> Continuous...
+2026-09-03 13:48:35,685 | INFO | ris.AdvancedExperiments |     SNR: -12.99 dB
+2026-09-03 13:48:35,685 | INFO | ris.AdvancedExperiments |     Quant Error: 0.00°
+2026-09-03 13:48:35,685 | INFO | ris.AdvancedExperiments |   >>> 1-bit (2 states)...
+2026-09-03 13:48:35,705 | INFO | ris.AdvancedExperiments |     SNR: -13.21 dB
+2026-09-03 13:48:35,705 | INFO | ris.AdvancedExperiments |     Quant Error: 45.24°
+2026-09-03 13:48:35,705 | INFO | ris.AdvancedExperiments |   >>> 2-bit (4 states)...
+2026-09-03 13:48:35,724 | INFO | ris.AdvancedExperiments |     SNR: -13.05 dB
+2026-09-03 13:48:35,724 | INFO | ris.AdvancedExperiments |     Quant Error: 22.54°
+2026-09-03 13:48:35,724 | INFO | ris.AdvancedExperiments |   >>> 3-bit (8 states)...
+2026-09-03 13:48:35,746 | INFO | ris.AdvancedExperiments |     SNR: -13.00 dB
+2026-09-03 13:48:35,746 | INFO | ris.AdvancedExperiments |     Quant Error: 11.26°
+2026-09-03 13:48:35,746 | INFO | ris.AdvancedExperiments | 
+--- Rician NLoS ---
+2026-09-03 13:48:37,068 | INFO | ris.AdvancedExperiments |   >>> Continuous...
+2026-09-03 13:48:37,072 | INFO | ris.AdvancedExperiments |     SNR: -15.54 dB
+2026-09-03 13:48:37,072 | INFO | ris.AdvancedExperiments |     Quant Error: 0.00°
+2026-09-03 13:48:37,073 | INFO | ris.AdvancedExperiments |   >>> 1-bit (2 states)...
+2026-09-03 13:48:37,093 | INFO | ris.AdvancedExperiments |     SNR: -15.64 dB
+2026-09-03 13:48:37,094 | INFO | ris.AdvancedExperiments |     Quant Error: 44.83°
+2026-09-03 13:48:37,094 | INFO | ris.AdvancedExperiments |   >>> 2-bit (4 states)...
+2026-09-03 13:48:37,114 | INFO | ris.AdvancedExperiments |     SNR: -15.57 dB
+2026-09-03 13:48:37,114 | INFO | ris.AdvancedExperiments |     Quant Error: 22.42°
+2026-09-03 13:48:37,114 | INFO | ris.AdvancedExperiments |   >>> 3-bit (8 states)...
+2026-09-03 13:48:37,134 | INFO | ris.AdvancedExperiments |     SNR: -15.55 dB
+2026-09-03 13:48:37,134 | INFO | ris.AdvancedExperiments |     Quant Error: 11.26°
+2026-09-03 13:48:37,134 | INFO | ris.AdvancedExperiments | 
+--- 3GPP UMi 28G ---
+2026-09-03 13:48:37,955 | INFO | ris.AdvancedExperiments |   >>> Continuous...
+2026-09-03 13:48:37,959 | INFO | ris.AdvancedExperiments |     SNR: 43.61 dB
+2026-09-03 13:48:37,959 | INFO | ris.AdvancedExperiments |     Quant Error: 0.00°
+2026-09-03 13:48:37,959 | INFO | ris.AdvancedExperiments |   >>> 1-bit (2 states)...
+2026-09-03 13:48:37,979 | INFO | ris.AdvancedExperiments |     SNR: 43.59 dB
+2026-09-03 13:48:37,979 | INFO | ris.AdvancedExperiments |     Quant Error: 44.23°
+2026-09-03 13:48:37,979 | INFO | ris.AdvancedExperiments |   >>> 2-bit (4 states)...
+2026-09-03 13:48:37,999 | INFO | ris.AdvancedExperiments |     SNR: 43.61 dB
+2026-09-03 13:48:37,999 | INFO | ris.AdvancedExperiments |     Quant Error: 22.29°
+2026-09-03 13:48:37,999 | INFO | ris.AdvancedExperiments |   >>> 3-bit (8 states)...
+2026-09-03 13:48:38,021 | INFO | ris.AdvancedExperiments |     SNR: 43.61 dB
+2026-09-03 13:48:38,021 | INFO | ris.AdvancedExperiments |     Quant Error: 11.26°
+2026-09-03 13:48:38,023 | INFO | ris.AdvancedExperiments | 
+[OK] Results saved to results/advanced_experiments\phase_quantization_results.json

@@ -1,0 +1,134 @@
+[
+    {
+        "scenario": "Rician LoS",
+        "quantization": "Continuous",
+        "bits": 0,
+        "avg_snr_db": -12.988195329163513,
+        "std_snr_db": 7.224611009439883,
+        "avg_quant_error_rad": 0.0,
+        "avg_quant_error_deg": 0.0,
+        "num_levels": "inf",
+        "snr_loss_vs_continuous_db": 0.0
+    },
+    {
+        "scenario": "Rician LoS",
+        "quantization": "1-bit (2 states)",
+        "bits": 1,
+        "avg_snr_db": -13.206548218625699,
+        "std_snr_db": 7.386488749979874,
+        "avg_quant_error_rad": 0.7896521719017465,
+        "avg_quant_error_deg": 45.24373673330905,
+        "num_levels": 2,
+        "snr_loss_vs_continuous_db": 0.21835288946218512
+    },
+    {
+        "scenario": "Rician LoS",
+        "quantization": "2-bit (4 states)",
+        "bits": 2,
+        "avg_snr_db": -13.048807796900348,
+        "std_snr_db": 7.267617603827172,
+        "avg_quant_error_rad": 0.3933536063639255,
+        "avg_quant_error_deg": 22.537501500903254,
+        "num_levels": 4,
+        "snr_loss_vs_continuous_db": 0.06061246773683493
+    },
+    {
+        "scenario": "Rician LoS",
+        "quantization": "3-bit (8 states)",
+        "bits": 3,
+        "avg_snr_db": -13.003605589103524,
+        "std_snr_db": 7.235389479096457,
+        "avg_quant_error_rad": 0.19644833492629776,
+        "avg_quant_error_deg": 11.255660483649306,
+        "num_levels": 8,
+        "snr_loss_vs_continuous_db": 0.015410259940010107
+    },
+    {
+        "scenario": "Rician NLoS",
+        "quantization": "Continuous",
+        "bits": 0,
+        "avg_snr_db": -15.541139322042298,
+        "std_snr_db": 9.180091826885409,
+        "avg_quant_error_rad": 0.0,
+        "avg_quant_error_deg": 0.0,
+        "num_levels": "inf",
+        "snr_loss_vs_continuous_db": 0.0
+    },
+    {
+        "scenario": "Rician NLoS",
+        "quantization": "1-bit (2 states)",
+        "bits": 1,
+        "avg_snr_db": -15.64240369650887,
+        "std_snr_db": 9.281881816303445,
+        "avg_quant_error_rad": 0.7824270362986633,
+        "avg_quant_error_deg": 44.82976695684267,
+        "num_levels": 2,
+        "snr_loss_vs_continuous_db": 0.101264374466572
+    },
+    {
+        "scenario": "Rician NLoS",
+        "quantization": "2-bit (4 states)",
+        "bits": 2,
+        "avg_snr_db": -15.569556047907868,
+        "std_snr_db": 9.207624856224841,
+        "avg_quant_error_rad": 0.3913483526894956,
+        "avg_quant_error_deg": 22.422608928505316,
+        "num_levels": 4,
+        "snr_loss_vs_continuous_db": 0.028416725865570314
+    },
+    {
+        "scenario": "Rician NLoS",
+        "quantization": "3-bit (8 states)",
+        "bits": 3,
+        "avg_snr_db": -15.54863018928654,
+        "std_snr_db": 9.1870914317859,
+        "avg_quant_error_rad": 0.19660874733084305,
+        "avg_quant_error_deg": 11.264851437411297,
+        "num_levels": 8,
+        "snr_loss_vs_continuous_db": 0.007490867244241528
+    },
+    {
+        "scenario": "3GPP UMi 28G",
+        "quantization": "Continuous",
+        "bits": 0,
+        "avg_snr_db": 43.61445014686762,
+        "std_snr_db": 6.219130892821222,
+        "avg_quant_error_rad": 0.0,
+        "avg_quant_error_deg": 0.0,
+        "num_levels": "inf",
+        "snr_loss_vs_continuous_db": 0.0
+    },
+    {
+        "scenario": "3GPP UMi 28G",
+        "quantization": "1-bit (2 states)",
+        "bits": 1,
+        "avg_snr_db": 43.58783579277793,
+        "std_snr_db": 6.239160658347952,
+        "avg_quant_error_rad": 0.7718738881193025,
+        "avg_quant_error_deg": 44.22511610558913,
+        "num_levels": 2,
+        "snr_loss_vs_continuous_db": 0.02661435408968771
+    },
+    {
+        "scenario": "3GPP UMi 28G",
+        "quantization": "2-bit (4 states)",
+        "bits": 2,
+        "avg_snr_db": 43.60721642839193,
+        "std_snr_db": 6.22472214432045,
+        "avg_quant_error_rad": 0.38909237353163173,
+        "avg_quant_error_deg": 22.29335084409024,
+        "num_levels": 4,
+        "snr_loss_vs_continuous_db": 0.007233718475688988
+    },
+    {
+        "scenario": "3GPP UMi 28G",
+        "quantization": "3-bit (8 states)",
+        "bits": 3,
+        "avg_snr_db": 43.61255735007704,
+        "std_snr_db": 6.220594245043527,
+        "avg_quant_error_rad": 0.19647002020671128,
+        "avg_quant_error_deg": 11.256902958694559,
+        "num_levels": 8,
+        "snr_loss_vs_continuous_db": 0.0018927967905781884
+    }
+]
