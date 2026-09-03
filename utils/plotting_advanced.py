@@ -860,7 +860,7 @@ def plot_golden_ratio_analysis(results, save_path):
     if not configs:
         return
 
-    sorted({r.get('chip_area_m2', 0) for r in configs})
+    sorted({r.get('deployment_area_m2', r.get('chip_area_m2', 0)) for r in configs})
     tiles_list = [r.get('num_tiles', 0) for r in configs]
     pixels_list = [r.get('pixels_per_tile', 0) for r in configs]
     snrs = [r.get('avg_snr_db', 0) for r in configs]
@@ -902,11 +902,12 @@ def plot_golden_ratio_analysis(results, save_path):
     a4.axis('off')
     table_data = []
     for i in range(n):
-        area = configs[i].get('chip_area_m2', '?')
+        # Support both old key (chip_area_m2) and new key (deployment_area_m2)
+        area = configs[i].get('deployment_area_m2', configs[i].get('chip_area_m2', '?'))
         table_data.append([f'{area}', f'{tiles_list[i]}', f'{pixels_list[i]}',
                            f'{snrs[i]:.1f}', f'{scores[i]:.2f}'])
     table = a4.table(cellText=table_data,
-                     colLabels=['Area (m\u00b2)', 'Tiles', 'Pixels', 'SNR (dB)', 'Score'],
+                     colLabels=['Room Area (m\u00b2)', 'Tiles', 'Pixels', 'SNR (dB)', 'Score'],
                      cellLoc='center', loc='center')
     table.auto_set_font_size(False)
     table.set_fontsize(7)

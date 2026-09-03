@@ -59,7 +59,9 @@ class Config:
     FREQUENCY = 28e9  # Operating frequency (28 GHz mmWave)
     WAVELENGTH = 3e8 / FREQUENCY  # Wavelength (~10.7mm)
     ROOM_SIZE = (10, 10, 3)  # Room dimensions (x, y, z) in meters
-    CHIP_AREA_M2 = ROOM_SIZE[0] * ROOM_SIZE[1]  # Chip/room area in m²
+    # Floor area of the deployment room (not silicon die area – RIS chip dies are µm-scale).
+    # Used as a normalisation constant for tile-density metrics in Exp 17.
+    DEPLOYMENT_AREA_M2 = ROOM_SIZE[0] * ROOM_SIZE[1]  # e.g. 10m × 10m = 100 m²
     NUM_USERS = 10  # Number of users in the environment
 
     # ============ Channel Model Parameters ============
@@ -212,7 +214,9 @@ class Config:
     SLEEP_POWER_PIXEL = 0.001  # Sleep power per pixel (W)
     
     # ============ Sweep Ranges for Systematic Experiments ============
-    CHIP_AREAS_M2 = [25, 50, 100, 200, 400]
+    # Room/deployment floor areas in m² (e.g. 5×5m = 25 m², 20×20m = 400 m²).
+    # NOTE: these are *room* areas, not silicon chip die sizes (which are in mm²).
+    DEPLOYMENT_AREAS_M2 = [25, 50, 100, 200, 400]
     TILE_COUNTS = [4, 9, 16, 25, 36, 49, 64]
     PIXEL_COUNTS = [16, 36, 64, 100, 144, 196, 256]
 
@@ -239,6 +243,6 @@ class Config:
     
     @classmethod
     def update_room_size(cls, x, y, z=3):
-        """Update room/chip dimensions"""
+        """Update room/deployment dimensions"""
         cls.ROOM_SIZE = (x, y, z)
-        cls.CHIP_AREA_M2 = x * y
+        cls.DEPLOYMENT_AREA_M2 = x * y

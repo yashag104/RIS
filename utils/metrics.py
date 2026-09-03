@@ -616,14 +616,15 @@ def calculate_tile_efficiency(snr_gain: float, energy_j: float, num_tiles: int) 
     }
 
 
-def calculate_area_coverage(num_tiles: int, pixels_per_tile: int, chip_area_m2: float, wavelength: float) -> dict[str, float]:
+def calculate_area_coverage(num_tiles: int, pixels_per_tile: int, deployment_area_m2: float, wavelength: float) -> dict[str, float]:
     """
     Calculate RIS coverage metrics.
     
     Args:
         num_tiles: Number of tiles
         pixels_per_tile: Number of pixels (elements) per tile
-        chip_area_m2: Chip/room area in square meters
+        deployment_area_m2: Room / deployment floor area in m² (NOT silicon die area).
+            E.g. a 10×10 m room has deployment_area_m2 = 100.
         wavelength: Operating wavelength in meters
     
     Returns:
@@ -638,7 +639,7 @@ def calculate_area_coverage(num_tiles: int, pixels_per_tile: int, chip_area_m2: 
     total_ris_area = total_pixels * pixel_area
     
     # Coverage ratio
-    coverage_ratio = total_ris_area / chip_area_m2 if chip_area_m2 > 0 else 0
+    coverage_ratio = total_ris_area / deployment_area_m2 if deployment_area_m2 > 0 else 0
     
     return {
         'total_pixels': total_pixels,
@@ -646,13 +647,13 @@ def calculate_area_coverage(num_tiles: int, pixels_per_tile: int, chip_area_m2: 
         'pixel_area_m2': pixel_area,
         'total_ris_area_m2': total_ris_area,
         'total_ris_area_cm2': total_ris_area * 1e4,
-        'chip_area_m2': chip_area_m2,
+        'deployment_area_m2': deployment_area_m2,
         'coverage_ratio': coverage_ratio,
         'coverage_percentage': coverage_ratio * 100
     }
 
 
-def calculate_optimal_tiles_formula(chip_area_m2: float, pixels_per_tile: int, bandwidth_gbps: float, fl_rounds: int,
+def calculate_optimal_tiles_formula(deployment_area_m2: float, pixels_per_tile: int, bandwidth_gbps: float, fl_rounds: int,
                                      target_utilization: float = 0.8, target_snr_per_tile: float = 8.0) -> dict[str, Any]:
     """
     Calculate optimal number of tiles based on constraints (Golden Ratio).
@@ -663,7 +664,8 @@ def calculate_optimal_tiles_formula(chip_area_m2: float, pixels_per_tile: int, b
     3. Area coverage
     
     Args:
-        chip_area_m2: Chip/room area in square meters
+        deployment_area_m2: Room / deployment floor area in m² (NOT silicon die area).
+            E.g. a 10×10 m room = 100 m².
         pixels_per_tile: Pixels per tile
         bandwidth_gbps: Available NoC bandwidth
         fl_rounds: Number of FL rounds
@@ -685,7 +687,7 @@ def calculate_optimal_tiles_formula(chip_area_m2: float, pixels_per_tile: int, b
     # Constraint 2: Area scaling (heuristic)
     # More area needs more tiles, but with diminishing returns
     k_area = 0.5  # Scaling constant (to be tuned by experiments)
-    tiles_area = k_area * np.sqrt(chip_area_m2)
+    tiles_area = k_area * np.sqrt(deployment_area_m2)
     
     # Constraint 3: Beamforming gain
     # Target total SNR gain = num_tiles * target_snr_per_tile

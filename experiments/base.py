@@ -57,6 +57,19 @@ class ExperimentBase:
                     setattr(self.config, k, v)
         
         try:
+            # Ensure all required output directories exist.
+            # (setup_directories() is only called in main(), not here, so we
+            # must create them explicitly to avoid "Parent directory does not
+            # exist" errors when saving checkpoints mid-training.)
+            for _dir in [
+                self.config.MODELS_DIR,
+                self.config.RESULTS_DIR,
+                self.config.DATA_DIR,
+                getattr(self.config, 'PLOTS_DIR', 'plots/'),
+                getattr(self.config, 'METRICS_DIR', 'metrics/'),
+            ]:
+                os.makedirs(_dir, exist_ok=True)
+
             # Create datasets (re-create if params changed that affect data)
             # For efficiency, we could cache them, but for robustness, we re-create
             train_datasets, _tile_positions = create_non_iid_datasets(self.config, self.config.NUM_TILES)

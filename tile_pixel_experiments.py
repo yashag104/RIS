@@ -50,7 +50,7 @@ class TilePixelExperiments:
             int(np.sqrt(self.original_elements_per_tile))
         )
         Config.ROOM_SIZE = self.original_room_size
-        Config.CHIP_AREA_M2 = self.original_room_size[0] * self.original_room_size[1]
+        Config.DEPLOYMENT_AREA_M2 = self.original_room_size[0] * self.original_room_size[1]
 
     def experiment_1_tile_optimization(self, quick=False):
         """
@@ -165,7 +165,7 @@ class TilePixelExperiments:
             # Calculate area coverage
             coverage = calculate_area_coverage(
                 num_tiles, pixels_per_tile,
-                Config.CHIP_AREA_M2,
+                Config.DEPLOYMENT_AREA_M2,
                 Config.WAVELENGTH
             )
             
@@ -252,7 +252,7 @@ class TilePixelExperiments:
                 
                 result.update({
                     'room_size': (room_x, room_y),
-                    'chip_area_m2': area_m2,
+                    'deployment_area_m2': area_m2,
                     'num_tiles': num_tiles,
                     'predicted_optimal_tiles': predicted['optimal_tiles_grid'],
                     'composite_score': composite
@@ -518,7 +518,7 @@ class TilePixelExperiments:
         # Group by area and find optimal tiles for each
         area_optimal = {}
         for r in results:
-            area = r['chip_area_m2']
+            area = r['deployment_area_m2']
             score = r['composite_score']['composite_score']
             if area not in area_optimal or score > area_optimal[area]['score']:
                 area_optimal[area] = {
@@ -662,13 +662,13 @@ class TilePixelExperiments:
             import matplotlib.pyplot as plt
             
             # Create heatmap data
-            areas = sorted({r['chip_area_m2'] for r in results})
+            areas = sorted({r['deployment_area_m2'] for r in results})
             tiles = sorted({r['num_tiles'] for r in results})
             
             scores = np.zeros((len(tiles), len(areas)))
             for r in results:
                 i = tiles.index(r['num_tiles'])
-                j = areas.index(r['chip_area_m2'])
+                j = areas.index(r['deployment_area_m2'])
                 scores[i, j] = r['composite_score']['composite_score']
             
             _fig, ax = plt.subplots(figsize=(10, 8))

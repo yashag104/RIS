@@ -8,6 +8,8 @@ __pycache__/
 *.pt
 *.pth
 *.ckpt
+# Keep directory stubs so fresh clones have all required dirs
+!**/.gitkeep
 
 *.log
 

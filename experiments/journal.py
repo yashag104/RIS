@@ -351,9 +351,13 @@ class JournalExperimentsMixin:
 
     def experiment_17_tile_pixel_golden_ratio(self):
         """
-        Experiment 17: Systemmatic Tile-Pixel Configuration Sweep
-        Tests: Multiple chip areas × tile counts × pixel counts
+        Experiment 17: Systematic Tile-Pixel Configuration Sweep
+        Tests: Multiple deployment areas × tile counts × pixel counts
         Derives: Optimal density formula (golden ratio)
+
+        NOTE: "area" here is the *room/deployment floor area* in m²
+        (e.g. 25 m² = 5×5 m room, 400 m² = 20×20 m room).
+        It is NOT a silicon chip die area (which would be in mm²).
         """
         self.logger.info("\n" + "=" * 60)
         self.logger.info("EXPERIMENT 17: Tile-Pixel Golden Ratio Sweep")
@@ -362,7 +366,12 @@ class JournalExperimentsMixin:
         from src.channel_model import RicianChannel
         from src.noc_simulator import NoCSimulator
 
-        chip_areas = getattr(self.config, 'CHIP_AREAS_M2', [25, 100, 400])
+        # Use DEPLOYMENT_AREAS_M2 (room floor areas in m²), fall back to old
+        # name for backward compatibility with older configs.
+        deployment_areas = getattr(
+            self.config, 'DEPLOYMENT_AREAS_M2',
+            getattr(self.config, 'CHIP_AREAS_M2', [25, 100, 400])
+        )
         tile_counts = getattr(self.config, 'TILE_COUNTS', [4, 16, 36, 64])
         pixel_counts = getattr(self.config, 'PIXEL_COUNTS', [16, 64, 144, 256])
         
@@ -371,7 +380,7 @@ class JournalExperimentsMixin:
         best_score = -np.inf
         best_config = {}
         
-        for area in chip_areas:
+        for area in deployment_areas:
             for n_tiles in tile_counts:
                 for n_pixels in pixel_counts:
                     total_elements = n_tiles * n_pixels
@@ -395,6 +404,7 @@ class JournalExperimentsMixin:
                     )
                     
                     # Quick SNR estimate (5 samples)
+                    # side = sqrt(area) gives room side length in metres
                     snrs = []
                     side = np.sqrt(area)
                     for _ in range(5):
@@ -437,12 +447,14 @@ class JournalExperimentsMixin:
                             self.config.WEIGHT_COMM * comm_norm)
                     
                     entry = {
-                        'chip_area_m2': area,
+                        # Renamed from chip_area_m2 → deployment_area_m2 to
+                        # clarify this is the room floor area, not a chip die.
+                        'deployment_area_m2': area,
                         'num_tiles': n_tiles,
                         'pixels_per_tile': actual_pixels,
                         'total_elements': n_tiles * actual_pixels,
-                        'tile_density': n_tiles / area,
-                        'pixel_density': actual_pixels * n_tiles / area,
+                        'tile_density_per_m2': n_tiles / area,
+                        'pixel_density_per_m2': actual_pixels * n_tiles / area,
                         'avg_snr_db': float(avg_snr),
                         'comm_latency_us': float(comm_latency_us),
                         'comm_energy_nj': float(comm_energy_nj),
@@ -458,22 +470,26 @@ class JournalExperimentsMixin:
         # Derive golden ratio formula
         if results:
             # Fit: optimal_tiles = a * sqrt(area) + b
-            areas_seen = sorted({r['chip_area_m2'] for r in results})
+            areas_seen = sorted({r['deployment_area_m2'] for r in results})
             optimal_per_area = {}
             for a in areas_seen:
-                area_results = [r for r in results if r['chip_area_m2'] == a]
+                area_results = [r for r in results if r['deployment_area_m2'] == a]
                 best_for_area = max(area_results, key=lambda x: x['composite_score'])
                 optimal_per_area[a] = best_for_area
             
             self.logger.info("\n--- Golden Ratio Results ---")
             for a, cfg in optimal_per_area.items():
-                self.logger.info(f"  Area={a}m²: T={cfg['num_tiles']}, P={cfg['pixels_per_tile']}, "
-                      f"SNR={cfg['avg_snr_db']:.1f}dB, Score={cfg['composite_score']:.4f}")
+                self.logger.info(
+                    f"  Room={a} m² ({np.sqrt(a):.0f}×{np.sqrt(a):.0f} m): "
+                    f"T={cfg['num_tiles']}, P={cfg['pixels_per_tile']}, "
+                    f"SNR={cfg['avg_snr_db']:.1f} dB, Score={cfg['composite_score']:.4f}"
+                )
             
             golden_ratio_summary = {
                 'best_overall': best_config,
                 'optimal_per_area': optimal_per_area,
                 'formula_hint': 'T_opt ≈ sqrt(A/10), P_opt ≈ min(256, A/T)',
+                'note': 'A is room/deployment area in m², not silicon chip die area',
             }
             results.append({'_golden_ratio': golden_ratio_summary})
         
