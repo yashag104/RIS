@@ -1,50 +1,50 @@
 [
     {
         "strategy": "No DC",
-        "avg_snr_db": -12.28771149147922,
-        "std_snr_db": 7.244899215067984,
+        "avg_snr_db": -12.17209700925685,
+        "std_snr_db": 7.217389059631186,
         "avg_active_ratio": 1.0,
         "avg_energy_savings_pct": 0.0,
         "snr_loss_vs_full_db": 0.0
     },
     {
         "strategy": "Threshold (-10 dB)",
-        "avg_snr_db": -12.566131110378171,
-        "std_snr_db": 7.496933644695058,
+        "avg_snr_db": -12.447487692218772,
+        "std_snr_db": 7.471026224057376,
         "avg_active_ratio": 0.25,
         "avg_energy_savings_pct": 70.0,
-        "snr_loss_vs_full_db": 0.27841961889895117
+        "snr_loss_vs_full_db": 0.2753906829619215
     },
     {
         "strategy": "Threshold (-20 dB)",
-        "avg_snr_db": -12.566131110378171,
-        "std_snr_db": 7.496933644695058,
+        "avg_snr_db": -12.447487692218772,
+        "std_snr_db": 7.471026224057376,
         "avg_active_ratio": 0.25,
         "avg_energy_savings_pct": 70.0,
-        "snr_loss_vs_full_db": 0.27841961889895117
+        "snr_loss_vs_full_db": 0.2753906829619215
     },
     {
         "strategy": "Top-K (50%)",
-        "avg_snr_db": -12.438155760884667,
-        "std_snr_db": 7.385877187632989,
+        "avg_snr_db": -12.320645695706041,
+        "std_snr_db": 7.359089415333774,
         "avg_active_ratio": 0.5,
         "avg_energy_savings_pct": 46.66666666666668,
-        "snr_loss_vs_full_db": 0.15044426940544753
+        "snr_loss_vs_full_db": 0.14854868644919073
     },
     {
         "strategy": "Top-K (25%)",
-        "avg_snr_db": -12.566131110378171,
-        "std_snr_db": 7.496933644695058,
+        "avg_snr_db": -12.447487692218772,
+        "std_snr_db": 7.471026224057376,
         "avg_active_ratio": 0.25,
         "avg_energy_savings_pct": 70.0,
-        "snr_loss_vs_full_db": 0.27841961889895117
+        "snr_loss_vs_full_db": 0.2753906829619215
     },
     {
         "strategy": "Adaptive",
-        "avg_snr_db": -12.296083840095383,
-        "std_snr_db": 7.252178464092918,
-        "avg_active_ratio": 0.87921875,
-        "avg_energy_savings_pct": 11.272916666666667,
-        "snr_loss_vs_full_db": 0.008372348616163094
+        "avg_snr_db": -12.180415332021601,
+        "std_snr_db": 7.2247579882010005,
+        "avg_active_ratio": 0.87765625,
+        "avg_energy_savings_pct": 11.41875,
+        "snr_loss_vs_full_db": 0.008318322764750974
     }
 ]

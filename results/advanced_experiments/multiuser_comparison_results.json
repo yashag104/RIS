@@ -1,0 +1,73 @@
+[
+    {
+        "num_users": 1,
+        "avg_sum_rate": 17.135675302196848,
+        "std_sum_rate": 2.220272952260719,
+        "avg_per_user_snr": 51.583461048628514,
+        "min_per_user_snr": 51.583461048628514,
+        "max_per_user_snr": 51.583461048628514,
+        "avg_fairness": 1.0,
+        "fl_convergence": 5,
+        "fl_final_loss": 3.4293769001960754,
+        "fl_communication_kb": 49200.15625,
+        "per_user_snr_distribution": [
+            51.583461048628514
+        ]
+    },
+    {
+        "num_users": 2,
+        "avg_sum_rate": 7.37240157725718,
+        "std_sum_rate": 0.691810837775421,
+        "avg_per_user_snr": 9.999057851020444,
+        "min_per_user_snr": 3.851808971829743,
+        "max_per_user_snr": 16.146306730211144,
+        "avg_fairness": 0.8152549186734164,
+        "fl_convergence": 5,
+        "fl_final_loss": 3.1438926458358765,
+        "fl_communication_kb": 54520.15625,
+        "per_user_snr_distribution": [
+            9.297816186670214,
+            10.700299515370673
+        ]
+    },
+    {
+        "num_users": 4,
+        "avg_sum_rate": 7.8547484927101925,
+        "std_sum_rate": 0.27995336799013276,
+        "avg_per_user_snr": 3.077105540709768,
+        "min_per_user_snr": -3.3326559507101168,
+        "max_per_user_snr": 12.755877043390715,
+        "avg_fairness": 0.6467955229228367,
+        "fl_convergence": 5,
+        "fl_final_loss": 3.3831531405448914,
+        "fl_communication_kb": 65160.15625,
+        "per_user_snr_distribution": [
+            2.8187969015754843,
+            2.7077233398892964,
+            3.7737507846870666,
+            3.008151136687226
+        ]
+    },
+    {
+        "num_users": 8,
+        "avg_sum_rate": 8.76192701105091,
+        "std_sum_rate": 0.6640997047592244,
+        "avg_per_user_snr": -1.7979602912004822,
+        "min_per_user_snr": -8.963430007004387,
+        "max_per_user_snr": 10.233217092484473,
+        "avg_fairness": 0.5308746329505939,
+        "fl_convergence": 5,
+        "fl_final_loss": 3.1432065963745117,
+        "fl_communication_kb": 86440.15625,
+        "per_user_snr_distribution": [
+            -2.2896187882466954,
+            -1.9847647659811556,
+            -1.2537289595982164,
+            -2.458294362531555,
+            -1.6728267593512083,
+            -0.05899474696873879,
+            -2.649663691722014,
+            -2.015790255204274
+        ]
+    }
+]
