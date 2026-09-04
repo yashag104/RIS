@@ -19,6 +19,10 @@ tqdm>=4.65.0
 # Utilities
 Pillow>=9.5.0
 
+# Convex solver for the SDR baseline (experiment 16). Without it the SDR
+# comparison records an error instead of a result.
+cvxpy>=1.4.0
+
 # GNN Architecture (optional - required for GNN model)
 # pip install torch-geometric
 # torch-geometric>=2.4.0

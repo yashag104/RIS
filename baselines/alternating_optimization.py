@@ -34,7 +34,7 @@ class AlternatingOptimization:
         self,
         num_elements: int,
         max_iterations: int = 100,
-        lr_phase: float = 0.1,
+        lr_phase: float = 0.5,
         convergence_threshold: float = 1e-4,
         verbose: bool = False
     ):
@@ -42,13 +42,16 @@ class AlternatingOptimization:
         Args:
             num_elements: Number of RIS reflecting elements
             max_iterations: Maximum AO iterations
-            lr_phase: Learning rate for phase gradient ascent
+            lr_phase: Step size in radians for the normalised phase gradient
+                ascent. The gradient is unit-normalised, so this is an
+                absolute angular step, not a scale-dependent learning rate.
             convergence_threshold: Stop when SNR improvement < threshold (dB)
             verbose: Print iteration progress
         """
         self.num_elements = num_elements
         self.max_iterations = max_iterations
         self.lr_phase = lr_phase
+        self._lr_phase_initial = lr_phase
         self.convergence_threshold = convergence_threshold
         self.verbose = verbose
         
@@ -84,6 +87,8 @@ class AlternatingOptimization:
         
         snr_history = []
         prev_snr = -np.inf
+        # Step size is annealed within a run, so reset it per realisation.
+        self.lr_phase = self._lr_phase_initial
         
         for iteration in range(self.max_iterations):
             # Step 1: Fix phases, optimize beamformer
@@ -101,14 +106,19 @@ class AlternatingOptimization:
             snr_db = 10 * np.log10(snr_linear + 1e-10)
             snr_history.append(snr_db)
             
-            # Check convergence
+            # Check convergence. A fixed-size normalised step can overshoot
+            # near the optimum, so shrink the step before declaring convergence
+            # rather than stopping at the first non-improving iteration.
             if iteration > 0:
                 snr_improvement = snr_db - prev_snr
                 if snr_improvement < self.convergence_threshold:
-                    if self.verbose:
-                        logger.info(f"AO converged at iteration {iteration}, SNR = {snr_db:.2f} dB")
-                    break
-            
+                    self.lr_phase *= 0.5
+                    if self.lr_phase < 1e-3:
+                        if self.verbose:
+                            logger.info(
+                                f"AO converged at iteration {iteration}, SNR = {snr_db:.2f} dB")
+                        break
+
             prev_snr = snr_db
             
             # Step 2: Fix beamformer (implicit), optimize phases via gradient ascent
@@ -116,23 +126,24 @@ class AlternatingOptimization:
             # ∂SNR/∂θ_n ∝ 2 * Re{conj(y) * j * exp(jθ_n) * conj(h_ris_user[n]) * h_bs_ris[n]}
             # where y = h_direct + Σ exp(jθ_k) * conj(h_ris_user[k]) * h_bs_ris[k]
             
-            # Compute gradient for each phase
-            gradient = np.zeros(N)
-            for n in range(N):
-                # Contribution from other elements
-                h_other = sum([
-                    np.exp(1j * phases[k]) * np.conj(h_ris_user[k]) * h_bs_ris[k]
-                    for k in range(N) if k != n
-                ])
-                received_signal = h_direct + h_other
-                
-                # Gradient component
-                grad_component = np.conj(received_signal) * 1j * np.exp(1j * phases[n]) * \
-                                np.conj(h_ris_user[n]) * h_bs_ris[n]
-                gradient[n] = 2 * np.real(grad_component)
-            
-            # Gradient ascent update (maximize SNR)
-            phases = phases + self.lr_phase * gradient
+            # Gradient of |h_eff|^2 with respect to each phase, in closed form:
+            #   d|h|^2/dtheta_n = 2 Re{conj(h_eff) * j * a_n * exp(j theta_n)}
+            # where a_n is the cascaded coefficient of element n. Vectorised
+            # over n; the previous per-element loop recomputed the sum over all
+            # other elements N times per iteration to reach the same value.
+            a = np.conj(h_ris_user) * h_bs_ris
+            gradient = 2 * np.real(
+                np.conj(h_eff) * 1j * a * np.exp(1j * phases))
+
+            # Normalise the step. The raw gradient scales with the channel
+            # power, of order 1e-20 for these cascaded mmWave links, so an
+            # absolute learning rate leaves the phases essentially unchanged
+            # and AO finishes no better than its random initialisation. A
+            # unit-norm step makes progress independent of that scale.
+            grad_norm = np.linalg.norm(gradient)
+            if grad_norm < 1e-30:
+                break
+            phases = phases + self.lr_phase * gradient / grad_norm
             
             # Project back to [0, 2π]
             phases = np.mod(phases, 2 * np.pi)
@@ -146,7 +157,7 @@ class AlternatingOptimization:
         self,
         channel_samples: list[dict],
         noise_power: float
-    ) -> tuple[np.ndarray, dict]:
+    ) -> dict:
         """
         Run AO on multiple channel realizations.
         
@@ -158,8 +169,9 @@ class AlternatingOptimization:
             noise_power: Noise power
             
         Returns:
-            all_phases: Array of optimized phases, shape: [num_samples, N]
-            metrics: Dictionary with performance metrics
+            Dictionary with performance metrics. Every optimizer in
+            ``baselines`` returns this same dict shape so that the comparison
+            experiment can treat them uniformly.
         """
         num_samples = len(channel_samples)
         all_phases = np.zeros((num_samples, self.num_elements))
@@ -187,7 +199,7 @@ class AlternatingOptimization:
             'total_iterations': sum(convergence_iters)
         }
         
-        return all_phases, metrics
+        return metrics
     
     def compute_complexity(self) -> dict[str, float]:
         """

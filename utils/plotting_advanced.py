@@ -727,7 +727,11 @@ def plot_protocol_comparison(results, save_path):
         (a1, 'total_latency_ms', 'Latency (ms)', '(a) Aggregation Latency'),
         (a2, 'total_energy_uj', 'Energy (\u03bcJ)', '(b) Energy Consumption'),
         (a3, 'total_bytes', 'Total Bytes', '(c) Data Transferred'),
-        (a4, 'avg_utilization', 'Utilization', '(d) BW Utilization'),
+        # Link utilization saturates at ~100% for every protocol at this model
+        # size (serialisation dominates hop latency), so it carries no signal.
+        # Congestion ratio (busiest link load / mean link load) is what actually
+        # separates the protocols.
+        (a4, 'congestion_ratio', 'Max / mean link load', '(d) Link Load Imbalance'),
     ]
 
     for ax, metric_key, ylabel, title in metrics:

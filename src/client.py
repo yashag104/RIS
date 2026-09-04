@@ -118,12 +118,32 @@ class RISClient:
         
     def _phase_mse_loss(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
-        Circular MSE for phase angles (handles the 2*pi wrap-around).
-        A prediction of 0.01 and target of 6.27 should yield an error of 0.02, not 6.26.
+        Circular MSE between predicted and target angles, in radians squared.
+
+        Kept for reporting only. It is the right way to *measure* phase error
+        but the wrong thing to *optimise*: being periodic in ``pred``, it
+        offers no consistent descent direction across the 2*pi wrap and
+        training stalls at the random-guess error. Optimisation uses
+        :meth:`_circular_loss` on the model's (cos, sin) outputs instead.
         """
-        # diff in [-pi, pi]
         diff = torch.remainder(pred - target + torch.pi, 2 * torch.pi) - torch.pi
         return torch.mean(diff ** 2)
+
+    def _circular_loss(self, components: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        """
+        Training objective: MSE between predicted and target points on the unit circle.
+
+        Args:
+            components: Model output of shape ``(batch, num_elements, 2)`` holding
+                the unnormalised (cos, sin) pair for each element.
+            target: Target angles in radians, shape ``(batch, num_elements)``.
+
+        Minimising this is equivalent to maximising the cosine of the phase
+        error, so the optimum is the same as for circular MSE, but the surface
+        is smooth and non-periodic in the network output.
+        """
+        target_cs = torch.stack([torch.cos(target), torch.sin(target)], dim=-1)
+        return torch.mean((components - target_cs) ** 2)
 
     def _phase_error(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """Circular signed phase error in [-pi, pi]."""
@@ -152,10 +172,11 @@ class RISClient:
                 features = features.to(self.device)
                 labels = labels.to(self.device)
 
-                # Forward pass
+                # Forward pass. Train on the (cos, sin) representation; see
+                # BaseModel for why the angle itself is not a usable target.
                 self.optimizer.zero_grad()
-                predictions = self.model(features)
-                loss = self.criterion(predictions, labels)
+                components = self.model.forward_components(features)
+                loss = self._circular_loss(components, labels)
 
                 # ---- FedProx: Add proximal term ----
                 if self.aggregation_method == 'FedProx' and self.global_model_weights is not None:
@@ -296,8 +317,11 @@ class RISClient:
                 features = features.to(self.device)
                 labels = labels.to(self.device)
 
-                predictions = self.model(features)
+                components = self.model.forward_components(features)
+                predictions = torch.atan2(components[..., 1], components[..., 0])
 
+                # Report the circular MSE in radians squared: comparable across
+                # runs and directly interpretable as a phase error.
                 loss = self.criterion(predictions, labels)
                 total_loss += loss.item()
 

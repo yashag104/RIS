@@ -272,28 +272,128 @@ class NoCSimulator:
         return builders[name]()
     
     def _compute_shortest_paths(self) -> dict:
-        """BFS-based all-pairs shortest path computation."""
+        """BFS-based all-pairs shortest path computation.
+
+        Also records the BFS predecessor tree so that a single deterministic
+        shortest route can be reconstructed for every source/destination pair.
+        """
         paths = {}
+        self._predecessors = {}
         adj = self.topology['adjacency']
-        
+
         for src in range(self.num_tiles):
             dist = {src: 0}
+            pred = {src: None}
             queue = [src]
             idx = 0
             while idx < len(queue):
                 node = queue[idx]
                 idx += 1
-                for neighbor in adj.get(node, []):
+                for neighbor in sorted(adj.get(node, [])):
                     if neighbor not in dist:
                         dist[neighbor] = dist[node] + 1
+                        pred[neighbor] = node
                         queue.append(neighbor)
             paths[src] = dist
-        
+            self._predecessors[src] = pred
+
         return paths
-    
+
     def get_hop_count(self, src: int, dst: int) -> int:
         """Get hop count between two nodes."""
         return self.shortest_paths.get(src, {}).get(dst, self.num_tiles)  # Fallback
+
+    def get_route(self, src: int, dst: int) -> list:
+        """Return the deterministic shortest route as a list of directed links.
+
+        Routing is minimal and deterministic (BFS tree order), matching the
+        dimension-ordered routing assumed for the mesh/torus fabrics.
+        """
+        pred = self._predecessors.get(src, {})
+        if dst not in pred:
+            return []
+        links = []
+        node = dst
+        while node != src:
+            prev = pred[node]
+            links.append((prev, node))
+            node = prev
+        links.reverse()
+        return links
+
+    def _phase_cost(self, transfers: list) -> dict:
+        """Cost of one communication phase under static link-contention analysis.
+
+        Args:
+            transfers: list of (src, dst, bytes) tuples that are injected
+                concurrently in this phase.
+
+        Returns:
+            Dict with the phase latency, the time the bottleneck link spends
+            serialising, the per-link byte loads and the total flit-hops.
+
+        The phase latency is set by the most heavily loaded directed link
+        (bytes on that link / link rate) plus the traversal latency of the
+        longest route. Because the serialisation term is one addend of that
+        sum, the busy fraction it defines can never exceed one.
+        """
+        link_bytes = defaultdict(float)
+        max_hops = 0
+        flit_hops = 0.0
+
+        for src, dst, nbytes in transfers:
+            route = self.get_route(src, dst)
+            if not route:
+                continue
+            max_hops = max(max_hops, len(route))
+            n_flits = max(1, int(nbytes) // self.FLIT_SIZE_BYTES)
+            flit_hops += n_flits * len(route)
+            for link in route:
+                link_bytes[link] += nbytes
+
+        if not link_bytes:
+            return {'latency_ns': 0.0, 'busy_ns': 0.0, 'link_bytes': {},
+                    'bottleneck_bytes': 0.0, 'flit_hops': 0.0, 'max_hops': 0}
+
+        bottleneck_bytes = max(link_bytes.values())
+        # ns = bits / (Gbit/s), since 1 Gbit/s = 1 bit/ns
+        busy_ns = bottleneck_bytes * 8 / self.bandwidth_gbps
+        traversal_ns = max_hops * (self.LINK_LATENCY_NS + self.SWITCH_LATENCY_NS)
+
+        return {
+            'latency_ns': busy_ns + traversal_ns,
+            'busy_ns': busy_ns,
+            'link_bytes': dict(link_bytes),
+            'bottleneck_bytes': bottleneck_bytes,
+            'flit_hops': flit_hops,
+            'max_hops': max_hops,
+        }
+
+    @staticmethod
+    def _combine_phases(phases: list) -> dict:
+        """Aggregate sequential phases into round-level latency and utilization."""
+        total_latency_ns = sum(p['latency_ns'] for p in phases)
+        total_busy_ns = sum(p['busy_ns'] for p in phases)
+        flit_hops = sum(p['flit_hops'] for p in phases)
+
+        merged = defaultdict(float)
+        for p in phases:
+            for link, nbytes in p['link_bytes'].items():
+                merged[link] += nbytes
+
+        loads = list(merged.values()) or [0.0]
+        max_load = max(loads)
+        mean_load = sum(loads) / len(loads)
+
+        return {
+            'total_latency_ns': total_latency_ns,
+            'utilization': (total_busy_ns / total_latency_ns) if total_latency_ns > 0 else 0.0,
+            'flit_hops': flit_hops,
+            'bottleneck_link_bytes': max_load,
+            'congestion_ratio': (max_load / mean_load) if mean_load > 0 else 1.0,
+            'num_links_used': len(merged),
+        }
+
     
     def simulate_fl_round(
         self,
@@ -325,283 +425,174 @@ class NoCSimulator:
     def _simulate_parameter_server(self, model_size_bytes: int) -> dict:
         """
         Parameter Server protocol: all tiles send to node 0, node 0 broadcasts back.
-        
-        Traffic pattern: star centered at node 0.
+
+        Traffic pattern: star centered at node 0. The links incident to the
+        server carry every model, so they are the bottleneck.
         """
         N = self.num_tiles
-        server_node = 0
-        
-        # Phase 1: Upload (all tiles → server)
-        upload_hops = []
-        for tile in range(N):
-            if tile != server_node:
-                hops = self.get_hop_count(tile, server_node)
-                upload_hops.append(hops)
-        
-        # Phase 2: Download (server → all tiles)
-        download_hops = upload_hops.copy()  # Symmetric
-        
-        total_hops = sum(upload_hops) + sum(download_hops)
-        
-        # Bottleneck: server must receive N-1 models sequentially 
-        # (link bandwidth limited at server)
-        num_flits = max(1, model_size_bytes // self.FLIT_SIZE_BYTES)
-        max_upload_hops = max(upload_hops) if upload_hops else 1
-        
-        # Latency = max path × per-hop latency + serialization
-        serialization_ns = (num_flits * self.FLIT_SIZE_BYTES * 8) / (self.bandwidth_gbps * 1e9) * 1e9
-        
-        # Upload bottleneck: N-1 models through server's ports
-        upload_latency_ns = (N - 1) * serialization_ns + max_upload_hops * (
-            self.LINK_LATENCY_NS + self.SWITCH_LATENCY_NS)
-        download_latency_ns = serialization_ns + max_upload_hops * (
-            self.LINK_LATENCY_NS + self.SWITCH_LATENCY_NS)
-        total_latency_ns = upload_latency_ns + download_latency_ns
-        
-        # Total bytes transferred
+        server = 0
+
+        upload = [(t, server, model_size_bytes) for t in range(N) if t != server]
+        download = [(server, t, model_size_bytes) for t in range(N) if t != server]
+
+        phases = [self._phase_cost(upload), self._phase_cost(download)]
+        agg = self._combine_phases(phases)
+
         total_bytes = 2 * (N - 1) * model_size_bytes
-        
-        # Energy
-        total_energy = total_hops * num_flits * (
+        total_energy = agg['flit_hops'] * (
             self.ENERGY_PER_FLIT_SWITCH + self.ENERGY_PER_FLIT_LINK)
-        
-        # Bandwidth utilization (per-link, not aggregate)
-        time_sec = total_latency_ns * 1e-9
-        achieved_throughput = total_bytes / max(time_sec, 1e-15)
-        # Server has limited ports; concurrent links = min(N-1, server_degree)
-        server_degree = len(self.topology.get('adjacency', {}).get(0, [1]))
-        num_active_links = max(min(N - 1, server_degree), 1)
-        utilization = min(achieved_throughput / (num_active_links * self.bytes_per_sec), 1.0)
-        
-        # Congestion: server node is bottleneck
-        server_load = 2 * (N - 1)  # Incoming + outgoing messages
-        max_link_load = server_load
-        avg_link_load = total_hops / max(N, 1)
-        congestion_ratio = max_link_load / max(avg_link_load, 1)
-        
+
         return {
             'protocol': 'ParameterServer',
             'topology': self.topology_name,
             'total_bytes': total_bytes,
-            'total_hops': total_hops,
-            'latency_ns': total_latency_ns,
-            'latency_us': total_latency_ns / 1000,
+            'total_hops': int(sum(len(self.get_route(s, d)) for s, d, _ in upload + download)),
+            'latency_ns': agg['total_latency_ns'],
+            'latency_us': agg['total_latency_ns'] / 1000,
             'energy_j': total_energy,
             'energy_nj': total_energy * 1e9,
-            'utilization': utilization,
-            'congestion_ratio': congestion_ratio,
+            'utilization': agg['utilization'],
+            'aggregate_throughput_gbps': (total_bytes * 8) / max(agg['total_latency_ns'], 1e-9),
+            'bottleneck_link_bytes': agg['bottleneck_link_bytes'],
+            'congestion_ratio': agg['congestion_ratio'],
             'bottleneck': 'server_node',
             'num_phases': 2,
         }
-    
+
     def _simulate_all_reduce(self, model_size_bytes: int) -> dict:
         """
-        All-Reduce: reduce-to-all pattern.
-        Phase 1: Reduce (tree reduction to root)
-        Phase 2: Broadcast (root to all)
+        Recursive-halving/doubling All-Reduce.
+        Phase 1: Reduce over log2(N) butterfly stages.
+        Phase 2: Broadcast back over the same stages in reverse.
         """
         N = self.num_tiles
-        
-        # Tree-based all-reduce
         depth = max(1, int(np.ceil(np.log2(max(N, 2)))))
-        
-        # Reduce phase: log2(N) stages, each with N/2 communications
-        reduce_hops_per_stage = []
+
+        phases = []
+        total_bytes = 0
         for stage in range(depth):
             stride = 1 << stage
-            stage_hops = 0
-            count = 0
-            for node in range(N):
-                partner = node ^ stride
-                if partner < N and partner > node:
-                    hops = self.get_hop_count(node, partner)
-                    stage_hops += hops
-                    count += 1
-            reduce_hops_per_stage.append(stage_hops)
-        
-        total_reduce_hops = sum(reduce_hops_per_stage)
-        total_broadcast_hops = total_reduce_hops  # Symmetric
-        total_hops = total_reduce_hops + total_broadcast_hops
-        
-        num_flits = max(1, model_size_bytes // self.FLIT_SIZE_BYTES)
-        serialization_ns = (num_flits * self.FLIT_SIZE_BYTES * 8) / (self.bandwidth_gbps * 1e9) * 1e9
-        
-        # Each stage has one serialization + hop latency (pipelined)
-        max_hop_per_stage = max(
-            max(self.get_hop_count(n, n ^ (1 << s))
-                for n in range(N) if (n ^ (1 << s)) < N)
-            for s in range(depth)
-        ) if depth > 0 else 1
-        
-        per_stage_latency = serialization_ns + max_hop_per_stage * (
-            self.LINK_LATENCY_NS + self.SWITCH_LATENCY_NS)
-        total_latency_ns = 2 * depth * per_stage_latency
-        
-        total_bytes = 2 * depth * (N // 2) * model_size_bytes
-        
-        total_energy = total_hops * num_flits * (
+            transfers = [(node, node ^ stride, model_size_bytes)
+                         for node in range(N)
+                         if node ^ stride < N and node ^ stride > node]
+            if not transfers:
+                continue
+            cost = self._phase_cost(transfers)
+            phases.append(cost)
+            phases.append(cost)  # symmetric broadcast stage
+            total_bytes += 2 * len(transfers) * model_size_bytes
+
+        agg = self._combine_phases(phases)
+        total_energy = agg['flit_hops'] * (
             self.ENERGY_PER_FLIT_SWITCH + self.ENERGY_PER_FLIT_LINK)
-        
-        time_sec = total_latency_ns * 1e-9
-        achieved_throughput = total_bytes / max(time_sec, 1e-15)
-        # In each butterfly stage, N/2 pairs communicate simultaneously
-        num_active_links = max(N // 2, 1)
-        utilization = min(achieved_throughput / (num_active_links * self.bytes_per_sec), 1.0)
 
         return {
             'protocol': 'AllReduce',
             'topology': self.topology_name,
             'total_bytes': total_bytes,
-            'total_hops': total_hops,
-            'latency_ns': total_latency_ns,
-            'latency_us': total_latency_ns / 1000,
+            'total_hops': int(agg['flit_hops'] * self.FLIT_SIZE_BYTES / max(model_size_bytes, 1)),
+            'latency_ns': agg['total_latency_ns'],
+            'latency_us': agg['total_latency_ns'] / 1000,
             'energy_j': total_energy,
             'energy_nj': total_energy * 1e9,
-            'utilization': utilization,
-            'congestion_ratio': 1.0 + 0.1 * depth,
-            'bottleneck': 'tree_root',
-            'num_phases': 2 * depth,
+            'utilization': agg['utilization'],
+            'aggregate_throughput_gbps': (total_bytes * 8) / max(agg['total_latency_ns'], 1e-9),
+            'bottleneck_link_bytes': agg['bottleneck_link_bytes'],
+            'congestion_ratio': agg['congestion_ratio'],
+            'bottleneck': 'butterfly_stage',
+            'num_phases': len(phases),
         }
-    
+
     def _simulate_ring_allreduce(self, model_size_bytes: int) -> dict:
         """
         Ring-AllReduce: bandwidth-optimal all-reduce.
-        Phase 1: Scatter-Reduce (N-1 steps around ring)
-        Phase 2: All-Gather (N-1 steps around ring)
-        
-        Each step transmits model_size / N bytes.
+        Phase 1: Scatter-Reduce (N-1 steps around the ring).
+        Phase 2: All-Gather (N-1 steps around the ring).
+
+        Each step every node forwards one model_size/N chunk to its ring
+        successor, so the per-step payload is independent of N.
         """
         N = self.num_tiles
-        
-        # In ring-allreduce, data is chunked into N segments
-        chunk_size = max(1, model_size_bytes // N)
-        num_flits_per_chunk = max(1, chunk_size // self.FLIT_SIZE_BYTES)
-        
-        # Each step: every node sends one chunk to its ring neighbor
-        # Total steps: 2 * (N - 1)
-        num_steps = 2 * (N - 1)
-        
-        # For ring topology, each hop is 1. For other topologies,
-        # we route along the Hamiltonian path
-        ring_hops = []
-        for node in range(N):
-            next_node = (node + 1) % N
-            hops = self.get_hop_count(node, next_node)
-            ring_hops.append(hops)
-        
-        avg_ring_hop = np.mean(ring_hops)
-        max_ring_hop = max(ring_hops)
-        
-        # Total hops: num_steps × N concurrent transfers × avg_hops
-        total_hops = num_steps * N * avg_ring_hop
-        
-        # Latency: pipelined, so = num_steps × (serialization + max_hop)
-        serialization_ns = (num_flits_per_chunk * self.FLIT_SIZE_BYTES * 8) / (
-            self.bandwidth_gbps * 1e9) * 1e9
-        per_step_latency = serialization_ns + max_ring_hop * (
-            self.LINK_LATENCY_NS + self.SWITCH_LATENCY_NS)
-        total_latency_ns = num_steps * per_step_latency
-        
-        # Total bytes: 2 * (N-1) * chunk_size * N  (but bandwidth-optimal)
-        # Actually: 2 * (N-1)/N * model_size ≈ 2 * model_size for large N
-        total_bytes = 2 * (N - 1) * chunk_size * N
-        
-        total_energy = total_hops * num_flits_per_chunk * (
+        chunk_size = max(1, model_size_bytes // max(N, 1))
+        num_steps = 2 * max(N - 1, 1)
+
+        step_transfers = [(node, (node + 1) % N, chunk_size)
+                          for node in range(N)] if N > 1 else []
+        step_cost = self._phase_cost(step_transfers)
+        phases = [step_cost] * num_steps
+        agg = self._combine_phases(phases)
+
+        total_bytes = num_steps * N * chunk_size
+        total_energy = agg['flit_hops'] * (
             self.ENERGY_PER_FLIT_SWITCH + self.ENERGY_PER_FLIT_LINK)
-        
-        time_sec = total_latency_ns * 1e-9
-        achieved_throughput = total_bytes / max(time_sec, 1e-15)
-        # All N nodes send to ring neighbor simultaneously
-        num_active_links = N
-        utilization = min(achieved_throughput / (num_active_links * self.bytes_per_sec), 1.0)
 
         return {
             'protocol': 'RingAllReduce',
             'topology': self.topology_name,
             'total_bytes': total_bytes,
-            'total_hops': int(total_hops),
-            'latency_ns': total_latency_ns,
-            'latency_us': total_latency_ns / 1000,
+            'total_hops': int(num_steps * sum(
+                len(self.get_route(n, (n + 1) % N)) for n in range(N))),
+            'latency_ns': agg['total_latency_ns'],
+            'latency_us': agg['total_latency_ns'] / 1000,
             'energy_j': total_energy,
             'energy_nj': total_energy * 1e9,
-            'utilization': utilization,
-            'congestion_ratio': max_ring_hop / max(avg_ring_hop, 1e-10),
-            'bottleneck': 'longest_ring_link',
+            'utilization': agg['utilization'],
+            'aggregate_throughput_gbps': (total_bytes * 8) / max(agg['total_latency_ns'], 1e-9),
+            'bottleneck_link_bytes': agg['bottleneck_link_bytes'],
+            'congestion_ratio': agg['congestion_ratio'],
+            'bottleneck': 'busiest_ring_link',
             'num_phases': num_steps,
             'chunk_size_bytes': chunk_size,
         }
-    
+
     def _simulate_gossip(self, model_size_bytes: int) -> dict:
         """
-        Gossip protocol: each node randomly selects a peer and exchanges models.
-        
-        Each round: N/2 peer exchanges (non-overlapping pairs).
-        Need O(log N) gossip rounds for convergence.
+        Gossip protocol: each node exchanges models with a random peer.
+
+        Each gossip round pairs the nodes at random; O(log N) rounds are needed
+        for mixing. Pairs are spatially arbitrary, so multi-hop routes collide
+        on shared links and the contention analysis captures that cost.
         """
         N = self.num_tiles
-        
-        # Number of gossip rounds for mixing
         num_gossip_rounds = max(1, int(np.ceil(np.log2(max(N, 2)))) + 1)
-        
-        # Each gossip round: N/2 random peer exchanges
-        total_hops = 0
-        max_hops_per_round = 0
-        
-        np.random.seed(42)  # Reproducible
+
+        rng = np.random.default_rng(42)  # Reproducible
+        phases = []
+        total_bytes = 0
         for _ in range(num_gossip_rounds):
             nodes = list(range(N))
-            np.random.shuffle(nodes)
-            round_hops = 0
-            round_max = 0
-            pairs = 0
-            
+            rng.shuffle(nodes)
+            transfers = []
             for i in range(0, len(nodes) - 1, 2):
-                n1, n2 = nodes[i], nodes[i + 1]
-                hops = self.get_hop_count(n1, n2)
-                round_hops += 2 * hops  # Bidirectional exchange
-                round_max = max(round_max, hops)
-                pairs += 1
-            
-            total_hops += round_hops
-            max_hops_per_round = max(max_hops_per_round, round_max)
-        
-        num_flits = max(1, model_size_bytes // self.FLIT_SIZE_BYTES)
-        serialization_ns = (num_flits * self.FLIT_SIZE_BYTES * 8) / (
-            self.bandwidth_gbps * 1e9) * 1e9
-        
-        # Each gossip round: pairs exchange simultaneously (parallel)
-        per_round_latency = serialization_ns + max_hops_per_round * (
-            self.LINK_LATENCY_NS + self.SWITCH_LATENCY_NS)
-        total_latency_ns = num_gossip_rounds * per_round_latency
-        
-        # Total bytes: num_gossip_rounds × N × model_size (each node sends once per round)
-        total_bytes = num_gossip_rounds * N * model_size_bytes
-        
-        total_energy = total_hops * num_flits * (
+                n1, n2 = int(nodes[i]), int(nodes[i + 1])
+                transfers.append((n1, n2, model_size_bytes))
+                transfers.append((n2, n1, model_size_bytes))
+            if transfers:
+                phases.append(self._phase_cost(transfers))
+                total_bytes += len(transfers) * model_size_bytes
+
+        agg = self._combine_phases(phases)
+        total_energy = agg['flit_hops'] * (
             self.ENERGY_PER_FLIT_SWITCH + self.ENERGY_PER_FLIT_LINK)
-        
-        time_sec = total_latency_ns * 1e-9
-        achieved_throughput = total_bytes / max(time_sec, 1e-15)
-        # N/2 pairs exchange simultaneously per gossip round
-        num_active_links = max(N // 2, 1)
-        utilization = min(achieved_throughput / (num_active_links * self.bytes_per_sec), 1.0)
 
         return {
             'protocol': 'Gossip',
             'topology': self.topology_name,
             'total_bytes': total_bytes,
-            'total_hops': total_hops,
-            'latency_ns': total_latency_ns,
-            'latency_us': total_latency_ns / 1000,
+            'total_hops': int(agg['flit_hops'] * self.FLIT_SIZE_BYTES / max(model_size_bytes, 1)),
+            'latency_ns': agg['total_latency_ns'],
+            'latency_us': agg['total_latency_ns'] / 1000,
             'energy_j': total_energy,
             'energy_nj': total_energy * 1e9,
-            'utilization': utilization,
-            'congestion_ratio': 1.0,  # Load is distributed
+            'utilization': agg['utilization'],
+            'aggregate_throughput_gbps': (total_bytes * 8) / max(agg['total_latency_ns'], 1e-9),
+            'bottleneck_link_bytes': agg['bottleneck_link_bytes'],
+            'congestion_ratio': agg['congestion_ratio'],
             'bottleneck': 'mixing_time',
             'num_phases': num_gossip_rounds,
             'gossip_rounds': num_gossip_rounds,
         }
-    
+
     def simulate_full_fl_training(
         self,
         model_size_bytes: int,
@@ -634,6 +625,7 @@ class NoCSimulator:
             'total_energy_nj': round_metrics['energy_nj'] * num_rounds,
             'total_energy_uj': round_metrics['energy_nj'] * num_rounds / 1000,
             'avg_utilization': round_metrics['utilization'],
+            'aggregate_throughput_gbps': round_metrics['aggregate_throughput_gbps'],
             'congestion_ratio': round_metrics['congestion_ratio'],
             'topology_diameter': self.topology.get('diameter', -1),
             'topology_bisection_bw': self.topology.get('bisection_bandwidth', -1),

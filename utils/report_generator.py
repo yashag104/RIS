@@ -16,10 +16,31 @@ from utils.references import (
 )
 
 
+def load_results_file(path):
+    """Read an experiment results JSON, tolerating both storage layouts.
+
+    Runs now save ``{"provenance": {...}, "results": [...]}`` so that the
+    settings a figure came from travel with it. Older files hold the bare
+    results. Returns ``(results, provenance)``; provenance is ``{}`` when the
+    file predates it.
+    """
+    with open(path, encoding='utf-8') as f:
+        data = json.load(f)
+    if isinstance(data, dict) and 'results' in data and 'provenance' in data:
+        return data['results'], data['provenance']
+    return data, {}
+
+
 class ReportGenerator:
     """Generate publication-ready report from experiment results."""
 
-    # Map result filenames to plot functions and experiment tags
+    # Map result filenames to plot functions and experiment tags.
+    #
+    # WARNING: the 'desc' strings are pre-written captions, not statements
+    # derived from the data. They are emitted verbatim regardless of what the
+    # run produced, so each one must be checked against the actual numbers
+    # before it goes near a paper. Several were inherited from a configuration
+    # in which the RIS had no measurable effect and were simply untrue.
     EXPERIMENT_MAP = {
         'local_epochs_variation': {
             'plot': 'plot_local_epochs_analysis', 'tag': 'local_epochs', 'num': 1,
@@ -52,8 +73,10 @@ class ReportGenerator:
         },
         'noc_traffic_power_analysis': {
             'plot': 'plot_noc_traffic_analysis', 'tag': 'noc_traffic', 'num': 7,
-            'desc': 'NoC power grows linearly with tile count; energy efficiency '
-                    '(bits/J) remains high due to bandwidth scaling.',
+            'desc': 'NoC power grows with tile count. Link utilization saturates near '
+                    '100% at this model size because serialisation dominates hop '
+                    'latency, so topology choice shows up in latency and link-load '
+                    'imbalance rather than in spare bandwidth.',
         },
         'approach_comparison': {
             'plot': 'plot_approach_comparison', 'tag': 'fl_vs_centralized', 'num': 8,
@@ -67,8 +90,9 @@ class ReportGenerator:
         },
         'multiuser_comparison': {
             'plot': 'plot_multiuser_comparison', 'tag': 'multiuser', 'num': 10,
-            'desc': 'Sum-rate scales with users but per-user SNR decreases due to '
-                    'inter-user interference.',
+            'desc': 'Users share one RIS configuration on orthogonal resources, so '
+                    'per-user SNR and Jain fairness fall as the surface can no '
+                    'longer align to every user at once.',
         },
         'fl_algorithms_comparison': {
             'plot': 'plot_fl_algorithms_comparison', 'tag': 'fl_algorithms', 'num': 11,
@@ -167,8 +191,7 @@ class ReportGenerator:
                     json_path = os.path.join(d, f'{base}_results.json')
                 if os.path.exists(json_path):
                     try:
-                        with open(json_path, 'r') as f:
-                            json_data = json.load(f)
+                        json_data, _prov = load_results_file(json_path)
                         break
                     except Exception:
                         continue
@@ -210,8 +233,7 @@ class ReportGenerator:
         # Load topology results if available
         topo_path = os.path.join(self.adv_dir, 'topology_comparison_results.json')
         if os.path.exists(topo_path):
-            with open(topo_path) as f:
-                topo_data = json.load(f)
+            topo_data, _ = load_results_file(topo_path)
             rows = [['Topology', 'Latency (ms)', 'Energy (uJ)', 'Avg Hops', 'Diameter', 'Bisection BW']]
             for r in topo_data:
                 rows.append([
@@ -227,8 +249,7 @@ class ReportGenerator:
         # Load optimization results if available
         opt_path = os.path.join(self.adv_dir, 'optimization_techniques_results.json')
         if os.path.exists(opt_path):
-            with open(opt_path) as f:
-                opt_data = json.load(f)
+            opt_data, _ = load_results_file(opt_path)
             if isinstance(opt_data, dict):
                 rows = [['Method', 'Avg SNR (dB)', 'Std SNR (dB)', 'Solve Time (s)']]
                 for name, d in opt_data.items():

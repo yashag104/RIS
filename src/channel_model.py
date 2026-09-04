@@ -187,6 +187,7 @@ class RicianChannel:
         grid_cols: int = 8,
         path_loss_exponent: float = 2.5,
         element_spacing_factor: float = 0.5,  # in wavelengths
+        direct_link_blockage_db: float = 30.0,
     ):
         """
         Args:
@@ -199,6 +200,10 @@ class RicianChannel:
             grid_cols: RIS grid columns
             path_loss_exponent: Path loss exponent
             element_spacing_factor: Element spacing in wavelengths
+            direct_link_blockage_db: Excess loss on the BS->user direct path.
+                An RIS is deployed when that path is obstructed; with no
+                blockage the direct link dominates the cascade and the RIS
+                cannot affect the received SNR. Set 0.0 for an open direct link.
         """
         self.num_elements = num_elements
         self.k_factor_db = k_factor_db
@@ -211,6 +216,8 @@ class RicianChannel:
         self.grid_cols = grid_cols
         self.path_loss_exponent = path_loss_exponent
         self.element_spacing = element_spacing_factor * self.wavelength
+        self.direct_link_blockage_db = direct_link_blockage_db
+        self.direct_link_blockage_linear = 10 ** (-direct_link_blockage_db / 10)
         
         # Pre-compute spatial correlation matrix
         self.R = generate_spatial_correlation_matrix(
@@ -253,19 +260,33 @@ class RicianChannel:
         override_exponent: float | None = None
     ) -> float:
         """
-        Compute free-space-like path loss in linear power scale.
+        Compute close-in reference path loss in linear power scale.
+
+        Uses the standard close-in (CI) free-space reference model
+        [Rappaport et al., IEEE TAP 2015]:
+
+            PL(d) = (lambda / (4 pi d_ref))^2 * (d_ref / d)^n,  d_ref = 1 m
+
+        The exponent applies to the distance ratio only. Raising the whole
+        (lambda / 4 pi d) bracket to n instead also scales the 1 m reference by
+        (lambda / 4 pi)^(n-2), which at 28 GHz is about -31 dB per unit of
+        exponent. That made links with different exponents incomparable: the
+        direct link (n = 3.5) and the RIS links (n = 2.5) were offset by tens of
+        dB for reasons unrelated to propagation.
 
         Args:
             distance: Distance in meters
             override_exponent: Optional custom path loss exponent
-        
+
         Returns:
-            Path loss (linear scale, < 1)
+            Path loss (linear power scale, < 1)
         """
         distance = max(distance, 0.1)  # Minimum distance to avoid singularity
-            
+
         exp = override_exponent if override_exponent is not None else self.path_loss_exponent
-        pl = (self.wavelength / (4 * np.pi * distance)) ** exp
+        d_ref = 1.0  # metres
+        fspl_ref = (self.wavelength / (4 * np.pi * d_ref)) ** 2
+        pl = fspl_ref * (d_ref / distance) ** exp
         return pl
     
     def generate_los_component(
@@ -407,8 +428,11 @@ class RicianChannel:
         h_direct = np.zeros(num_users, dtype=complex)
         for u in range(num_users):
             dist = np.linalg.norm(tx_pos - rx_pos[u])
-            # Direct link is typically blocked when RIS is needed, so use higher path loss exponent (e.g., 3.5)
+            # Direct link is obstructed when an RIS is needed: a higher path
+            # loss exponent for the non-line-of-sight decay, plus an explicit
+            # blockage attenuation for the obstruction itself.
             pl = self._compute_path_loss(dist, override_exponent=3.5)
+            pl *= self.direct_link_blockage_linear
             phase = -2 * np.pi * dist / self.wavelength
             
             h_los = np.sqrt(pl) * np.exp(1j * phase)
@@ -984,6 +1008,7 @@ def generate_ris_channel_dataset(
     use_deepmimo: bool = False,
     deepmimo_scenario: str = 'O1_28',
     deepmimo_data_dir: str = 'data/deepmimo',
+    direct_link_blockage_db: float = 30.0,
 ) -> tuple[np.ndarray, np.ndarray, list[dict]]:
     """
     Generate a complete RIS channel dataset with realistic models.
@@ -1044,6 +1069,7 @@ def generate_ris_channel_dataset(
         spatial_corr_rho=spatial_corr_rho,
         grid_rows=grid_rows,
         grid_cols=grid_cols,
+        direct_link_blockage_db=direct_link_blockage_db,
     )
     
     # Positions

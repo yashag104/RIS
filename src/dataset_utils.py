@@ -137,7 +137,8 @@ class RISChannelDataset(Dataset):
                  csi_error_variance: float = 0.0, grid_rows: int = 8,
                  grid_cols: int = 8, use_deepmimo: bool = False,
                  deepmimo_scenario: str = 'O1_28',
-                 deepmimo_data_dir: str = 'data/deepmimo'):
+                 deepmimo_data_dir: str = 'data/deepmimo',
+                 direct_link_blockage_db: float = 30.0):
         """Generate a synthetic RIS dataset using the configured channel model.
 
         Args:
@@ -161,6 +162,8 @@ class RISChannelDataset(Dataset):
             use_deepmimo: If ``True``, use DeepMIMO ray-tracing data instead of
                 the synthetic Rician model (requires DeepMIMOv3 package).
             deepmimo_scenario: DeepMIMO scenario name (e.g. ``'O1_28'``).
+            direct_link_blockage_db: Excess attenuation on the obstructed
+                BS->user direct path, in dB. See RicianChannel.
             deepmimo_data_dir: Path to the directory containing DeepMIMO
                 scenario data files.
 
@@ -199,6 +202,7 @@ class RISChannelDataset(Dataset):
             use_deepmimo=use_deepmimo,
             deepmimo_scenario=deepmimo_scenario,
             deepmimo_data_dir=deepmimo_data_dir,
+            direct_link_blockage_db=direct_link_blockage_db,
         )
         expected = expected_feature_dim(num_ris_elements, num_users)
         if self.features.shape[1] != expected:
@@ -283,6 +287,7 @@ def create_non_iid_datasets(config, num_tiles: int) -> tuple[list, list]:
             use_deepmimo=getattr(config, 'USE_DEEPMIMO', False),
             deepmimo_scenario=getattr(config, 'DEEPMIMO_SCENARIO', 'O1_28'),
             deepmimo_data_dir=getattr(config, 'DEEPMIMO_DATA_DIR', 'data/deepmimo'),
+            direct_link_blockage_db=getattr(config, 'DIRECT_LINK_BLOCKAGE_DB', 30.0),
         )
         datasets.append(dataset)
 
@@ -320,6 +325,7 @@ def create_test_dataset(config) -> "RISChannelDataset":
         use_deepmimo=getattr(config, 'USE_DEEPMIMO', False),
         deepmimo_scenario=getattr(config, 'DEEPMIMO_SCENARIO', 'O1_28'),
         deepmimo_data_dir=getattr(config, 'DEEPMIMO_DATA_DIR', 'data/deepmimo'),
+        direct_link_blockage_db=getattr(config, 'DIRECT_LINK_BLOCKAGE_DB', 30.0),
     )
 
 

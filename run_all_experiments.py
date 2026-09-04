@@ -1,8 +1,12 @@
 import argparse
 import json
 import os
+import random
 import time
 import traceback
+
+import numpy as np
+import torch
 
 from config import Config
 from experiments import AdvancedExperiments
@@ -40,6 +44,23 @@ def apply_quick_mode():
     print("[Quick mode] Reduced FL_ROUNDS=5, SAMPLES=200")
 
 
+
+def seed_experiment(exp_id):
+    """Seed every RNG deterministically for one experiment.
+
+    Derived from Config.SEED and the experiment id so that experiments are
+    independent of each other and of run order, while a whole suite stays
+    reproducible from a single seed.
+    """
+    seed = (Config.SEED * 1000 + exp_id) % (2 ** 31 - 1)
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+    return seed
+
+
 def run_experiments(exp_ids, results_dir=None):
     """Run a set of experiments by ID, returning timing info."""
     if results_dir:
@@ -66,6 +87,12 @@ def run_experiments(exp_ids, results_dir=None):
         print(f"\n{'─'*50}")
         print(f"Experiment {eid}: {name}")
         print(f"{'─'*50}")
+
+        # Seed per experiment, not once per suite. Without this each
+        # experiment consumes whatever random state the previous ones left
+        # behind, so its results depend on which experiments ran before it and
+        # a rerun of the same experiment does not reproduce.
+        seed_experiment(eid)
 
         t0 = time.time()
         try:

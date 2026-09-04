@@ -444,35 +444,35 @@ class BaselineMultiuserExperimentsMixin:
             for i in range(num_eval_samples):
                 metadata = test_dataset.metadata[i]
 
-                # Get channels for all users
+                # Get channels for all users. metadata['H_ris'] is the
+                # RIS->user hop only; the channel the RIS actually controls is
+                # the BS->RIS->user cascade, so the BS->RIS hop has to be
+                # included. Omitting it drops one path loss and inflates the
+                # reflected path by tens of dB.
                 H_direct = metadata['H_direct'][:num_users]  # [num_users] complex
-                H_ris = metadata['H_ris'][:num_users]  # [num_users, N] complex
+                h_bs_ris = metadata['h_bs_ris']              # [N] complex
+                H_casc = metadata['H_ris'][:num_users] * h_bs_ris[None, :]
 
-                # Optimize phases for sum-rate maximization
-                # Use weighted combination approach
+                # One shared RIS configuration must serve every user at once.
                 optimal_phases = self._optimize_multiuser_phases(
-                    H_direct, H_ris, num_users, noise_power, tx_power
+                    H_direct, H_casc, num_users, noise_power, tx_power
                 )
 
-                # Compute per-user SNR with optimized phases
+                # Users are served on orthogonal resources (equal time sharing),
+                # which is what a single-antenna BS with one shared RIS can
+                # actually do. There is therefore no co-channel interference
+                # term: the previous model added a fabricated 0.1 cross-talk
+                # factor, which by itself produced the ~40 dB cliff between one
+                # and two users. The real multi-user cost is that a single phase
+                # configuration cannot align to every user at once, and that
+                # each user only gets 1/U of the airtime.
                 user_snrs = []
                 user_rates = []
                 for u in range(num_users):
-                    h_total = H_direct[u] + np.sum(H_ris[u] * np.exp(1j * optimal_phases))
-                    signal = tx_power * np.abs(h_total) ** 2
-
-                    # For multi-user, include inter-user interference
-                    interference = 0
-                    for v in range(num_users):
-                        if v != u:
-                            h_int = H_direct[v] + np.sum(H_ris[v] * np.exp(1j * optimal_phases))
-                            interference += tx_power * np.abs(h_int) ** 2 * 0.1  # Cross-talk factor
-
-                    sinr = signal / (noise_power + interference)
-                    snr_db = 10 * np.log10(sinr)
-                    rate = np.log2(1 + sinr)
-                    user_snrs.append(snr_db)
-                    user_rates.append(rate)
+                    h_total = H_direct[u] + np.sum(H_casc[u] * np.exp(1j * optimal_phases))
+                    snr = tx_power * np.abs(h_total) ** 2 / noise_power
+                    user_snrs.append(10 * np.log10(max(snr, 1e-20)))
+                    user_rates.append(np.log2(1 + snr) / num_users)
 
                 per_user_snrs.append(user_snrs)
                 sum_rates.append(np.sum(user_rates))
@@ -512,38 +512,64 @@ class BaselineMultiuserExperimentsMixin:
 
         return results
 
-    def _optimize_multiuser_phases(self, H_direct, H_ris, num_users,
-                                     noise_power, tx_power, num_iterations=50):
+    def _optimize_multiuser_phases(self, H_direct, H_casc, num_users,
+                                     noise_power, tx_power, num_iterations=100):
         """
-        Optimize RIS phases for multi-user sum-rate maximization.
+        Optimize one shared RIS phase configuration for weighted sum-rate.
 
-        Uses gradient ascent on weighted sum-rate.
+        Args:
+            H_direct: Direct BS->user channels, shape [num_users]
+            H_casc: Cascaded BS->RIS->user channels, shape [num_users, N]
+
+        Uses normalised gradient ascent with backtracking, initialised at the
+        single-user optimum so the search starts on a useful part of the
+        sum-rate surface.
         """
-        num_elements = H_ris.shape[1]
-        phases = np.random.uniform(0, 2 * np.pi, num_elements)
-
-        lr = 0.05
+        num_elements = H_casc.shape[1]
         weights = np.ones(num_users) / num_users  # Equal weights
 
-        for iteration in range(num_iterations):
-            # Compute gradient of sum-rate w.r.t. phases
-            gradient = np.zeros(num_elements)
+        # Initialise by aligning to user 0, the single-user optimum. Starting
+        # from random phases leaves the search in a flat region of the sum-rate
+        # surface and the run finishes no better than random.
+        phases = np.mod(np.angle(H_direct[0]) - np.angle(H_casc[0]), 2 * np.pi)
 
+        def sum_rate(theta):
+            total = 0.0
             for u in range(num_users):
-                h_total = H_direct[u] + np.sum(H_ris[u] * np.exp(1j * phases))
-                signal = tx_power * np.abs(h_total) ** 2
-                sinr = signal / noise_power
+                h = H_direct[u] + np.sum(H_casc[u] * np.exp(1j * theta))
+                total += weights[u] * np.log2(
+                    1 + tx_power * np.abs(h) ** 2 / noise_power)
+            return total
 
-                # Gradient of log2(1 + SINR) w.r.t. phases
-                for n in range(num_elements):
-                    grad_component = np.conj(h_total) * 1j * H_ris[u, n] * np.exp(1j * phases[n])
-                    grad_snr = 2 * tx_power * np.real(grad_component)
-                    # Chain rule: d/dθ log2(1+SINR) = 1/((1+SINR)*ln2) * d_SINR/dθ
-                    grad_rate = grad_snr / ((1 + sinr) * np.log(2) * noise_power)
-                    gradient[n] += weights[u] * grad_rate
+        best_phases, best_rate = phases.copy(), sum_rate(phases)
+        step = 0.5  # radians; scale-free because the gradient is normalised
 
-            # Gradient ascent
-            phases = phases + lr * gradient
-            phases = np.mod(phases, 2 * np.pi)
+        for _ in range(num_iterations):
+            gradient = np.zeros(num_elements)
+            for u in range(num_users):
+                h_total = H_direct[u] + np.sum(H_casc[u] * np.exp(1j * phases))
+                snr = tx_power * np.abs(h_total) ** 2 / noise_power
+                # d|h|^2/dtheta_n = 2 Re{conj(h) * j * a_n * exp(j theta_n)}
+                d_abs2 = 2 * np.real(
+                    np.conj(h_total) * 1j * H_casc[u] * np.exp(1j * phases))
+                grad_rate = (tx_power * d_abs2 / noise_power) / ((1 + snr) * np.log(2))
+                gradient += weights[u] * grad_rate
 
-        return phases
+            # Normalise: the raw gradient scales with the channel power, which
+            # is around 1e-20 here, so an absolute learning rate moves the
+            # phases not at all. A unit-norm step makes progress independent of
+            # that scale.
+            norm = np.linalg.norm(gradient)
+            if norm < 1e-30:
+                break
+            phases = np.mod(phases + step * gradient / norm, 2 * np.pi)
+
+            rate = sum_rate(phases)
+            if rate > best_rate:
+                best_phases, best_rate = phases.copy(), rate
+            else:
+                step *= 0.7  # backtrack when the step overshoots
+                if step < 1e-3:
+                    break
+
+        return best_phases

@@ -432,13 +432,20 @@ def plot_noc_metrics(comm_summary, save_path=None, round_metrics=None):
         ax3.set_title('(c) Average Latency', fontsize=9)
 
         util = comm_summary['bandwidth_utilization'] * 100
+        period_ms = comm_summary.get('fl_round_period_s', 0.1) * 1000
+        # Utilization is reported unclamped. Above 100% the model traffic does
+        # not fit inside the FL round period, so the bar is drawn past the
+        # capacity line and flagged rather than silently truncated.
+        oversubscribed = util > 100
         ax4.barh(['BW Util.'], [100], color='#eeeeee', edgecolor='black',
                  linewidth=0.5, height=0.35, zorder=2)
-        ax4.barh(['BW Util.'], [util], color=C[3], edgecolor='black',
-                 linewidth=0.5, height=0.35, zorder=3)
-        ax4.set_xlim(0, 105)
-        ax4.set_xlabel('Utilization (%)')
-        ax4.set_title(f'(d) NoC BW Utilization: {util:.1f}%', fontsize=9)
+        ax4.barh(['BW Util.'], [util], color='#c0392b' if oversubscribed else C[3],
+                 edgecolor='black', linewidth=0.5, height=0.35, zorder=3)
+        ax4.axvline(100, color='black', linestyle='--', linewidth=0.8, zorder=4)
+        ax4.set_xlim(0, max(105, util * 1.1))
+        ax4.set_xlabel(f'Utilization (%) of a {period_ms:.0f} ms round')
+        suffix = ' — OVERSUBSCRIBED' if oversubscribed else ''
+        ax4.set_title(f'(d) NoC BW Utilization: {util:.1f}%{suffix}', fontsize=9)
 
     _add_reference_note(fig, 'noc_traffic')
 

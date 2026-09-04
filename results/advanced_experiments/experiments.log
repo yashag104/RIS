@@ -4646,3 +4646,312 @@ Starting Federated Learning for 20 rounds...
 2026-09-04 02:29:16,220 | INFO | ris.main |   Phase Error: 1.5612 rad (89.45°)
 2026-09-04 02:29:16,220 | INFO | ris.main |   SNR (Optimized): -12.61 dB
 2026-09-04 02:29:16,220 | INFO | ris.main |   SNR Gain: -0.02 dB
+2026-09-04 18:03:36,368 | INFO | ris.AdvancedExperiments | 
+============================================================
+2026-09-04 18:03:36,368 | INFO | ris.AdvancedExperiments | EXPERIMENT 14: NoC Topology Comparison
+2026-09-04 18:03:36,368 | INFO | ris.AdvancedExperiments | ============================================================
+2026-09-04 18:03:36,468 | INFO | ris.AdvancedExperiments | 
+>>> Testing Mesh topology...
+2026-09-04 18:03:36,468 | INFO | ris.AdvancedExperiments |   Latency: 238584.91 us
+2026-09-04 18:03:36,468 | INFO | ris.AdvancedExperiments |   Energy: 100652.54 nJ
+2026-09-04 18:03:36,468 | INFO | ris.AdvancedExperiments |   Diameter: 6
+2026-09-04 18:03:36,468 | INFO | ris.AdvancedExperiments | 
+>>> Testing Torus topology...
+2026-09-04 18:03:36,469 | INFO | ris.AdvancedExperiments |   Latency: 159056.61 us
+2026-09-04 18:03:36,469 | INFO | ris.AdvancedExperiments |   Energy: 67101.70 nJ
+2026-09-04 18:03:36,469 | INFO | ris.AdvancedExperiments |   Diameter: 4
+2026-09-04 18:03:36,469 | INFO | ris.AdvancedExperiments | 
+>>> Testing FoldedTorus topology...
+2026-09-04 18:03:36,469 | INFO | ris.AdvancedExperiments |   Latency: 159056.61 us
+2026-09-04 18:03:36,469 | INFO | ris.AdvancedExperiments |   Energy: 67101.70 nJ
+2026-09-04 18:03:36,469 | INFO | ris.AdvancedExperiments |   Diameter: 4
+2026-09-04 18:03:36,469 | INFO | ris.AdvancedExperiments | 
+>>> Testing Tree topology...
+2026-09-04 18:03:36,469 | INFO | ris.AdvancedExperiments |   Latency: 159056.61 us
+2026-09-04 18:03:36,469 | INFO | ris.AdvancedExperiments |   Energy: 79683.26 nJ
+2026-09-04 18:03:36,469 | INFO | ris.AdvancedExperiments |   Diameter: 8
+2026-09-04 18:03:36,469 | INFO | ris.AdvancedExperiments | 
+>>> Testing Butterfly topology...
+2026-09-04 18:03:36,469 | INFO | ris.AdvancedExperiments |   Latency: 159056.61 us
+2026-09-04 18:03:36,469 | INFO | ris.AdvancedExperiments |   Energy: 67101.70 nJ
+2026-09-04 18:03:36,469 | INFO | ris.AdvancedExperiments |   Diameter: 4
+2026-09-04 18:03:36,469 | INFO | ris.AdvancedExperiments | 
+>>> Testing Ring topology...
+2026-09-04 18:03:36,469 | INFO | ris.AdvancedExperiments |   Latency: 159057.09 us
+2026-09-04 18:03:36,469 | INFO | ris.AdvancedExperiments |   Energy: 134203.39 nJ
+2026-09-04 18:03:36,469 | INFO | ris.AdvancedExperiments |   Diameter: 8
+2026-09-04 18:03:36,470 | INFO | ris.AdvancedExperiments | 
+[OK] Results saved to results/advanced_experiments\topology_comparison_results.json
+2026-09-04 18:03:37,428 | INFO | ris.AdvancedExperiments | 
+============================================================
+2026-09-04 18:03:37,428 | INFO | ris.AdvancedExperiments | EXPERIMENT 15: Communication Protocol Comparison
+2026-09-04 18:03:37,428 | INFO | ris.AdvancedExperiments | ============================================================
+2026-09-04 18:03:37,433 | INFO | ris.AdvancedExperiments | 
+>>> Mesh + ParameterServer...
+2026-09-04 18:03:37,433 | INFO | ris.AdvancedExperiments |   Total bytes: 372,787,800
+2026-09-04 18:03:37,433 | INFO | ris.AdvancedExperiments |   Latency: 238584.91 us
+2026-09-04 18:03:37,433 | INFO | ris.AdvancedExperiments |   Energy: 100652.54 nJ
+2026-09-04 18:03:37,433 | INFO | ris.AdvancedExperiments | 
+>>> Mesh + AllReduce...
+2026-09-04 18:03:37,433 | INFO | ris.AdvancedExperiments |   Total bytes: 795,280,640
+2026-09-04 18:03:37,433 | INFO | ris.AdvancedExperiments |   Latency: 119292.82 us
+2026-09-04 18:03:37,433 | INFO | ris.AdvancedExperiments |   Energy: 100652.54 nJ
+2026-09-04 18:03:37,433 | INFO | ris.AdvancedExperiments | 
+>>> Mesh + RingAllReduce...
+2026-09-04 18:03:37,433 | INFO | ris.AdvancedExperiments |   Total bytes: 372,787,200
+2026-09-04 18:03:37,433 | INFO | ris.AdvancedExperiments |   Latency: 37289.52 us
+2026-09-04 18:03:37,433 | INFO | ris.AdvancedExperiments |   Energy: 58976.10 nJ
+2026-09-04 18:03:37,433 | INFO | ris.AdvancedExperiments | 
+>>> Mesh + Gossip...
+2026-09-04 18:03:37,438 | INFO | ris.AdvancedExperiments |   Total bytes: 994,100,800
+2026-09-04 18:03:37,438 | INFO | ris.AdvancedExperiments |   Latency: 149116.32 us
+2026-09-04 18:03:37,438 | INFO | ris.AdvancedExperiments |   Energy: 230662.08 nJ
+2026-09-04 18:03:37,438 | INFO | ris.AdvancedExperiments | 
+>>> Torus + ParameterServer...
+2026-09-04 18:03:37,438 | INFO | ris.AdvancedExperiments |   Total bytes: 372,787,800
+2026-09-04 18:03:37,438 | INFO | ris.AdvancedExperiments |   Latency: 159056.61 us
+2026-09-04 18:03:37,438 | INFO | ris.AdvancedExperiments |   Energy: 67101.70 nJ
+2026-09-04 18:03:37,438 | INFO | ris.AdvancedExperiments | 
+>>> Torus + AllReduce...
+2026-09-04 18:03:37,438 | INFO | ris.AdvancedExperiments |   Total bytes: 795,280,640
+2026-09-04 18:03:37,438 | INFO | ris.AdvancedExperiments |   Latency: 79528.78 us
+2026-09-04 18:03:37,438 | INFO | ris.AdvancedExperiments |   Energy: 100652.54 nJ
+2026-09-04 18:03:37,438 | INFO | ris.AdvancedExperiments | 
+>>> Torus + RingAllReduce...
+2026-09-04 18:03:37,438 | INFO | ris.AdvancedExperiments |   Total bytes: 372,787,200
+2026-09-04 18:03:37,438 | INFO | ris.AdvancedExperiments |   Latency: 37282.32 us
+2026-09-04 18:03:37,438 | INFO | ris.AdvancedExperiments |   Energy: 39317.40 nJ
+2026-09-04 18:03:37,438 | INFO | ris.AdvancedExperiments | 
+>>> Torus + Gossip...
+2026-09-04 18:03:37,438 | INFO | ris.AdvancedExperiments |   Total bytes: 994,100,800
+2026-09-04 18:03:37,438 | INFO | ris.AdvancedExperiments |   Latency: 129234.18 us
+2026-09-04 18:03:37,439 | INFO | ris.AdvancedExperiments |   Energy: 197111.23 nJ
+2026-09-04 18:03:37,439 | INFO | ris.AdvancedExperiments | 
+[OK] Results saved to results/advanced_experiments\protocol_comparison_results.json
+2026-09-04 18:03:37,944 | INFO | ris.AdvancedExperiments | 
+============================================================
+2026-09-04 18:03:37,944 | INFO | ris.AdvancedExperiments | EXPERIMENT 18: Dynamic Duty Cycling
+2026-09-04 18:03:37,944 | INFO | ris.AdvancedExperiments | ============================================================
+2026-09-04 18:03:38,240 | INFO | ris.AdvancedExperiments | 
+>>> Testing No DC...
+2026-09-04 18:03:38,243 | INFO | ris.AdvancedExperiments |   SNR: -13.12 dB
+2026-09-04 18:03:38,244 | INFO | ris.AdvancedExperiments |   Active ratio: 100.00%
+2026-09-04 18:03:38,244 | INFO | ris.AdvancedExperiments |   Energy savings: 0.0%
+2026-09-04 18:03:38,244 | INFO | ris.AdvancedExperiments | 
+>>> Testing Threshold (peak-10 dB)...
+2026-09-04 18:03:38,246 | INFO | ris.AdvancedExperiments |   SNR: -13.22 dB
+2026-09-04 18:03:38,246 | INFO | ris.AdvancedExperiments |   Active ratio: 70.31%
+2026-09-04 18:03:38,246 | INFO | ris.AdvancedExperiments |   Energy savings: 27.7%
+2026-09-04 18:03:38,246 | INFO | ris.AdvancedExperiments | 
+>>> Testing Threshold (peak-20 dB)...
+2026-09-04 18:03:38,248 | INFO | ris.AdvancedExperiments |   SNR: -13.12 dB
+2026-09-04 18:03:38,248 | INFO | ris.AdvancedExperiments |   Active ratio: 96.42%
+2026-09-04 18:03:38,248 | INFO | ris.AdvancedExperiments |   Energy savings: 3.3%
+2026-09-04 18:03:38,248 | INFO | ris.AdvancedExperiments | 
+>>> Testing Top-K (50%)...
+2026-09-04 18:03:38,250 | INFO | ris.AdvancedExperiments |   SNR: -13.33 dB
+2026-09-04 18:03:38,250 | INFO | ris.AdvancedExperiments |   Active ratio: 50.00%
+2026-09-04 18:03:38,250 | INFO | ris.AdvancedExperiments |   Energy savings: 46.7%
+2026-09-04 18:03:38,250 | INFO | ris.AdvancedExperiments | 
+>>> Testing Top-K (25%)...
+2026-09-04 18:03:38,253 | INFO | ris.AdvancedExperiments |   SNR: -13.51 dB
+2026-09-04 18:03:38,253 | INFO | ris.AdvancedExperiments |   Active ratio: 25.00%
+2026-09-04 18:03:38,253 | INFO | ris.AdvancedExperiments |   Energy savings: 70.0%
+2026-09-04 18:03:38,253 | INFO | ris.AdvancedExperiments | 
+>>> Testing Adaptive...
+2026-09-04 18:03:38,256 | INFO | ris.AdvancedExperiments |   SNR: -13.14 dB
+2026-09-04 18:03:38,257 | INFO | ris.AdvancedExperiments |   Active ratio: 90.30%
+2026-09-04 18:03:38,257 | INFO | ris.AdvancedExperiments |   Energy savings: 9.1%
+2026-09-04 18:03:38,257 | INFO | ris.AdvancedExperiments | 
+[OK] Results saved to results/advanced_experiments\duty_cycling_results.json
+2026-09-04 18:05:20,702 | INFO | ris.AdvancedExperiments | 
+============================================================
+2026-09-04 18:05:20,702 | INFO | ris.AdvancedExperiments | EXPERIMENT 16: Optimization Technique Comparison
+2026-09-04 18:05:20,702 | INFO | ris.AdvancedExperiments | ============================================================
+2026-09-04 18:05:20,727 | INFO | ris.AdvancedExperiments |   Generating channel samples...
+2026-09-04 18:05:20,889 | INFO | ris.AdvancedExperiments |   Testing Random Search...
+2026-09-04 18:05:20,890 | INFO | ris.AdvancedExperiments |     SNR: -13.35 dB
+2026-09-04 18:05:20,890 | INFO | ris.AdvancedExperiments |   Testing Alternating Optimization...
+2026-09-04 18:05:21,110 | INFO | ris.AdvancedExperiments |     SNR: -13.37 dB
+2026-09-04 18:05:21,110 | INFO | ris.AdvancedExperiments |   Testing Successive Convex Approximation...
+2026-09-04 18:05:21,111 | INFO | ris.AdvancedExperiments |     SNR: -13.38 dB
+2026-09-04 18:05:21,111 | INFO | ris.AdvancedExperiments |   Testing ADMM...
+2026-09-04 18:05:21,113 | INFO | ris.AdvancedExperiments |     SNR: -13.33 dB
+2026-09-04 18:05:21,114 | INFO | ris.AdvancedExperiments |   Testing SDR...
+2026-09-04 18:05:21,114 | INFO | ris.AdvancedExperiments |     Skipped (cvxpy not installed)
+2026-09-04 18:05:21,114 | INFO | ris.AdvancedExperiments |   Computing MRC upper bound...
+2026-09-04 18:05:21,114 | INFO | ris.AdvancedExperiments |     SNR: -12.68 dB
+2026-09-04 18:05:21,115 | INFO | ris.AdvancedExperiments | 
+[OK] Results saved to results/advanced_experiments\optimization_techniques_results.json
+2026-09-04 18:22:11,276 | INFO | ris.AdvancedExperiments | 
+============================================================
+2026-09-04 18:22:11,276 | INFO | ris.AdvancedExperiments | EXPERIMENT 16: Optimization Technique Comparison
+2026-09-04 18:22:11,276 | INFO | ris.AdvancedExperiments | ============================================================
+2026-09-04 18:22:15,880 | INFO | ris.AdvancedExperiments |   Generating channel samples...
+2026-09-04 18:22:16,263 | INFO | ris.AdvancedExperiments |   Testing Random Search...
+2026-09-04 18:22:16,263 | INFO | ris.AdvancedExperiments |     SNR: 2.65 dB
+2026-09-04 18:22:16,263 | INFO | ris.AdvancedExperiments |   Testing Alternating Optimization...
+2026-09-04 18:22:16,800 | INFO | ris.AdvancedExperiments |     SNR: 2.68 dB
+2026-09-04 18:22:16,801 | INFO | ris.AdvancedExperiments |   Testing Successive Convex Approximation...
+2026-09-04 18:22:16,809 | INFO | ris.AdvancedExperiments |     SNR: 2.82 dB
+2026-09-04 18:22:16,809 | INFO | ris.AdvancedExperiments |   Testing ADMM...
+2026-09-04 18:22:16,814 | INFO | ris.AdvancedExperiments |     SNR: 2.98 dB
+2026-09-04 18:22:16,814 | INFO | ris.AdvancedExperiments |   Testing SDR...
+2026-09-04 18:22:20,838 | INFO | ris.AdvancedExperiments |     SNR: 4.02 dB
+2026-09-04 18:22:20,839 | INFO | ris.AdvancedExperiments |   Computing MRC upper bound...
+2026-09-04 18:22:20,840 | INFO | ris.AdvancedExperiments |     SNR: 5.50 dB
+2026-09-04 18:22:20,841 | INFO | ris.AdvancedExperiments | 
+[OK] Results saved to results/advanced_experiments\optimization_techniques_results.json
+2026-09-04 18:23:53,705 | INFO | ris.AdvancedExperiments | 
+============================================================
+2026-09-04 18:23:53,705 | INFO | ris.AdvancedExperiments | EXPERIMENT 16: Optimization Technique Comparison
+2026-09-04 18:23:53,705 | INFO | ris.AdvancedExperiments | ============================================================
+2026-09-04 18:23:54,158 | INFO | ris.AdvancedExperiments |   Generating channel samples...
+2026-09-04 18:23:54,306 | INFO | ris.AdvancedExperiments |   Testing Random Search...
+2026-09-04 18:23:54,306 | INFO | ris.AdvancedExperiments |     SNR: 4.47 dB
+2026-09-04 18:23:54,306 | INFO | ris.AdvancedExperiments |   Testing Alternating Optimization...
+2026-09-04 18:23:54,567 | INFO | ris.AdvancedExperiments |     SNR: 6.96 dB
+2026-09-04 18:23:54,567 | INFO | ris.AdvancedExperiments |   Testing Successive Convex Approximation...
+2026-09-04 18:23:54,570 | INFO | ris.AdvancedExperiments |     SNR: 4.69 dB
+2026-09-04 18:23:54,570 | INFO | ris.AdvancedExperiments |   Testing ADMM...
+2026-09-04 18:23:54,573 | INFO | ris.AdvancedExperiments |     SNR: 4.43 dB
+2026-09-04 18:23:54,573 | INFO | ris.AdvancedExperiments |   Testing SDR...
+2026-09-04 18:23:57,827 | INFO | ris.AdvancedExperiments |     SNR: 8.98 dB
+2026-09-04 18:23:57,827 | INFO | ris.AdvancedExperiments |   Computing MRC upper bound...
+2026-09-04 18:23:57,828 | INFO | ris.AdvancedExperiments |     SNR: 6.97 dB
+2026-09-04 18:23:57,829 | INFO | ris.AdvancedExperiments | 
+[OK] Results saved to results/advanced_experiments\optimization_techniques_results.json
+2026-09-04 18:26:23,791 | INFO | ris.AdvancedExperiments | 
+============================================================
+2026-09-04 18:26:23,791 | INFO | ris.AdvancedExperiments | EXPERIMENT 16: Optimization Technique Comparison
+2026-09-04 18:26:23,791 | INFO | ris.AdvancedExperiments | ============================================================
+2026-09-04 18:26:24,217 | INFO | ris.AdvancedExperiments |   Generating channel samples...
+2026-09-04 18:26:24,363 | INFO | ris.AdvancedExperiments |   Testing Random Search...
+2026-09-04 18:26:24,363 | INFO | ris.AdvancedExperiments |     SNR: 1.89 dB
+2026-09-04 18:26:24,363 | INFO | ris.AdvancedExperiments |   Testing Alternating Optimization...
+2026-09-04 18:26:24,606 | INFO | ris.AdvancedExperiments |     SNR: 4.68 dB
+2026-09-04 18:26:24,607 | INFO | ris.AdvancedExperiments |   Testing Successive Convex Approximation...
+2026-09-04 18:26:24,610 | INFO | ris.AdvancedExperiments |     SNR: 2.23 dB
+2026-09-04 18:26:24,610 | INFO | ris.AdvancedExperiments |   Testing ADMM...
+2026-09-04 18:26:24,612 | INFO | ris.AdvancedExperiments |     SNR: 1.97 dB
+2026-09-04 18:26:24,612 | INFO | ris.AdvancedExperiments |   Testing SDR...
+2026-09-04 18:26:44,031 | INFO | ris.AdvancedExperiments |     SNR: 2.86 dB
+2026-09-04 18:26:44,031 | INFO | ris.AdvancedExperiments |   Computing MRC upper bound...
+2026-09-04 18:26:44,032 | INFO | ris.AdvancedExperiments |     SNR: 4.68 dB
+2026-09-04 18:26:44,033 | INFO | ris.AdvancedExperiments | 
+[OK] Results saved to results/advanced_experiments\optimization_techniques_results.json
+2026-09-04 18:29:10,281 | INFO | ris.AdvancedExperiments | 
+============================================================
+2026-09-04 18:29:10,281 | INFO | ris.AdvancedExperiments | EXPERIMENT 16: Optimization Technique Comparison
+2026-09-04 18:29:10,281 | INFO | ris.AdvancedExperiments | ============================================================
+2026-09-04 18:29:10,718 | INFO | ris.AdvancedExperiments |   Generating channel samples...
+2026-09-04 18:29:10,860 | INFO | ris.AdvancedExperiments |   Testing Random Search...
+2026-09-04 18:29:10,860 | INFO | ris.AdvancedExperiments |     SNR: 1.89 dB
+2026-09-04 18:29:10,860 | INFO | ris.AdvancedExperiments |   Testing Alternating Optimization...
+2026-09-04 18:29:11,114 | INFO | ris.AdvancedExperiments |     SNR: 4.68 dB
+2026-09-04 18:29:11,114 | INFO | ris.AdvancedExperiments |   Testing Successive Convex Approximation...
+2026-09-04 18:29:11,117 | INFO | ris.AdvancedExperiments |     SNR: 4.68 dB
+2026-09-04 18:29:11,117 | INFO | ris.AdvancedExperiments |   Testing ADMM...
+2026-09-04 18:29:11,445 | INFO | ris.AdvancedExperiments |     SNR: 4.43 dB
+2026-09-04 18:29:11,445 | INFO | ris.AdvancedExperiments |   Testing SDR...
+2026-09-04 18:29:30,815 | INFO | ris.AdvancedExperiments |     SNR: 2.86 dB
+2026-09-04 18:29:30,815 | INFO | ris.AdvancedExperiments |   Computing MRC upper bound...
+2026-09-04 18:29:30,816 | INFO | ris.AdvancedExperiments |     SNR: 4.68 dB
+2026-09-04 18:29:30,817 | INFO | ris.AdvancedExperiments | 
+[OK] Results saved to results/advanced_experiments\optimization_techniques_results.json
+2026-09-04 18:36:46,800 | INFO | ris.AdvancedExperiments | 
+============================================================
+2026-09-04 18:36:46,800 | INFO | ris.AdvancedExperiments | EXPERIMENT 14: NoC Topology Comparison
+2026-09-04 18:36:46,800 | INFO | ris.AdvancedExperiments | ============================================================
+2026-09-04 18:36:46,921 | INFO | ris.AdvancedExperiments | 
+>>> Testing Mesh topology...
+2026-09-04 18:36:46,921 | INFO | ris.AdvancedExperiments |   Latency: 121013.71 us
+2026-09-04 18:36:46,921 | INFO | ris.AdvancedExperiments |   Energy: 51052.03 nJ
+2026-09-04 18:36:46,921 | INFO | ris.AdvancedExperiments |   Diameter: 6
+2026-09-04 18:36:46,921 | INFO | ris.AdvancedExperiments | 
+>>> Testing Torus topology...
+2026-09-04 18:36:46,921 | INFO | ris.AdvancedExperiments |   Latency: 80675.81 us
+2026-09-04 18:36:46,921 | INFO | ris.AdvancedExperiments |   Energy: 34034.69 nJ
+2026-09-04 18:36:46,921 | INFO | ris.AdvancedExperiments |   Diameter: 4
+2026-09-04 18:36:46,921 | INFO | ris.AdvancedExperiments | 
+>>> Testing FoldedTorus topology...
+2026-09-04 18:36:46,921 | INFO | ris.AdvancedExperiments |   Latency: 80675.81 us
+2026-09-04 18:36:46,921 | INFO | ris.AdvancedExperiments |   Energy: 34034.69 nJ
+2026-09-04 18:36:46,921 | INFO | ris.AdvancedExperiments |   Diameter: 4
+2026-09-04 18:36:46,921 | INFO | ris.AdvancedExperiments | 
+>>> Testing Tree topology...
+2026-09-04 18:36:46,922 | INFO | ris.AdvancedExperiments |   Latency: 80675.81 us
+2026-09-04 18:36:46,922 | INFO | ris.AdvancedExperiments |   Energy: 40416.19 nJ
+2026-09-04 18:36:46,922 | INFO | ris.AdvancedExperiments |   Diameter: 8
+2026-09-04 18:36:46,922 | INFO | ris.AdvancedExperiments | 
+>>> Testing Butterfly topology...
+2026-09-04 18:36:46,922 | INFO | ris.AdvancedExperiments |   Latency: 80675.81 us
+2026-09-04 18:36:46,922 | INFO | ris.AdvancedExperiments |   Energy: 34034.69 nJ
+2026-09-04 18:36:46,922 | INFO | ris.AdvancedExperiments |   Diameter: 4
+2026-09-04 18:36:46,922 | INFO | ris.AdvancedExperiments | 
+>>> Testing Ring topology...
+2026-09-04 18:36:46,922 | INFO | ris.AdvancedExperiments |   Latency: 80676.29 us
+2026-09-04 18:36:46,922 | INFO | ris.AdvancedExperiments |   Energy: 68069.38 nJ
+2026-09-04 18:36:46,922 | INFO | ris.AdvancedExperiments |   Diameter: 8
+2026-09-04 18:36:46,923 | INFO | ris.AdvancedExperiments | 
+[OK] Results saved to results/advanced_experiments\topology_comparison_results.json
+2026-09-04 18:36:47,854 | INFO | ris.AdvancedExperiments | 
+============================================================
+2026-09-04 18:36:47,856 | INFO | ris.AdvancedExperiments | EXPERIMENT 15: Communication Protocol Comparison
+2026-09-04 18:36:47,856 | INFO | ris.AdvancedExperiments | ============================================================
+2026-09-04 18:36:47,860 | INFO | ris.AdvancedExperiments | 
+>>> Mesh + ParameterServer...
+2026-09-04 18:36:47,860 | INFO | ris.AdvancedExperiments |   Total bytes: 189,082,800
+2026-09-04 18:36:47,860 | INFO | ris.AdvancedExperiments |   Latency: 121013.71 us
+2026-09-04 18:36:47,860 | INFO | ris.AdvancedExperiments |   Energy: 51052.03 nJ
+2026-09-04 18:36:47,860 | INFO | ris.AdvancedExperiments | 
+>>> Mesh + AllReduce...
+2026-09-04 18:36:47,860 | INFO | ris.AdvancedExperiments |   Total bytes: 403,376,640
+2026-09-04 18:36:47,860 | INFO | ris.AdvancedExperiments |   Latency: 60507.22 us
+2026-09-04 18:36:47,860 | INFO | ris.AdvancedExperiments |   Energy: 51052.03 nJ
+2026-09-04 18:36:47,860 | INFO | ris.AdvancedExperiments | 
+>>> Mesh + RingAllReduce...
+2026-09-04 18:36:47,860 | INFO | ris.AdvancedExperiments |   Total bytes: 189,081,600
+2026-09-04 18:36:47,860 | INFO | ris.AdvancedExperiments |   Latency: 18918.96 us
+2026-09-04 18:36:47,860 | INFO | ris.AdvancedExperiments |   Energy: 29913.30 nJ
+2026-09-04 18:36:47,860 | INFO | ris.AdvancedExperiments | 
+>>> Mesh + Gossip...
+2026-09-04 18:36:47,860 | INFO | ris.AdvancedExperiments |   Total bytes: 504,220,800
+2026-09-04 18:36:47,861 | INFO | ris.AdvancedExperiments |   Latency: 75634.32 us
+2026-09-04 18:36:47,861 | INFO | ris.AdvancedExperiments |   Energy: 116994.24 nJ
+2026-09-04 18:36:47,861 | INFO | ris.AdvancedExperiments | 
+>>> Torus + ParameterServer...
+2026-09-04 18:36:47,861 | INFO | ris.AdvancedExperiments |   Total bytes: 189,082,800
+2026-09-04 18:36:47,861 | INFO | ris.AdvancedExperiments |   Latency: 80675.81 us
+2026-09-04 18:36:47,861 | INFO | ris.AdvancedExperiments |   Energy: 34034.69 nJ
+2026-09-04 18:36:47,861 | INFO | ris.AdvancedExperiments | 
+>>> Torus + AllReduce...
+2026-09-04 18:36:47,861 | INFO | ris.AdvancedExperiments |   Total bytes: 403,376,640
+2026-09-04 18:36:47,861 | INFO | ris.AdvancedExperiments |   Latency: 40338.38 us
+2026-09-04 18:36:47,861 | INFO | ris.AdvancedExperiments |   Energy: 51052.03 nJ
+2026-09-04 18:36:47,861 | INFO | ris.AdvancedExperiments | 
+>>> Torus + RingAllReduce...
+2026-09-04 18:36:47,861 | INFO | ris.AdvancedExperiments |   Total bytes: 189,081,600
+2026-09-04 18:36:47,861 | INFO | ris.AdvancedExperiments |   Latency: 18911.76 us
+2026-09-04 18:36:47,861 | INFO | ris.AdvancedExperiments |   Energy: 19942.20 nJ
+2026-09-04 18:36:47,861 | INFO | ris.AdvancedExperiments | 
+>>> Torus + Gossip...
+2026-09-04 18:36:47,861 | INFO | ris.AdvancedExperiments |   Total bytes: 504,220,800
+2026-09-04 18:36:47,861 | INFO | ris.AdvancedExperiments |   Latency: 65549.78 us
+2026-09-04 18:36:47,861 | INFO | ris.AdvancedExperiments |   Energy: 99976.90 nJ
+2026-09-04 18:36:47,862 | INFO | ris.AdvancedExperiments | 
+[OK] Results saved to results/advanced_experiments\protocol_comparison_results.json
+2026-09-04 18:36:48,426 | INFO | ris.AdvancedExperiments | 
+============================================================
+2026-09-04 18:36:48,426 | INFO | ris.AdvancedExperiments | EXPERIMENT 16: Optimization Technique Comparison
+2026-09-04 18:36:48,426 | INFO | ris.AdvancedExperiments | ============================================================
+2026-09-04 18:36:48,988 | INFO | ris.AdvancedExperiments |   Generating channel samples...
+2026-09-04 18:36:49,186 | INFO | ris.AdvancedExperiments |   Testing Random Search...
+2026-09-04 18:36:49,187 | INFO | ris.AdvancedExperiments |     SNR: 1.89 dB
+2026-09-04 18:36:49,187 | INFO | ris.AdvancedExperiments |   Testing Alternating Optimization...
+2026-09-04 18:36:49,558 | INFO | ris.AdvancedExperiments |     SNR: 4.68 dB
+2026-09-04 18:36:49,558 | INFO | ris.AdvancedExperiments |   Testing Successive Convex Approximation...
+2026-09-04 18:36:49,561 | INFO | ris.AdvancedExperiments |     SNR: 4.68 dB
+2026-09-04 18:36:49,561 | INFO | ris.AdvancedExperiments |   Testing ADMM...
+2026-09-04 18:36:49,914 | INFO | ris.AdvancedExperiments |     SNR: 4.43 dB
+2026-09-04 18:36:49,914 | INFO | ris.AdvancedExperiments |   Testing SDR...

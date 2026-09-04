@@ -95,7 +95,7 @@ def initialize_datasets(config):
         }
         with open(dataset_path, 'wb') as f:
             pickle.dump(data, f)
-        logger.info("[OK] Datasets saved to {dataset_path}")
+        logger.info(f"[OK] Datasets saved to {dataset_path}")
 
     # Print dataset info
     logger.info("\nDataset Summary:")
@@ -125,7 +125,7 @@ def initialize_models(config, input_dim):
         config=config
     )
 
-    logger.info("[OK] Global model ({config.MODEL_TYPE}) created")
+    logger.info(f"[OK] Global model ({config.MODEL_TYPE}) created")
     total_params = global_model.count_parameters()
     model_size_bytes = total_params * getattr(config, 'COMM_BYTES_PER_PARAM', 1)
     logger.info(f"  Total parameters: {total_params:,}")
@@ -175,7 +175,7 @@ def train_federated(config, train_datasets, test_dataset):
         client = RISClient(i, client_model, dataset, config)
         clients.append(client)
 
-    logger.info("[OK] Created {len(clients)} RIS tile clients")
+    logger.info(f"[OK] Created {len(clients)} RIS tile clients")
 
     # Create test data loader
     test_loader = DataLoader(
