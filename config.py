@@ -72,6 +72,19 @@ class Config:
     # Rician Fading
     RICIAN_K_FACTOR_DB = 10.0  # K-factor in dB (LoS component strength)
     CHANNEL_SCENARIO = "LoS"  # "LoS", "NLoS", or "mixed"
+
+    # Direct-link blockage (BS -> User).
+    # An RIS is only worth deploying when the direct path is obstructed; with an
+    # unobstructed direct link the cascaded path (which pays path loss twice) is
+    # ~3500x weaker per element and the RIS cannot influence the received SNR at
+    # all. Measured genie-optimal gain with no blockage: 0.70 dB.
+    DIRECT_LINK_BLOCKAGE_DB = 30.0  # Attenuation applied to h_direct power (0 = unobstructed)
+
+    # RIS element aperture gain.
+    # Each reflecting element has physical area (element_spacing^2) and therefore
+    # an aperture gain 4*pi*A/lambda^2 relative to an isotropic scatterer. Omitting
+    # it understates the cascaded path by this factor on each of the two hops.
+    RIS_ELEMENT_GAIN_ENABLED = True
     
     # Spatial Correlation
     SPATIAL_CORRELATION_RHO = 0.7  # Adjacent element correlation (0-1)
@@ -87,6 +100,26 @@ class Config:
     
     # Phase Quantization
     PHASE_QUANTIZATION_BITS = 0  # 0=continuous, 1/2/3-bit for discrete
+
+    # ============ Training Objective ============
+    # 'mse'     : MSE against the precomputed single-user MRC phase target.
+    #             Optimizes angular distance, which is not the quantity of
+    #             interest -- equal MSE can yield very different SNR.
+    # 'snr'     : differentiable achieved SNR, no interference term.
+    # 'sumrate' : differentiable weighted sum-rate over ALL users, using the same
+    #             cross-talk model as the multi-user evaluation. This is what
+    #             removes the single-user restriction; 'mse' can only ever serve
+    #             the one user its label was built for.
+    # Generate every tile against ONE shared scene per sample, so the tiles'
+    # reflected paths can be coherently summed into a single
+    # TOTAL_RIS_ELEMENTS-element surface (see src/system_eval.py). With this off,
+    # each tile is drawn from its own independent scene and only
+    # ELEMENTS_PER_TILE can ever be evaluated -- TOTAL_RIS_ELEMENTS is decorative.
+    SHARED_SCENE_TILES = True
+
+    TRAINING_OBJECTIVE = 'sumrate'
+    SUM_RATE_USER_WEIGHTS = None  # None = equal weight per user
+    CROSS_TALK_FACTOR = 0.1  # Shared by the objective and the multi-user metric
 
     # ============ DeepMIMO Dataset Configuration ============
     USE_DEEPMIMO = False  # O1_28 data not available; using synthetic Rician channel
@@ -174,6 +207,13 @@ class Config:
     SLEEP_SCHEDULING_ENABLED = True  # Enable dynamic sleep scheduling
     SLEEP_SIGNAL_THRESHOLD = 0.1  # Signal strength threshold to wake (normalized)
     SLEEP_CHECK_INTERVAL = 5  # Check wake condition every N rounds
+    # A tile's channel statistics barely change between rounds, so a pure
+    # threshold rule puts the same weak tiles to sleep permanently from round 1 --
+    # observed 3 of 4 tiles never training again, which defeats federation and
+    # biases the global model toward whichever tile happens to be strongest.
+    # These two guards keep the cohort representative.
+    SLEEP_MIN_PARTICIPATION_RATIO = 0.5  # Fraction of tiles that must train each round
+    SLEEP_FORCED_WAKE_INTERVAL = 5  # Wake every tile every N rounds regardless
     ACTIVE_POWER_TILE = 1.0  # Active power per tile (W)
     SLEEP_POWER_TILE = 0.05  # Sleep power per tile (W) - much lower than idle
 
@@ -206,8 +246,24 @@ class Config:
     SAVE_EVERY_N_ROUNDS = 10
     
     # ============ Dynamic Duty Cycling (Pixel-Level) ============
-    DUTY_CYCLE_ENABLED = True  # Validated by Exp 18: 70% energy savings, <0.01 dB SNR loss
-    DUTY_CYCLE_THRESHOLD_DB = -10  # CSI power threshold to turn pixel ON
+    # MEASURED trade-off (200 test samples, genie-optimal phases, N=64):
+    #   strategy   thr_dB   active   energy saved   SNR loss
+    #   threshold    -3      0.25       69.9%        2.85 dB
+    #   threshold    -6      0.26       68.8%        2.64 dB
+    #   threshold   -10      0.29       66.5%        2.39 dB
+    #   threshold   -20      0.79       19.2%        0.23 dB
+    #   adaptive     n/a     0.90        9.8%        0.11 dB
+    #   topk         n/a     0.25       70.0%        2.87 dB
+    #
+    # The previous comment here claimed "70% energy savings, <0.01 dB SNR loss".
+    # That is not attainable: no operating point achieves both. Under MRC-optimal
+    # phases every element contributes coherently, so switching off 75% of them
+    # costs ~2.9 dB even when the weakest are chosen. Pick the point you want and
+    # report both numbers together.
+    DUTY_CYCLE_ENABLED = True
+    # RELATIVE threshold: a pixel is ON if its CSI power is within this many dB of
+    # the strongest pixel on the tile. Must be negative.
+    DUTY_CYCLE_THRESHOLD_DB = -20
     DUTY_CYCLE_MIN_ACTIVE_RATIO = 0.25  # At least 25% pixels always ON
     DUTY_CYCLE_STRATEGY = 'threshold'  # 'threshold', 'topk', 'adaptive'
     ACTIVE_POWER_PIXEL = 0.015  # Active power per pixel (W)

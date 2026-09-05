@@ -137,7 +137,9 @@ class RISChannelDataset(Dataset):
                  csi_error_variance: float = 0.0, grid_rows: int = 8,
                  grid_cols: int = 8, use_deepmimo: bool = False,
                  deepmimo_scenario: str = 'O1_28',
-                 deepmimo_data_dir: str = 'data/deepmimo'):
+                 deepmimo_data_dir: str = 'data/deepmimo',
+                 blockage_db: float = 0.0,
+                 element_gain_enabled: bool = False):
         """Generate a synthetic RIS dataset using the configured channel model.
 
         Args:
@@ -163,6 +165,11 @@ class RISChannelDataset(Dataset):
             deepmimo_scenario: DeepMIMO scenario name (e.g. ``'O1_28'``).
             deepmimo_data_dir: Path to the directory containing DeepMIMO
                 scenario data files.
+            blockage_db: Attenuation in dB applied to the direct BS-user link.
+                Non-zero values model the obstructed-direct-path deployment that
+                motivates an RIS in the first place.
+            element_gain_enabled: Apply the per-element aperture gain to each
+                cascaded hop.
 
         Raises:
             ValueError: If the generated feature dimension does not match the
@@ -199,6 +206,8 @@ class RISChannelDataset(Dataset):
             use_deepmimo=use_deepmimo,
             deepmimo_scenario=deepmimo_scenario,
             deepmimo_data_dir=deepmimo_data_dir,
+            blockage_db=blockage_db,
+            element_gain_enabled=element_gain_enabled,
         )
         expected = expected_feature_dim(num_ris_elements, num_users)
         if self.features.shape[1] != expected:
@@ -207,6 +216,46 @@ class RISChannelDataset(Dataset):
                 f"got {self.features.shape[1]}"
             )
 
+        # Stacked TRUE channels, for objectives that score achieved SNR/sum-rate
+        # rather than distance to a precomputed phase target. These are the real
+        # channels, not the CSI-error-corrupted estimates: the network predicts
+        # from noisy features but is scored on what it actually achieves.
+        #   h_direct  : (S, U) complex
+        #   h_cascade : (S, U, N) complex  == h_ris_user * h_bs_ris
+        self.h_direct = np.stack([m['H_direct'] for m in self.metadata])
+        self.h_cascade = np.stack(
+            [m['H_ris'] * m['h_bs_ris'] for m in self.metadata]
+        )
+        self.phase_offset = np.array(
+            [m.get('phase_offset', 0.0) for m in self.metadata], dtype=np.float64
+        )
+
+
+    @classmethod
+    def from_channels(cls, channels: list, num_ris_elements: int, num_users: int,
+                      csi_error_variance: float = 0.0) -> "RISChannelDataset":
+        """Build a dataset from pre-generated channel dicts.
+
+        Used for shared-scene multi-tile generation, where every tile must be
+        illuminated by the same drawn scene so their reflected contributions can
+        be summed. Bypasses the per-tile independent sampling in ``__init__``.
+        """
+        from src.channel_model import _channels_to_dataset
+
+        obj = cls.__new__(cls)
+        obj.num_samples = len(channels)
+        obj.num_ris_elements = num_ris_elements
+        obj.num_users = num_users
+        obj.features, obj.labels, obj.metadata = _channels_to_dataset(
+            channels, num_ris_elements, csi_error_variance
+        )
+        obj.h_direct = np.stack([m['H_direct'] for m in obj.metadata])
+        obj.h_cascade = np.stack([m['H_ris'] * m['h_bs_ris'] for m in obj.metadata])
+        obj.phase_offset = np.array(
+            [m.get('phase_offset', 0.0) for m in obj.metadata], dtype=np.float64
+        )
+        return obj
+
     def __len__(self) -> int:
         """Return the number of samples in the dataset."""
         return self.num_samples
@@ -214,16 +263,21 @@ class RISChannelDataset(Dataset):
     def __getitem__(self, idx: int):
         """Return the ``(features, labels)`` pair at the given index.
 
-        Args:
-            idx: Sample index in ``[0, len(self))``.
-
-        Returns:
-            Tuple of ``(torch.FloatTensor, torch.FloatTensor)`` for the
-            feature vector and phase-shift label vector respectively.
+        Always a 2-tuple. Objectives that additionally need the channels should
+        wrap the dataset in :class:`ChannelDatasetView` rather than changing what
+        this returns -- the same dataset object is shared with evaluation code
+        that unpacks exactly two values.
         """
         return (
             torch.FloatTensor(self.features[idx]),
-            torch.FloatTensor(self.labels[idx])
+            torch.FloatTensor(self.labels[idx]),
+        )
+
+    @staticmethod
+    def _as_real(arr: np.ndarray) -> torch.Tensor:
+        """Stack a complex array's real and imaginary parts on a trailing axis."""
+        return torch.from_numpy(
+            np.stack([arr.real, arr.imag], axis=-1).astype(np.float32)
         )
 
     def get_input_dim(self) -> int:
@@ -260,6 +314,43 @@ def create_non_iid_datasets(config, num_tiles: int) -> tuple[list, list]:
 
         tile_positions.append([x, y, z])
 
+    # Shared-scene generation: all tiles see the same drawn users and the same
+    # direct link, so their reflected paths can be coherently combined into a
+    # single TOTAL_RIS_ELEMENTS-element surface. Without this each tile lives in
+    # its own world and only ELEMENTS_PER_TILE can ever be evaluated.
+    if getattr(config, 'SHARED_SCENE_TILES', False):
+        from src.channel_model import generate_multi_tile_channels
+
+        channels_per_tile = generate_multi_tile_channels(
+            num_samples=config.TRAIN_SAMPLES,
+            tile_positions=tile_positions,
+            elements_per_tile=config.ELEMENTS_PER_TILE,
+            num_users=config.NUM_USERS,
+            room_size=config.ROOM_SIZE,
+            frequency=config.FREQUENCY,
+            k_factor_db=getattr(config, 'RICIAN_K_FACTOR_DB', 10.0),
+            num_paths=getattr(config, 'NUM_PATHS', 5),
+            spatial_corr_rho=getattr(config, 'SPATIAL_CORRELATION_RHO', 0.7),
+            scenario=getattr(config, 'CHANNEL_SCENARIO', 'LoS'),
+            grid_rows=config.PIXEL_GRID_ROWS,
+            grid_cols=config.PIXEL_GRID_COLS,
+            blockage_db=getattr(config, 'DIRECT_LINK_BLOCKAGE_DB', 0.0),
+            element_gain_enabled=getattr(config, 'RIS_ELEMENT_GAIN_ENABLED', False),
+        )
+        datasets = [
+            RISChannelDataset.from_channels(
+                tile_channels,
+                num_ris_elements=config.ELEMENTS_PER_TILE,
+                num_users=config.NUM_USERS,
+                csi_error_variance=getattr(config, 'CSI_ERROR_VARIANCE', 0.0),
+            )
+            for tile_channels in channels_per_tile
+        ]
+        return datasets, tile_positions
+
+    for i in range(num_tiles):
+        x, y, _z = tile_positions[i]
+
         # Non-IID bias: tiles see users near their position
         bias_x = (x - config.ROOM_SIZE[0] / 2) * config.NON_IID_ALPHA
         bias_y = (y - config.ROOM_SIZE[1] / 2) * config.NON_IID_ALPHA
@@ -283,6 +374,8 @@ def create_non_iid_datasets(config, num_tiles: int) -> tuple[list, list]:
             use_deepmimo=getattr(config, 'USE_DEEPMIMO', False),
             deepmimo_scenario=getattr(config, 'DEEPMIMO_SCENARIO', 'O1_28'),
             deepmimo_data_dir=getattr(config, 'DEEPMIMO_DATA_DIR', 'data/deepmimo'),
+            blockage_db=getattr(config, 'DIRECT_LINK_BLOCKAGE_DB', 0.0),
+            element_gain_enabled=getattr(config, 'RIS_ELEMENT_GAIN_ENABLED', False),
         )
         datasets.append(dataset)
 
@@ -320,7 +413,78 @@ def create_test_dataset(config) -> "RISChannelDataset":
         use_deepmimo=getattr(config, 'USE_DEEPMIMO', False),
         deepmimo_scenario=getattr(config, 'DEEPMIMO_SCENARIO', 'O1_28'),
         deepmimo_data_dir=getattr(config, 'DEEPMIMO_DATA_DIR', 'data/deepmimo'),
+        blockage_db=getattr(config, 'DIRECT_LINK_BLOCKAGE_DB', 0.0),
+        element_gain_enabled=getattr(config, 'RIS_ELEMENT_GAIN_ENABLED', False),
     )
+
+
+class ChannelDatasetView(Dataset):
+    """Read-only view over a :class:`RISChannelDataset` that also yields channels.
+
+    Objectives that score achieved SNR/sum-rate need the true channels in every
+    batch, but the underlying dataset object is shared with evaluation code that
+    unpacks ``(features, labels)``. Wrapping instead of flipping a flag on the
+    dataset keeps that contract intact -- an earlier version mutated the dataset
+    and broke every consumer that happened to hold the same object.
+
+    Yields ``(features, labels, h_direct, h_cascade)`` where the channel tensors
+    carry a trailing size-2 (real, imag) axis: ``(U, 2)`` and ``(U, N, 2)``.
+    """
+
+    def __init__(self, base: "RISChannelDataset"):
+        self.base = base
+
+    def __len__(self) -> int:
+        return len(self.base)
+
+    def __getitem__(self, idx: int):
+        features, labels = self.base[idx]
+        return (
+            features,
+            labels,
+            self.base._as_real(self.base.h_direct[idx]),
+            self.base._as_real(self.base.h_cascade[idx]),
+        )
+
+    def __getattr__(self, name):
+        # Forward metadata/num_users/etc. so the view is a drop-in for the base.
+        return getattr(self.base, name)
+
+
+def create_system_test_dataset(config, tile_positions) -> list:
+    """Build one sample-aligned test dataset per tile, sharing a single scene.
+
+    Companion to :func:`create_non_iid_datasets` under ``SHARED_SCENE_TILES``.
+    Needed for system-level evaluation, where all tiles must be scored against
+    the same users and the same direct link.
+    """
+    from src.channel_model import generate_multi_tile_channels
+
+    channels_per_tile = generate_multi_tile_channels(
+        num_samples=config.TEST_SAMPLES,
+        tile_positions=tile_positions,
+        elements_per_tile=config.ELEMENTS_PER_TILE,
+        num_users=config.NUM_USERS,
+        room_size=config.ROOM_SIZE,
+        frequency=config.FREQUENCY,
+        k_factor_db=getattr(config, 'RICIAN_K_FACTOR_DB', 10.0),
+        num_paths=getattr(config, 'NUM_PATHS', 5),
+        spatial_corr_rho=getattr(config, 'SPATIAL_CORRELATION_RHO', 0.7),
+        scenario=getattr(config, 'CHANNEL_SCENARIO', 'LoS'),
+        grid_rows=config.PIXEL_GRID_ROWS,
+        grid_cols=config.PIXEL_GRID_COLS,
+        blockage_db=getattr(config, 'DIRECT_LINK_BLOCKAGE_DB', 0.0),
+        element_gain_enabled=getattr(config, 'RIS_ELEMENT_GAIN_ENABLED', False),
+    )
+    return [
+        RISChannelDataset.from_channels(
+            tile_channels,
+            num_ris_elements=config.ELEMENTS_PER_TILE,
+            num_users=config.NUM_USERS,
+            csi_error_variance=getattr(config, 'CSI_ERROR_VARIANCE', 0.0),
+        )
+        for tile_channels in channels_per_tile
+    ]
 
 
 def save_datasets(datasets: list, test_dataset, save_path: str) -> None:

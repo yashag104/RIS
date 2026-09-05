@@ -187,6 +187,8 @@ class RicianChannel:
         grid_cols: int = 8,
         path_loss_exponent: float = 2.5,
         element_spacing_factor: float = 0.5,  # in wavelengths
+        blockage_db: float = 0.0,
+        element_gain_enabled: bool = False,
     ):
         """
         Args:
@@ -199,6 +201,10 @@ class RicianChannel:
             grid_cols: RIS grid columns
             path_loss_exponent: Path loss exponent
             element_spacing_factor: Element spacing in wavelengths
+            blockage_db: Attenuation (dB, power) applied to the direct BS-User link.
+                An RIS only matters when the direct path is obstructed.
+            element_gain_enabled: Apply per-element aperture gain 4*pi*A/lambda^2
+                to each of the two cascaded hops.
         """
         self.num_elements = num_elements
         self.k_factor_db = k_factor_db
@@ -211,7 +217,23 @@ class RicianChannel:
         self.grid_cols = grid_cols
         self.path_loss_exponent = path_loss_exponent
         self.element_spacing = element_spacing_factor * self.wavelength
-        
+
+        # Direct-link blockage as an amplitude factor.
+        self.blockage_db = blockage_db
+        self.blockage_amplitude = 10 ** (-blockage_db / 20)
+
+        # Per-element aperture gain, as an amplitude factor applied once per hop.
+        # A = element_spacing^2, G = 4*pi*A/lambda^2.
+        self.element_gain_enabled = element_gain_enabled
+        if element_gain_enabled:
+            area = self.element_spacing ** 2
+            self.element_gain_amplitude = np.sqrt(
+                4 * np.pi * area / self.wavelength ** 2
+            )
+        else:
+            self.element_gain_amplitude = 1.0
+
+
         # Pre-compute spatial correlation matrix
         self.R = generate_spatial_correlation_matrix(
             num_elements, spatial_corr_rho, grid_rows, grid_cols
@@ -419,7 +441,12 @@ class RicianChannel:
                               np.sqrt(1 / (k_eff + 1)) * h_nlos
             else:
                 h_direct[u] = h_nlos
-        
+
+        # Obstruct the direct link. Without this the cascaded path is orders of
+        # magnitude weaker than the direct path and the RIS phases cannot move
+        # the received SNR.
+        h_direct *= self.blockage_amplitude
+
         # ---- BS -> RIS channel ----
         h_bs_ris_los, _ = self.generate_los_component(tx_pos, rx_pos[0], ris_pos)
         h_bs_ris_nlos, _ = self.generate_nlos_component(tx_pos, rx_pos[0], ris_pos)
@@ -432,6 +459,9 @@ class RicianChannel:
         
         # Apply spatial correlation to BS-RIS channel
         h_bs_ris = apply_spatial_correlation(h_bs_ris, self.R)
+
+        # Aperture gain for the BS -> RIS hop.
+        h_bs_ris = h_bs_ris * self.element_gain_amplitude
         
         # ---- RIS -> User channels ----
         h_ris_user = np.zeros((num_users, self.num_elements), dtype=complex)
@@ -445,8 +475,8 @@ class RicianChannel:
             else:
                 h_ris_u = h_ris_u_nlos
             
-            # Apply spatial correlation
-            h_ris_user[u] = apply_spatial_correlation(h_ris_u, self.R)
+            # Apply spatial correlation and the RIS -> user hop aperture gain
+            h_ris_user[u] = apply_spatial_correlation(h_ris_u, self.R) * self.element_gain_amplitude
         
         return {
             'h_direct': h_direct,
@@ -984,6 +1014,8 @@ def generate_ris_channel_dataset(
     use_deepmimo: bool = False,
     deepmimo_scenario: str = 'O1_28',
     deepmimo_data_dir: str = 'data/deepmimo',
+    blockage_db: float = 0.0,
+    element_gain_enabled: bool = False,
 ) -> tuple[np.ndarray, np.ndarray, list[dict]]:
     """
     Generate a complete RIS channel dataset with realistic models.
@@ -1044,6 +1076,8 @@ def generate_ris_channel_dataset(
         spatial_corr_rho=spatial_corr_rho,
         grid_rows=grid_rows,
         grid_cols=grid_cols,
+        blockage_db=blockage_db,
+        element_gain_enabled=element_gain_enabled,
     )
     
     # Positions
@@ -1085,6 +1119,111 @@ def generate_ris_channel_dataset(
     return _channels_to_dataset(all_channels, num_ris_elements, csi_error_variance)
 
 
+def generate_multi_tile_channels(
+    num_samples: int,
+    tile_positions: list,
+    elements_per_tile: int,
+    num_users: int,
+    room_size: tuple[float, float, float],
+    frequency: float = 28e9,
+    k_factor_db: float = 10.0,
+    num_paths: int = 5,
+    spatial_corr_rho: float = 0.7,
+    scenario: str = "LoS",
+    grid_rows: int = 8,
+    grid_cols: int = 8,
+    blockage_db: float = 0.0,
+    element_gain_enabled: bool = False,
+) -> list[list[dict]]:
+    """Generate SAMPLE-ALIGNED channels for every tile against a shared scene.
+
+    ``generate_ris_channel_dataset`` draws fresh user positions for each tile, so
+    tile 0's sample *i* and tile 1's sample *i* describe different worlds. Those
+    channels cannot be summed, which is why the surface could only ever be
+    evaluated one 64-element tile at a time and ``TOTAL_RIS_ELEMENTS`` (1024) was
+    never actually exercised.
+
+    Here a single scene -- one set of user positions, one direct channel -- is
+    drawn per sample and every tile is illuminated by it, so the tiles' reflected
+    contributions are physically summable:
+
+        h_total = h_direct + sum_over_tiles sum_over_elements h_cascade * exp(j*theta)
+
+    Spatial heterogeneity across tiles is then a consequence of tile geometry
+    (each tile sees the scene from its own position), which is the physical source
+    of non-IID-ness rather than the artificial per-tile user-position bias.
+
+    Returns:
+        ``channels_per_tile[t][i]`` -- the channel dict for tile ``t``, sample
+        ``i``, with ``h_direct`` shared across all tiles at a given ``i``.
+    """
+    num_tiles = len(tile_positions)
+    models = [
+        RicianChannel(
+            num_elements=elements_per_tile,
+            k_factor_db=k_factor_db,
+            num_paths=num_paths,
+            frequency=frequency,
+            spatial_corr_rho=spatial_corr_rho,
+            grid_rows=grid_rows,
+            grid_cols=grid_cols,
+            blockage_db=blockage_db,
+            element_gain_enabled=element_gain_enabled,
+        )
+        for _ in range(num_tiles)
+    ]
+
+    bs_position = np.array([room_size[0] / 2, room_size[1], room_size[2] / 2])
+    channels_per_tile: list[list[dict]] = [[] for _ in range(num_tiles)]
+
+    for _ in range(num_samples):
+        # One scene shared by every tile in this sample.
+        user_pos = np.random.uniform(
+            low=[0, 0, 0.5], high=room_size, size=(num_users, 3)
+        )
+
+        shared_direct = None
+        for t, (model, tile_pos) in enumerate(zip(models, tile_positions)):
+            ch = model.generate_channel(
+                tx_pos=bs_position,
+                rx_pos=user_pos,
+                ris_pos=np.asarray(tile_pos, dtype=float),
+                scenario=scenario,
+            )
+            # The BS->user link is a property of the scene, not of any tile, so
+            # every tile must agree on it for the sum above to mean anything.
+            if shared_direct is None:
+                shared_direct = ch['h_direct']
+            ch['h_direct'] = shared_direct
+
+            ch['bs_position'] = bs_position
+            ch['user_positions'] = user_pos
+            channels_per_tile[t].append(ch)
+
+    return channels_per_tile
+
+
+def combine_tile_phases(
+    h_direct: np.ndarray,
+    cascades: list,
+    phases: list,
+) -> np.ndarray:
+    """Coherently sum every tile's reflected contribution with the direct path.
+
+    Args:
+        h_direct: Direct channel, shape ``(U,)``.
+        cascades: Per-tile cascade channels, each ``(U, N_tile)``.
+        phases: Per-tile phase vectors, each ``(N_tile,)``.
+
+    Returns:
+        Total received channel per user, shape ``(U,)``.
+    """
+    total = np.asarray(h_direct, dtype=complex).copy()
+    for cascade, theta in zip(cascades, phases):
+        total = total + np.sum(np.asarray(cascade) * np.exp(1j * np.asarray(theta)), axis=-1)
+    return total
+
+
 def _channels_to_dataset(
     channels: list[dict],
     num_ris_elements: int,
@@ -1120,8 +1259,16 @@ def _channels_to_dataset(
         # θ_n = ∠(h_direct) − ∠(h_cascade_n) aligns all reflected paths with direct path
         target_user = 0
         h_cascade = h_ris_user_est[target_user] * h_bs_ris_est
-        optimal_phases = np.angle(h_direct_est[target_user]) - np.angle(h_cascade)
-        optimal_phases = np.mod(optimal_phases, 2 * np.pi)
+
+        # The MRC-optimal phase is theta_n = angle(h_direct) - angle(h_cascade_n).
+        # The angle(h_direct) term is a single per-sample constant shared by all N
+        # outputs, and it is close to uniformly random across samples, so training
+        # against it injects a random offset into every label and swamps the
+        # per-element structure (measured label std 1.850 vs 1.814 for pure noise).
+        # Learn only the per-element part; the offset is known from CSI at
+        # application time and is added back then via metadata['phase_offset'].
+        phase_offset = float(np.angle(h_direct_est[target_user]))
+        optimal_phases = np.mod(-np.angle(h_cascade), 2 * np.pi)
         
         # Build feature vector
         features = []
@@ -1136,19 +1283,40 @@ def _channels_to_dataset(
         
         # BUG FIX: Use continuous Real/Imaginary components instead of Abs/Angle 
         # to prevent discontinuous Phase Wrapping gradient failures.
-        channel_features = np.concatenate([
+        # Normalize the direct and cascade blocks SEPARATELY. A single RMS over the
+        # concatenation is dominated by the direct path, which is orders of magnitude
+        # larger than any one cascade coefficient; under a shared scale the cascade
+        # block -- which carries essentially all of the label information -- is
+        # crushed to numerical insignificance (measured block RMS 8.15 vs 0.0091).
+        def _rms_normalize(block: np.ndarray) -> tuple[np.ndarray, float]:
+            rms = float(np.sqrt(np.mean(block.astype(np.float64) ** 2)))
+            if rms > 1e-12:
+                block = block / rms
+            return block.astype(np.float32), rms
+
+        direct_block = np.concatenate([
             h_direct_est.real.flatten(),
-            h_cascade_all.real.flatten(),
             h_direct_est.imag.flatten(),
+        ]).astype(np.float32)
+        cascade_block = np.concatenate([
+            h_cascade_all.real.flatten(),
             h_cascade_all.imag.flatten(),
         ]).astype(np.float32)
 
-        # Normalize each sample dynamically instead of relying on a fixed scalar.
-        # Absolute channel magnitudes vary strongly with path loss; per-sample RMS
-        # scaling keeps inputs numerically stable without hard-coding a scenario.
-        channel_rms = float(np.sqrt(np.mean(channel_features.astype(np.float64) ** 2)))
-        if channel_rms > 1e-12:
-            channel_features = channel_features / channel_rms
+        direct_block, direct_rms = _rms_normalize(direct_block)
+        cascade_block, cascade_rms = _rms_normalize(cascade_block)
+
+        # Preserve the original interleaved layout so feature dimensions and any
+        # downstream index assumptions stay valid:
+        #   [direct.real | cascade.real | direct.imag | cascade.imag]
+        n_dir = h_direct_est.size
+        n_cas = h_cascade_all.size
+        channel_features = np.concatenate([
+            direct_block[:n_dir],
+            cascade_block[:n_cas],
+            direct_block[n_dir:],
+            cascade_block[n_cas:],
+        ]).astype(np.float32)
 
         features.extend(channel_features)
         
@@ -1167,7 +1335,10 @@ def _channels_to_dataset(
             'bs_position': ch.get('bs_position', np.zeros(3)),
             'ris_position': ch.get('ris_pos', np.zeros(3)),
             'scenario': ch.get('scenario', 'unknown'),
-            'feature_channel_rms': channel_rms,
+            'feature_direct_rms': direct_rms,
+            'feature_cascade_rms': cascade_rms,
+            # Global MRC offset removed from the label; add back when applying phases.
+            'phase_offset': phase_offset,
         })
     
     return np.array(features_list), np.array(labels_list), metadata_list

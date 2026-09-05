@@ -233,6 +233,22 @@ class GNNModel(BaseModel):
             )
         self.register_buffer('adj', self._build_grid_adj(grid_rows, grid_cols))
         self.node_embedding = nn.Parameter(torch.randn(1, num_elements, self.node_dim) * 0.02)
+
+        # Per-element channel projection.
+        #
+        # A shared context plus a LEARNED-CONSTANT node embedding cannot express
+        # this task: the target theta_n ~ -angle(h_cascade_n) varies per element
+        # AND per sample, but a fixed embedding gives node n the same offset in
+        # every sample, and the context term is identical across nodes. The model
+        # could only ever emit "global shift + fixed per-node constant", which is
+        # why it plateaued at ~82 degrees of phase error regardless of objective.
+        #
+        # Each node now also sees its OWN cascade coefficients (real and imag, for
+        # every user) sliced out of the feature vector. This stays cheap -- the
+        # projection is (2U -> node_dim), independent of element count -- so the
+        # compact communication cost the original design aimed for is preserved.
+        self.num_users = self._infer_num_users(input_dim, num_elements)
+        self.element_proj = nn.Linear(2 * self.num_users, self.node_dim)
         
         # GAT Layers
         num_gnn_layers = getattr(config, 'GNN_NUM_LAYERS', 3) if config else num_layers
@@ -253,6 +269,45 @@ class GNNModel(BaseModel):
         
         # Output projection
         self.out_proj = nn.Linear(self.node_dim, 1)
+
+    @staticmethod
+    def _infer_num_users(input_dim: int, num_elements: int) -> int:
+        """Recover the user count from the flat feature width.
+
+        Feature layout is ``U*(2N + 5)`` -- see
+        :func:`src.dataset_utils.expected_feature_dim`.
+        """
+        denom = 2 * num_elements + 5
+        if input_dim % denom != 0:
+            raise ValueError(
+                f"input_dim={input_dim} is not U*(2*{num_elements}+5) for any integer U; "
+                "feature layout does not match the GNN's expectation"
+            )
+        return input_dim // denom
+
+    def _split_element_features(self, x: torch.Tensor) -> torch.Tensor:
+        """Slice the per-element cascade coefficients out of the flat features.
+
+        The feature vector is laid out as::
+
+            [ positions (3U) | direct.real (U) | cascade.real (U*N)
+                             | direct.imag (U) | cascade.imag (U*N) ]
+
+        Returns:
+            Tensor of shape ``(B, N, 2U)`` holding, for each element, that
+            element's cascade real and imaginary parts across all users.
+        """
+        u, n = self.num_users, self.num_elements
+        start_real = 3 * u + u
+        start_imag = start_real + u * n + u
+
+        cascade_real = x[:, start_real:start_real + u * n].view(-1, u, n)
+        cascade_imag = x[:, start_imag:start_imag + u * n].view(-1, u, n)
+
+        # (B, U, N) -> (B, N, U) for both parts, then concatenate on the last axis
+        return torch.cat(
+            [cascade_real.transpose(1, 2), cascade_imag.transpose(1, 2)], dim=-1
+        )
 
     def _build_grid_adj(self, rows, cols):
         num_nodes = rows * cols
@@ -282,7 +337,14 @@ class GNNModel(BaseModel):
         # x: (batch, input_dim)
         batch_size = x.size(0)
         context = self.feature_encoder(x)
-        h = context.unsqueeze(1) + self.node_embedding.expand(batch_size, -1, -1)
+
+        # Sample-and-element specific term, without which the node representations
+        # differ only by a fixed learned constant (see __init__).
+        element_features = self.element_proj(self._split_element_features(x))
+
+        h = (context.unsqueeze(1)
+             + self.node_embedding.expand(batch_size, -1, -1)
+             + element_features)
         
         for gat in self.gats:
             h = gat(h, self.adj)

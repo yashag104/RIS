@@ -441,52 +441,58 @@ class BaselineMultiuserExperimentsMixin:
             sum_rates = []
             fairness_indices = []
 
+            # Federated-model results, evaluated under the same SINR model
+            fl_per_user_snrs = []
+            fl_sum_rates = []
+            fl_fairness = []
+            fl_phase_fn = self._make_fl_phase_provider(fl_result, test_dataset)
+            if fl_phase_fn is None:
+                self.logger.warning(
+                    "  FL global weights unavailable; reporting classical optimizer only."
+                )
+
             for i in range(num_eval_samples):
                 metadata = test_dataset.metadata[i]
 
-                # Get channels for all users
+                # Get channels for all users.
+                # H_ris is the RIS->user hop only; the reflected path a phase shift
+                # actually controls is the CASCADE h_ris_user * h_bs_ris. Omitting the
+                # BS->RIS hop overstates the reflected path by orders of magnitude and
+                # disagrees with the single-user evaluation in client.py.
                 H_direct = metadata['H_direct'][:num_users]  # [num_users] complex
-                H_ris = metadata['H_ris'][:num_users]  # [num_users, N] complex
+                h_bs_ris = metadata['h_bs_ris']              # [N] complex
+                H_ris = metadata['H_ris'][:num_users] * h_bs_ris  # [num_users, N] cascade
 
-                # Optimize phases for sum-rate maximization
-                # Use weighted combination approach
+                # Classical gradient-ascent optimizer: an upper reference, NOT the
+                # federated model. Reported separately so the two are never confused.
                 optimal_phases = self._optimize_multiuser_phases(
                     H_direct, H_ris, num_users, noise_power, tx_power
                 )
-
-                # Compute per-user SNR with optimized phases
-                user_snrs = []
-                user_rates = []
-                for u in range(num_users):
-                    h_total = H_direct[u] + np.sum(H_ris[u] * np.exp(1j * optimal_phases))
-                    signal = tx_power * np.abs(h_total) ** 2
-
-                    # For multi-user, include inter-user interference
-                    interference = 0
-                    for v in range(num_users):
-                        if v != u:
-                            h_int = H_direct[v] + np.sum(H_ris[v] * np.exp(1j * optimal_phases))
-                            interference += tx_power * np.abs(h_int) ** 2 * 0.1  # Cross-talk factor
-
-                    sinr = signal / (noise_power + interference)
-                    snr_db = 10 * np.log10(sinr)
-                    rate = np.log2(1 + sinr)
-                    user_snrs.append(snr_db)
-                    user_rates.append(rate)
+                user_snrs, user_rates = self._multiuser_sinr(
+                    H_direct, H_ris, optimal_phases, num_users, noise_power, tx_power
+                )
 
                 per_user_snrs.append(user_snrs)
                 sum_rates.append(np.sum(user_rates))
+                fairness_indices.append(self._jain_fairness(user_rates))
 
-                # Jain's fairness index
-                rates = np.array(user_rates)
-                if np.sum(rates ** 2) > 0:
-                    fairness = (np.sum(rates)) ** 2 / (num_users * np.sum(rates ** 2))
-                else:
-                    fairness = 1.0
-                fairness_indices.append(fairness)
+                # The federated model's own phases, evaluated under the identical
+                # SINR model. Previously the multi-user results came entirely from
+                # the classical optimizer, so they said nothing about what FL learned.
+                if fl_phase_fn is not None:
+                    fl_phases = fl_phase_fn(i)
+                    fl_snrs, fl_rates = self._multiuser_sinr(
+                        H_direct, H_ris, fl_phases, num_users, noise_power, tx_power
+                    )
+                    fl_per_user_snrs.append(fl_snrs)
+                    fl_sum_rates.append(np.sum(fl_rates))
+                    fl_fairness.append(self._jain_fairness(fl_rates))
 
             result = {
                 'num_users': num_users,
+                # NOTE: the 'avg_*' fields below come from the classical
+                # gradient-ascent optimizer and act as a reference bound.
+                # The federated model's own numbers are the 'fl_*' fields.
                 'avg_sum_rate': np.mean(sum_rates),
                 'std_sum_rate': np.std(sum_rates),
                 'avg_per_user_snr': np.mean([np.mean(s) for s in per_user_snrs]),
@@ -498,11 +504,26 @@ class BaselineMultiuserExperimentsMixin:
                 'fl_communication_kb': fl_result['total_communication_kb'],
                 'per_user_snr_distribution': [np.mean([s[u] for s in per_user_snrs]) for u in range(num_users)]
             }
+
+            if fl_sum_rates:
+                result.update({
+                    'fl_avg_sum_rate': np.mean(fl_sum_rates),
+                    'fl_std_sum_rate': np.std(fl_sum_rates),
+                    'fl_avg_per_user_snr': np.mean([np.mean(s) for s in fl_per_user_snrs]),
+                    'fl_min_per_user_snr': np.mean([np.min(s) for s in fl_per_user_snrs]),
+                    'fl_avg_fairness': np.mean(fl_fairness),
+                    'fl_sum_rate_gap': np.mean(sum_rates) - np.mean(fl_sum_rates),
+                })
+
             results.append(result)
 
-            self.logger.info(f"  Sum Rate: {result['avg_sum_rate']:.2f} bps/Hz")
-            self.logger.info(f"  Avg Per-User SNR: {result['avg_per_user_snr']:.2f} dB")
-            self.logger.info(f"  Fairness Index: {result['avg_fairness']:.4f}")
+            self.logger.info(f"  [classical] Sum Rate: {result['avg_sum_rate']:.2f} bps/Hz")
+            self.logger.info(f"  [classical] Avg Per-User SNR: {result['avg_per_user_snr']:.2f} dB")
+            self.logger.info(f"  [classical] Fairness Index: {result['avg_fairness']:.4f}")
+            if fl_sum_rates:
+                self.logger.info(f"  [FL model]  Sum Rate: {result['fl_avg_sum_rate']:.2f} bps/Hz")
+                self.logger.info(f"  [FL model]  Avg Per-User SNR: {result['fl_avg_per_user_snr']:.2f} dB")
+                self.logger.info(f"  [FL model]  Fairness Index: {result['fl_avg_fairness']:.4f}")
 
         # Save results
         self._save_experiment_results('multiuser_comparison', results)
@@ -512,38 +533,146 @@ class BaselineMultiuserExperimentsMixin:
 
         return results
 
+    # Fraction of another user's received power that leaks into this user's
+    # SINR. Used by BOTH the optimizer and the evaluation below -- if the two
+    # disagree, the optimizer maximizes a quantity that is never measured.
+    CROSS_TALK_FACTOR = 0.1
+
+    def _multiuser_sinr(self, H_direct, H_ris, phases, num_users,
+                        noise_power, tx_power):
+        """Per-user SINR (dB) and rate under the shared cross-talk model.
+
+        Args:
+            H_direct: Direct BS->user channel, [num_users] complex.
+            H_ris: CASCADE channel h_ris_user * h_bs_ris, [num_users, N] complex.
+            phases: RIS phase shifts to apply, [N].
+
+        Returns:
+            (snr_db_list, rate_list), both length ``num_users``.
+        """
+        reflect = np.exp(1j * phases)
+        powers = np.array([
+            tx_power * np.abs(H_direct[u] + np.sum(H_ris[u] * reflect)) ** 2
+            for u in range(num_users)
+        ])
+        total_power = np.sum(powers)
+
+        snr_db, rates = [], []
+        for u in range(num_users):
+            interference = self.CROSS_TALK_FACTOR * (total_power - powers[u])
+            sinr = powers[u] / (noise_power + interference)
+            snr_db.append(10 * np.log10(sinr))
+            rates.append(np.log2(1 + sinr))
+        return snr_db, rates
+
+    @staticmethod
+    def _jain_fairness(rates) -> float:
+        """Jain's fairness index over per-user rates."""
+        rates = np.asarray(rates, dtype=float)
+        denom = len(rates) * np.sum(rates ** 2)
+        return float(np.sum(rates) ** 2 / denom) if denom > 0 else 1.0
+
+    def _make_fl_phase_provider(self, fl_result, test_dataset):
+        """Return ``fn(sample_index) -> phases`` from the trained global model.
+
+        Returns None if the FL run exposed no weights, in which case the
+        multi-user experiment reports only the classical optimizer.
+        """
+        weights = fl_result.get('global_weights') if fl_result else None
+        if weights is None:
+            return None
+
+        import torch
+
+        from models.ris_net import create_model
+
+        model = create_model(
+            getattr(self.config, 'MODEL_TYPE', 'MLP'),
+            input_dim=test_dataset.get_input_dim(),
+            num_elements=self.config.ELEMENTS_PER_TILE,
+            config=self.config,
+        )
+        model.load_state_dict(weights)
+        model.eval()
+        device = next(model.parameters()).device
+
+        def provider(index):
+            features, _ = test_dataset[index]
+            with torch.no_grad():
+                predicted = model(features.unsqueeze(0).to(device)).squeeze().cpu().numpy()
+            # The label omits the global MRC offset; add it back from CSI, exactly
+            # as the single-user evaluation in client.py does.
+            offset = test_dataset.metadata[index].get('phase_offset', 0.0)
+            return np.mod(predicted + offset, 2 * np.pi)
+
+        return provider
+
     def _optimize_multiuser_phases(self, H_direct, H_ris, num_users,
                                      noise_power, tx_power, num_iterations=50):
         """
         Optimize RIS phases for multi-user sum-rate maximization.
 
-        Uses gradient ascent on weighted sum-rate.
+        Uses gradient ascent on weighted sum-rate under the same cross-talk
+        interference model the evaluation applies.
         """
         num_elements = H_ris.shape[1]
         phases = np.random.uniform(0, 2 * np.pi, num_elements)
 
-        lr = 0.05
+        # Largest phase update on the first step, in radians, decayed over the run.
+        #
+        # A fixed learning rate cannot work here. The gradient of the sum-rate
+        # w.r.t. a phase scales with absolute received power, which at these path
+        # losses is ~1e-18, so the previous `phases += 0.05 * gradient` moved the
+        # phases by ~1e-6 radians per step: over 300 iterations the objective went
+        # from 0.002081 to 0.002085 while a plain single-user MRC solution scored
+        # 0.010603. The "optimized" phases this returned were indistinguishable
+        # from the random vector it started at.
+        #
+        # Normalizing by the gradient's max magnitude makes the step size
+        # scale-invariant, so the same schedule works at any path loss.
+        step0 = 0.5
         weights = np.ones(num_users) / num_users  # Equal weights
 
         for iteration in range(num_iterations):
-            # Compute gradient of sum-rate w.r.t. phases
+            # Received amplitude and power for every user under the current phases
+            h_totals = np.array([
+                H_direct[u] + np.sum(H_ris[u] * np.exp(1j * phases))
+                for u in range(num_users)
+            ])
+            powers = tx_power * np.abs(h_totals) ** 2
+            total_power = np.sum(powers)
+
+            # d|h_u|^2/dtheta_n, vectorized over elements
+            # = 2 * Re( conj(h_u) * j * H_ris[u,n] * exp(j*theta_n) )
+            dpower = np.stack([
+                2 * tx_power * np.real(
+                    np.conj(h_totals[u]) * 1j * H_ris[u] * np.exp(1j * phases)
+                )
+                for u in range(num_users)
+            ])
+
             gradient = np.zeros(num_elements)
-
             for u in range(num_users):
-                h_total = H_direct[u] + np.sum(H_ris[u] * np.exp(1j * phases))
-                signal = tx_power * np.abs(h_total) ** 2
-                sinr = signal / noise_power
+                # Same SINR the evaluation computes: every other user's received
+                # power leaks in at CROSS_TALK_FACTOR.
+                interference = self.CROSS_TALK_FACTOR * (total_power - powers[u])
+                denom = noise_power + interference
+                sinr = powers[u] / denom
 
-                # Gradient of log2(1 + SINR) w.r.t. phases
-                for n in range(num_elements):
-                    grad_component = np.conj(h_total) * 1j * H_ris[u, n] * np.exp(1j * phases[n])
-                    grad_snr = 2 * tx_power * np.real(grad_component)
-                    # Chain rule: d/dθ log2(1+SINR) = 1/((1+SINR)*ln2) * d_SINR/dθ
-                    grad_rate = grad_snr / ((1 + sinr) * np.log(2) * noise_power)
-                    gradient[n] += weights[u] * grad_rate
+                # Quotient rule -- interference depends on the phases too, so the
+                # numerator-only gradient used previously pointed the wrong way
+                # whenever cross-talk was significant.
+                d_interference = self.CROSS_TALK_FACTOR * (np.sum(dpower, axis=0) - dpower[u])
+                d_sinr = (dpower[u] * denom - powers[u] * d_interference) / denom ** 2
 
-            # Gradient ascent
-            phases = phases + lr * gradient
-            phases = np.mod(phases, 2 * np.pi)
+                gradient += weights[u] * d_sinr / ((1 + sinr) * np.log(2))
+
+            # Scale-invariant ascent: normalize by the largest component so the
+            # biggest phase move is `step` radians, annealing towards the end.
+            peak = np.max(np.abs(gradient))
+            if peak <= 0 or not np.isfinite(peak):
+                break
+            step = step0 * (1.0 - iteration / max(num_iterations, 1))
+            phases = np.mod(phases + step * gradient / peak, 2 * np.pi)
 
         return phases

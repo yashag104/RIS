@@ -46,10 +46,26 @@ class RISClient:
         # Move model to device
         self.model.to(self.device)
 
-        # Create data loader
+        # Training objective. 'sumrate'/'snr' score the achieved link quality
+        # directly and therefore need the true channels in each batch; 'mse'
+        # only needs the precomputed phase target.
+        from src.objectives import build_objective
+        self.objective, self.objective_needs_channels = build_objective(config)
+        self.objective_name = getattr(config, 'TRAINING_OBJECTIVE', 'mse').lower()
+        if hasattr(self.objective, 'to'):
+            self.objective = self.objective.to(self.device)
+
+        # Create data loader. When the objective needs channels, iterate a view
+        # rather than mutating `dataset` -- the caller often reuses that same
+        # object to build an evaluation loader that unpacks (features, labels).
         if dataset is not None:
+            if self.objective_needs_channels:
+                from src.dataset_utils import ChannelDatasetView
+                train_source = ChannelDatasetView(dataset)
+            else:
+                train_source = dataset
             self.train_loader = DataLoader(
-                dataset,
+                train_source,
                 batch_size=config.BATCH_SIZE,
                 shuffle=True,
                 drop_last=True
@@ -116,6 +132,21 @@ class RISClient:
         self.pixel_mask = np.ones(self.num_pixels, dtype=bool)  # All ON initially
         self.dc_history = []  # Track active ratio per round
         
+    @staticmethod
+    def _sum_rate(powers: "np.ndarray", noise_power: float, cross_talk: float) -> float:
+        """Sum-rate over all users under the shared cross-talk interference model."""
+        interference = cross_talk * (np.sum(powers) - powers)
+        return float(np.sum(np.log2(1 + powers / (noise_power + interference))))
+
+    @staticmethod
+    def _batch_phase_offset(h_direct: torch.Tensor) -> torch.Tensor:
+        """Global MRC offset ``angle(h_direct[user 0])`` for each batch element.
+
+        Mirrors what ``compute_snr_improvement`` adds back at evaluation time, so
+        training and evaluation apply the same phase convention.
+        """
+        return torch.atan2(h_direct[:, 0, 1], h_direct[:, 0, 0])
+
     def _phase_mse_loss(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
         Circular MSE for phase angles (handles the 2*pi wrap-around).
@@ -148,14 +179,33 @@ class RISClient:
         for epoch in range(epochs):
             batch_losses = []
 
-            for batch_idx, (features, labels) in enumerate(self.train_loader):
+            for batch_idx, batch in enumerate(self.train_loader):
+                if self.objective_needs_channels:
+                    features, labels, h_direct, h_cascade = batch
+                    h_direct = h_direct.to(self.device)
+                    h_cascade = h_cascade.to(self.device)
+                else:
+                    features, labels = batch
+                    h_direct = h_cascade = None
+
                 features = features.to(self.device)
                 labels = labels.to(self.device)
 
                 # Forward pass
                 self.optimizer.zero_grad()
                 predictions = self.model(features)
-                loss = self.criterion(predictions, labels)
+
+                if self.objective_needs_channels:
+                    # The model predicts the per-element part of the solution; the
+                    # global MRC offset is a known constant per sample and is NOT
+                    # needed here -- a common phase rotation applied to every
+                    # element leaves the achieved SNR unchanged only when the
+                    # direct path is absent, so fold it in to score honestly.
+                    phase_offset = self._batch_phase_offset(h_direct)
+                    applied = predictions + phase_offset.unsqueeze(1)
+                    loss = self.objective(applied, h_direct, h_cascade)
+                else:
+                    loss = self.criterion(predictions, labels)
 
                 # ---- FedProx: Add proximal term ----
                 if self.aggregation_method == 'FedProx' and self.global_model_weights is not None:
@@ -366,6 +416,16 @@ class RISClient:
         snr_optimized_ris = []
         snr_optimal = []
 
+        # All-user metrics. The single-user fields above score target_user=0 only,
+        # which silently penalizes any objective that serves the whole cell -- a
+        # sum-rate-trained model looks worse there purely because it is not
+        # dedicating the whole surface to one user.
+        sum_rate_optimized = []
+        sum_rate_no_ris = []
+        per_user_snr_optimized = []
+
+        cross_talk = getattr(self.config, 'CROSS_TALK_FACTOR', 0.1)
+
         num_samples = min(num_samples, len(test_dataset))
 
         with torch.no_grad():
@@ -375,12 +435,6 @@ class RISClient:
 
                 # Predict phase shifts
                 predicted_phases = self.model(features).squeeze().cpu().numpy()
-                
-                # Apply quantization if enabled
-                quant_bits = getattr(self.config, 'PHASE_QUANTIZATION_BITS', 0)
-                if quant_bits > 0:
-                    from src.channel_model import quantize_phases
-                    predicted_phases, _ = quantize_phases(predicted_phases, quant_bits)
                 
                 optimal_phases = optimal_phases.numpy()
 
@@ -411,9 +465,50 @@ class RISClient:
                 snr_random_ris.append(10 * np.log10(signal_random / noise_power))
 
                 # SNR with optimized RIS (predicted)
-                h_total_optimized = h_direct + np.sum(h_cascade * np.exp(1j * predicted_phases))
+                # The model predicts only the per-element part of the MRC solution;
+                # the global angle(h_direct) offset was factored out of the label and
+                # is added back here from CSI (see channel_model._channels_to_dataset).
+                phase_offset = metadata.get('phase_offset', 0.0)
+                applied_phases = np.mod(predicted_phases + phase_offset, 2 * np.pi)
+
+                # Quantize the phase the hardware actually realizes, i.e. after the
+                # offset is folded in -- not the raw network output.
+                quant_bits = getattr(self.config, 'PHASE_QUANTIZATION_BITS', 0)
+                if quant_bits > 0:
+                    from src.channel_model import quantize_phases
+                    applied_phases, _ = quantize_phases(applied_phases, quant_bits)
+
+                # Pixel-level duty cycling: switch off weak pixels based on CSI.
+                # A duty-cycled-off element is disconnected, so it contributes no
+                # reflected energy at all -- gate its amplitude rather than merely
+                # forcing its phase to zero (a zero-phase element still reflects).
+                applied_phases, pixel_mask = self.apply_duty_cycle_to_phases(
+                    applied_phases, csi_vector=h_cascade
+                )
+                element_gate = pixel_mask.astype(float) if self.duty_cycle_enabled else 1.0
+
+                h_total_optimized = h_direct + np.sum(
+                    h_cascade * element_gate * np.exp(1j * applied_phases)
+                )
                 signal_optimized = tx_power * np.abs(h_total_optimized) ** 2
                 snr_optimized_ris.append(10 * np.log10(signal_optimized / noise_power))
+
+                # ---- All-user metrics under the same applied phases ----
+                # H_ris is (U, N) and h_bs_ris is (N,), so this broadcasts to the
+                # full per-user cascade rather than just target_user's row.
+                cascade_all = H_ris * h_bs_ris
+                gate = element_gate if np.ndim(element_gate) else 1.0
+                reflected = np.sum(cascade_all * gate * np.exp(1j * applied_phases), axis=1)
+                powers = tx_power * np.abs(H_direct + reflected) ** 2
+                direct_powers = tx_power * np.abs(H_direct) ** 2
+
+                sum_rate_optimized.append(
+                    self._sum_rate(powers, noise_power, cross_talk)
+                )
+                sum_rate_no_ris.append(
+                    self._sum_rate(direct_powers, noise_power, cross_talk)
+                )
+                per_user_snr_optimized.append(10 * np.log10(powers / noise_power))
 
                 # SNR with optimal RIS (recompute true MRC-optimal phases from raw channels)
                 # theta_n = angle(h_direct) - angle(h_cascade_n) for coherent combining
@@ -451,8 +546,23 @@ class RISClient:
             'snr_no_ris_all': snr_no_ris,
             'snr_random_ris_all': snr_random_ris,
             'snr_optimized_ris_all': snr_optimized_ris,
-            'snr_optimal_all': snr_optimal
+            'snr_optimal_all': snr_optimal,
+            # All-user metrics (see note where these are accumulated)
+            'sum_rate_optimized_mean': float(np.mean(sum_rate_optimized)),
+            'sum_rate_no_ris_mean': float(np.mean(sum_rate_no_ris)),
+            'sum_rate_gain': float(np.mean(sum_rate_optimized) - np.mean(sum_rate_no_ris)),
+            'per_user_snr_mean': float(np.mean(per_user_snr_optimized)),
+            'per_user_snr_min_mean': float(np.mean(np.min(per_user_snr_optimized, axis=1))),
+            'jain_fairness': float(np.mean([
+                np.sum(p) ** 2 / (len(p) * np.sum(np.asarray(p) ** 2))
+                for p in per_user_snr_optimized if np.sum(np.asarray(p) ** 2) > 0
+            ])),
         }
+
+        # Fold pixel-level duty-cycling energy accounting into the reported metrics
+        # so the energy/SNR trade-off is measured on the same run that produced it.
+        dc_metrics = self.get_duty_cycle_metrics()
+        metrics.update({f'duty_cycle_{k}': v for k, v in dc_metrics.items()})
 
         return metrics
 
@@ -590,8 +700,12 @@ class RISClient:
         min_active = max(1, int(self.dc_min_active_ratio * N))
         
         if self.dc_strategy == 'threshold':
-            # Pixels ON if CSI power > threshold
-            mask = csi_power_db > self.dc_threshold_db
+            # Pixels ON if CSI power is within dc_threshold_db of the strongest
+            # pixel on this tile. The threshold MUST be relative: absolute channel
+            # power at these path losses sits near -180 dB, so an absolute cut-off
+            # is never satisfied and this branch silently collapsed into the
+            # min-active-ratio fallback below (making it identical to 'topk').
+            mask = csi_power_db > (np.max(csi_power_db) + self.dc_threshold_db)
             # Ensure minimum active ratio
             if np.sum(mask) < min_active:
                 # Turn on the top-k strongest pixels

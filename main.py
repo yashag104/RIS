@@ -230,14 +230,28 @@ def train_federated(config, train_datasets, test_dataset):
     # Communication sanity check
     comm_summary = server.get_communication_summary()
     model_params = sum(p.numel() for p in server.global_model.parameters())
+    # Sleeping tiles are neither broadcast to nor uploaded from, so the expected
+    # byte count must be driven by actual participation rather than len(clients);
+    # otherwise sleep scheduling always trips a spurious "mismatch" warning.
+    participant_rounds = sum(
+        m.get('num_participating', len(clients)) for m in all_round_metrics
+    )
     expected_total = (model_params * config.COMM_BYTES_PER_PARAM *
-                      2 * len(clients) * config.FL_ROUNDS)
+                      2 * participant_rounds)
     actual_total = comm_summary['total_bytes']
+    total_slept = sum(m.get('num_sleeping', 0) for m in all_round_metrics)
+
     logger.info("\n  Communication check:")
     logger.info(f"    Model parameters: {model_params:,}")
     logger.info(f"    Expected total: {expected_total / (1024*1024):.2f} MB")
     logger.info(f"    Actual total:   {actual_total / (1024*1024):.2f} MB")
-    if abs(actual_total - expected_total) > expected_total * 0.01:
+    if total_slept:
+        no_sleep_total = (model_params * config.COMM_BYTES_PER_PARAM *
+                          2 * len(clients) * config.FL_ROUNDS)
+        saved_pct = (1 - actual_total / no_sleep_total) * 100 if no_sleep_total else 0.0
+        logger.info(f"    Sleep scheduling skipped {total_slept} tile-rounds "
+                    f"({saved_pct:.1f}% communication saved)")
+    if expected_total and abs(actual_total - expected_total) > expected_total * 0.01:
         logger.warning(f" Communication mismatch! "
               f"Ratio = {actual_total / expected_total:.2f}x")
 

@@ -191,6 +191,31 @@ class FederatedServer:
             logger.info(f"  [Server] Broadcasted model to {len(clients)} clients "
                   f"({total_bytes / 1024:.2f} KB total)")
 
+    @staticmethod
+    def _client_signal_strength(client) -> float:
+        """Mean cascaded-channel power seen by a tile, used to drive sleep decisions.
+
+        Returns 1.0 when the tile exposes no channel metadata, which keeps the
+        tile awake rather than silently dropping it from training.
+        """
+        dataset = getattr(client, 'dataset', None)
+        metadata = getattr(dataset, 'metadata', None)
+        if not metadata:
+            return 1.0
+
+        # Sample a handful of realizations rather than the whole set; the mean is
+        # stable well before the full dataset and this runs every round.
+        sample = metadata[:min(32, len(metadata))]
+        powers = []
+        for md in sample:
+            try:
+                h_cascade = md['H_ris'][0] * md['h_bs_ris']
+            except (KeyError, IndexError, TypeError):
+                return 1.0
+            powers.append(float(np.mean(np.abs(h_cascade) ** 2)))
+
+        return float(np.mean(powers)) if powers else 1.0
+
     def aggregate_round(self, clients: list, round_num: int) -> dict[str, Any]:
         """
         Execute one round of federated learning.
@@ -207,23 +232,66 @@ class FederatedServer:
         logger.info(f"Round {round_num + 1}/{self.config.FL_ROUNDS} [{self.aggregation_method}]")
         logger.info(f"{'='*60}")
 
+        # Step 0: Sleep scheduling. Tiles seeing weak signal skip the round
+        # entirely -- they are not broadcast to, do not train, and do not upload,
+        # so the energy and communication savings show up in the round metrics.
+        # Signal strength is normalised across the cohort each round so the
+        # threshold is scale-free with respect to absolute path loss.
+        sleeping_clients: list = []
+        participating = clients
+        if any(getattr(c, 'sleep_enabled', False) for c in clients):
+            strengths = [self._client_signal_strength(c) for c in clients]
+            peak = max(strengths) if strengths else 0.0
+            for client, strength in zip(clients, strengths):
+                client.update_sleep_state((strength / peak) if peak > 0 else 1.0)
+
+            # Periodically wake everyone. Channel statistics are near-static, so
+            # without this the same tiles sleep forever from the first check.
+            wake_interval = getattr(self.config, 'SLEEP_FORCED_WAKE_INTERVAL', 0)
+            if wake_interval and round_num % wake_interval == 0:
+                for client in clients:
+                    client.force_wake()
+
+            participating = [c for c in clients if c.should_participate()]
+
+            # Enforce a participation floor by waking the strongest sleepers,
+            # so aggregation never collapses onto one tile's data distribution.
+            min_ratio = getattr(self.config, 'SLEEP_MIN_PARTICIPATION_RATIO', 0.0)
+            min_participants = max(1, int(np.ceil(min_ratio * len(clients))))
+            if len(participating) < min_participants:
+                asleep = [
+                    (s, i) for i, (c, s) in enumerate(zip(clients, strengths))
+                    if not c.should_participate()
+                ]
+                for _, idx in sorted(asleep, reverse=True)[:min_participants - len(participating)]:
+                    clients[idx].force_wake()
+                participating = [c for c in clients if c.should_participate()]
+
+            sleeping_clients = [c for c in clients if not c.should_participate()]
+
+            if sleeping_clients:
+                logger.info(
+                    f"[Sleep] {len(sleeping_clients)}/{len(clients)} tiles asleep: "
+                    f"{[c.client_id for c in sleeping_clients]}"
+                )
+
         # Step 1: Broadcast current global model (+ FedProx/SCAFFOLD state)
-        self.broadcast_model(clients)
+        self.broadcast_model(participating)
 
         # Calculate broadcast size (for metrics)
         model_size = sum(p.numel() for p in self.global_model.parameters())
         comm_bytes_per_param = getattr(self.config, 'COMM_BYTES_PER_PARAM', 1)
         bytes_per_client = model_size * comm_bytes_per_param
-        bytes_downloaded_total = bytes_per_client * len(clients)
+        bytes_downloaded_total = bytes_per_client * len(participating)
 
-        # Step 2: Local training on each client
+        # Step 2: Local training on each participating client
         client_metrics = []
         client_weights = []
         client_sizes = []
         old_weights_list = []  # For SCAFFOLD
         c_deltas = []  # For SCAFFOLD
 
-        for client in clients:
+        for client in participating:
             # Store weights before training (for SCAFFOLD)
             if self.aggregation_method == 'SCAFFOLD':
                 old_weights_list.append(client.get_model_weights())
@@ -247,13 +315,13 @@ class FederatedServer:
                 c_deltas.append(c_delta)
 
         # Step 3: Aggregate weights at server
-        logger.info(f"\n[Server] Aggregating weights from {len(clients)} clients...")
+        logger.info(f"\n[Server] Aggregating weights from {len(participating)} clients...")
         aggregated_weights = self.aggregate_weights(
             client_weights, client_sizes, c_deltas=c_deltas
         )
 
         # Calculate communication cost for uploads (INT8 quantized)
-        bytes_uploaded_total = model_size * comm_bytes_per_param * len(clients)
+        bytes_uploaded_total = model_size * comm_bytes_per_param * len(participating)
         self.total_bytes_received += bytes_uploaded_total
 
         # Step 4: Update global model
@@ -271,6 +339,9 @@ class FederatedServer:
             'bytes_uploaded': bytes_uploaded_total,
             'bytes_downloaded': bytes_downloaded_total,
             'total_bytes': bytes_uploaded_total + bytes_downloaded_total,
+            'num_participating': len(participating),
+            'num_sleeping': len(sleeping_clients),
+            'sleeping_client_ids': [c.client_id for c in sleeping_clients],
             'client_metrics': client_metrics
         }
 
