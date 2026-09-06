@@ -24,10 +24,12 @@ from __future__ import annotations
 import torch
 
 # Fraction of another user's received power that leaks into this user's SINR.
-# Matches experiments.baselines_multiuser.MultiUserBaselines.CROSS_TALK_FACTOR --
-# an objective that assumes a different interference model than the evaluation
-# is optimizing something nobody measures.
-DEFAULT_CROSS_TALK_FACTOR = 0.1
+# Zero by default: a single-antenna BS with one shared RIS serves users on
+# orthogonal resources, so there is no co-channel interference term. Must match
+# Config.CROSS_TALK_FACTOR and the evaluation in
+# experiments.baselines_multiuser -- an objective that assumes a different
+# interference model than the evaluation is optimizing something nobody measures.
+DEFAULT_CROSS_TALK_FACTOR = 0.0
 
 
 def received_power(

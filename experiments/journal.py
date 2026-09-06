@@ -11,6 +11,26 @@ from utils.plotting import *
 
 
 class JournalExperimentsMixin:
+    def _fl_model_size_bytes(self) -> int:
+        """Payload of one model update, in bytes.
+
+        This is the quantity that actually crosses the NoC each FL round:
+        the global model's parameter count times the per-parameter
+        transmission width (INT8 by default). Using the real model rather
+        than a fixed estimate keeps the NoC results consistent with the
+        federated-learning results in the rest of the suite.
+        """
+        from models.ris_net import create_model
+        from src.dataset_utils import expected_feature_dim
+
+        input_dim = expected_feature_dim(
+            self.config.ELEMENTS_PER_TILE, getattr(self.config, 'NUM_USERS', 1)
+        )
+        model = create_model(self.config.MODEL_TYPE, input_dim,
+                             self.config.ELEMENTS_PER_TILE, config=self.config)
+        num_params = sum(p.numel() for p in model.parameters())
+        return int(num_params * self.config.COMM_BYTES_PER_PARAM)
+
     def experiment_11_fl_algorithms(self):
         """
         Experiment 11: Federated Learning Algorithms Comparison
@@ -116,8 +136,7 @@ class JournalExperimentsMixin:
         topologies = ['Mesh', 'Torus', 'FoldedTorus', 'Tree', 'Butterfly', 'Ring']
         num_tiles = self.config.NUM_TILES
         
-        # Estimate model size from config
-        model_size_bytes = self.config.ELEMENTS_PER_TILE * 4 * 256  # Rough estimate
+        model_size_bytes = self._fl_model_size_bytes()
         num_rounds = self.config.FL_ROUNDS
         bandwidth = self.config.NOC_BANDWIDTH_GBPS
         
@@ -177,7 +196,7 @@ class JournalExperimentsMixin:
         protocols = ['ParameterServer', 'AllReduce', 'RingAllReduce', 'Gossip']
         test_topologies = ['Mesh', 'Torus']
         num_tiles = self.config.NUM_TILES
-        model_size_bytes = self.config.ELEMENTS_PER_TILE * 4 * 256
+        model_size_bytes = self._fl_model_size_bytes()
         num_rounds = self.config.FL_ROUNDS
         
         results = []
@@ -239,6 +258,7 @@ class JournalExperimentsMixin:
         channel_model = RicianChannel(
             num_elements=num_elements,
             k_factor_db=self.config.RICIAN_K_FACTOR_DB,
+            direct_link_blockage_db=self.config.DIRECT_LINK_BLOCKAGE_DB,
             frequency=self.config.FREQUENCY,
         )
         
@@ -249,9 +269,16 @@ class JournalExperimentsMixin:
             ris_pos = np.array([5, 0, 1.5])
             
             ch = channel_model.generate_channel(bs_pos, user_pos, ris_pos, scenario="LoS")
+            # Squeeze the leading single-user axis. generate_channel returns
+            # h_direct as (U,) and h_ris_user as (U, N); the optimizers expect a
+            # scalar direct channel and a length-N vector. Passing the raw 2-D
+            # array made AO index past axis 0 and fail. Normalising here also
+            # guarantees every optimizer is compared on identical inputs.
+            h_direct = ch['h_direct']
+            h_ris_user = ch['h_ris_user']
             channel_samples.append({
-                'h_direct': ch['h_direct'],
-                'h_ris_user': ch['h_ris_user'],
+                'h_direct': h_direct[0] if np.ndim(h_direct) > 0 else h_direct,
+                'h_ris_user': h_ris_user[0] if np.ndim(h_ris_user) > 1 else h_ris_user,
                 'h_bs_ris': ch['h_bs_ris'],
             })
         
@@ -262,9 +289,8 @@ class JournalExperimentsMixin:
         random_snrs = []
         for sample in channel_samples:
             phases = np.random.uniform(0, 2 * np.pi, num_elements)
-            h_d = sample['h_direct'][0] if not np.isscalar(sample['h_direct']) else sample['h_direct']
-            h_r = sample['h_ris_user'][0] if sample['h_ris_user'].ndim > 1 else sample['h_ris_user']
-            h_eff = h_d + np.dot(h_r * sample['h_bs_ris'], np.exp(1j * phases))
+            h_eff = sample['h_direct'] + np.dot(
+                sample['h_ris_user'] * sample['h_bs_ris'], np.exp(1j * phases))
             snr = np.abs(h_eff)**2 / noise_power
             random_snrs.append(10*np.log10(max(snr, 1e-20)))
         results['Random'] = {
@@ -316,7 +342,13 @@ class JournalExperimentsMixin:
         try:
             from baselines.sdr_optimizer import SDROptimizer
             sdr = SDROptimizer(num_elements=num_elements, num_randomizations=50)
-            sdr_metrics = sdr.batch_optimize(channel_samples[:min(10, num_samples)], noise_power)
+            # Every method must see the same channel realisations. SDR was
+            # previously averaged over only the first 10 of the samples while
+            # the others used all of them; with a per-sample SNR spread of
+            # ~8 dB that alone moved SDR's mean by more than the differences
+            # the experiment is meant to measure, and made it appear to beat
+            # the genie-optimal bound.
+            sdr_metrics = sdr.batch_optimize(channel_samples, noise_power)
             results['SDR'] = sdr_metrics
             self.logger.info(f"    SNR: {sdr_metrics['avg_snr_db']:.2f} dB")
         except ImportError:
@@ -398,6 +430,7 @@ class JournalExperimentsMixin:
                     channel_model = RicianChannel(
                         num_elements=actual_pixels,
                         k_factor_db=self.config.RICIAN_K_FACTOR_DB,
+                        direct_link_blockage_db=self.config.DIRECT_LINK_BLOCKAGE_DB,
                         frequency=self.config.FREQUENCY,
                         grid_rows=p_rows,
                         grid_cols=p_cols,
@@ -516,8 +549,8 @@ class JournalExperimentsMixin:
         noise_power = dbm_to_watts(self.config.NOISE_POWER_DBM)
         strategies = [
             {'name': 'No DC', 'enabled': False, 'strategy': 'threshold'},
-            {'name': 'Threshold (-10 dB)', 'enabled': True, 'strategy': 'threshold', 'threshold': -10},
-            {'name': 'Threshold (-20 dB)', 'enabled': True, 'strategy': 'threshold', 'threshold': -20},
+            {'name': 'Threshold (peak-10 dB)', 'enabled': True, 'strategy': 'threshold', 'threshold': -10},
+            {'name': 'Threshold (peak-20 dB)', 'enabled': True, 'strategy': 'threshold', 'threshold': -20},
             {'name': 'Top-K (50%)', 'enabled': True, 'strategy': 'topk', 'min_ratio': 0.5},
             {'name': 'Top-K (25%)', 'enabled': True, 'strategy': 'topk', 'min_ratio': 0.25},
             {'name': 'Adaptive', 'enabled': True, 'strategy': 'adaptive', 'min_ratio': 0.25},
@@ -526,6 +559,7 @@ class JournalExperimentsMixin:
         channel_model = RicianChannel(
             num_elements=num_elements,
             k_factor_db=self.config.RICIAN_K_FACTOR_DB,
+            direct_link_blockage_db=self.config.DIRECT_LINK_BLOCKAGE_DB,
             frequency=self.config.FREQUENCY,
         )
         
@@ -567,7 +601,13 @@ class JournalExperimentsMixin:
                     min_active = max(1, int(strat_cfg.get('min_ratio', 0.25) * num_elements))
                     
                     if strat_cfg['strategy'] == 'threshold':
-                        thresh = strat_cfg.get('threshold', -10)
+                        # Threshold is relative to the strongest element of this
+                        # realisation. An absolute dB threshold is meaningless
+                        # here: the cascaded gains sit near -100 dB, so any
+                        # absolute value near 0 dB deactivates every element and
+                        # every threshold setting collapses onto the same
+                        # min_active fallback.
+                        thresh = strat_cfg.get('threshold', -10) + np.max(csi_power_db)
                         mask = csi_power_db > thresh
                         if np.sum(mask) < min_active:
                             top_k = np.argsort(csi_power_db)[-min_active:]
@@ -664,6 +704,7 @@ class JournalExperimentsMixin:
                 channel_model = RicianChannel(
                     num_elements=num_elements,
                     k_factor_db=self.config.RICIAN_K_FACTOR_DB,
+                    direct_link_blockage_db=self.config.DIRECT_LINK_BLOCKAGE_DB,
                     frequency=self.config.FREQUENCY,
                 )
             else:  # 3gpp_umi
@@ -762,6 +803,7 @@ class JournalExperimentsMixin:
                 channel_model = RicianChannel(
                     num_elements=num_elements,
                     k_factor_db=self.config.RICIAN_K_FACTOR_DB,
+                    direct_link_blockage_db=self.config.DIRECT_LINK_BLOCKAGE_DB,
                     frequency=self.config.FREQUENCY,
                 )
             else:

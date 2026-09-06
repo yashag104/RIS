@@ -136,9 +136,14 @@ class SCAOptimizer:
             # ∇_θ f = a * conj(h_d + a^H θ)
             gradient = a * np.conj(h_eff)
             
-            # SCA update: maximize linear surrogate subject to |θ_n| = 1
-            # Optimal solution: θ_n = exp(j * angle(gradient_n))
-            theta_new = np.exp(1j * np.angle(gradient))
+            # SCA update: maximize the linear surrogate subject to |θ_n| = 1.
+            # The surrogate is Re{conj(h_eff) * sum_n a_n θ_n}, so the term for
+            # element n is maximised at θ_n = exp(-j * angle(a_n * conj(h_eff))),
+            # which rotates a_n θ_n onto h_eff. The sign matters: taking
+            # +angle(gradient) rotates each contribution away from h_eff and
+            # minimises the objective instead, leaving SCA at the level of
+            # random phases.
+            theta_new = np.exp(-1j * np.angle(gradient))
             
             # Convex combination for stability
             alpha = self.step_size

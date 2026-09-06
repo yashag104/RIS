@@ -382,9 +382,19 @@ class FederatedServer:
 
         num_rounds = max(len(self.round_metrics), 1)
         transmission_time = (total_bytes * 8) / (self.config.NOC_BANDWIDTH_GBPS * 1e9)
-        # Each FL round assumed ~1 second; utilization = fraction of available BW used
-        total_available_time = num_rounds * 1.0
-        bandwidth_utilization = min(transmission_time / total_available_time, 1.0)
+
+        # Utilization is the fraction of each FL round period that the NoC spends
+        # transmitting model updates. The round period is an explicit configured
+        # assumption (Config.FL_ROUND_PERIOD_S), not an implicit 1 s. The value is
+        # reported unclamped: a result above 1.0 means the model traffic cannot
+        # fit inside the configured round period and the configuration is
+        # infeasible, which must be surfaced rather than hidden.
+        round_period_s = getattr(self.config, 'FL_ROUND_PERIOD_S', 0.1)
+        total_available_time = num_rounds * round_period_s
+        bandwidth_utilization = (
+            transmission_time / total_available_time if total_available_time > 0 else 0.0
+        )
+        min_round_period_s = transmission_time / num_rounds
 
         summary = {
             'total_bytes_received': self.total_bytes_received,
@@ -396,7 +406,11 @@ class FederatedServer:
             'avg_packet_latency_sec': avg_packet_latency,
             'avg_packet_latency_ms': avg_packet_latency * 1000,
             'energy_communication_joules': energy_communication,
-            'bandwidth_utilization': bandwidth_utilization
+            'bandwidth_utilization': bandwidth_utilization,
+            'fl_round_period_s': round_period_s,
+            'min_feasible_round_period_s': min_round_period_s,
+            'is_oversubscribed': bandwidth_utilization > 1.0,
+            'noc_transmission_time_s': transmission_time,
         }
 
         return summary
@@ -413,9 +427,15 @@ class FederatedServer:
 
         losses = [m['avg_client_loss'] for m in self.round_metrics]
 
-        # Find convergence point (when loss stabilizes)
+        # Find convergence point (when loss stabilizes).
+        # The detector needs a 10-round window, so a run shorter than that can
+        # never report convergence. `converged` says whether the criterion was
+        # actually met: without it, `converged_round` silently falls back to the
+        # round count and a run that never converged is indistinguishable from
+        # one that converged on its last round.
         convergence_threshold = 0.01  # 1% change
         converged_round = len(losses)
+        converged = False
 
         min_reduction_pct = 0.20  # Must reduce by at least 20% to consider convergence
         for i in range(10, len(losses)):
@@ -425,12 +445,15 @@ class FederatedServer:
             recent_losses = losses[i-10:i]
             if np.std(recent_losses) / np.mean(recent_losses) < convergence_threshold:
                 converged_round = i
+                converged = True
                 break
 
         reduction_percentage = ((losses[0] - losses[-1]) / losses[0]) * 100
 
         metrics = {
             'converged_round': converged_round,
+            'converged': converged,
+            'convergence_detectable': len(losses) > 10,
             'initial_loss': losses[0],
             'final_loss': losses[-1],
             'loss_reduction': losses[0] - losses[-1],

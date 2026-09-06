@@ -64,7 +64,7 @@ def evaluate_system(
 
     noise_power = _dbm_to_watts(config.NOISE_POWER_DBM)
     tx_power = _dbm_to_watts(config.TX_POWER_DBM)
-    cross_talk = getattr(config, 'CROSS_TALK_FACTOR', 0.1)
+    cross_talk = getattr(config, 'CROSS_TALK_FACTOR', 0.0)
     num_samples = min(num_samples, len(tile_datasets[0]))
 
     snr_no_ris, snr_system, snr_single_tile, snr_genie = [], [], [], []
@@ -145,6 +145,15 @@ def evaluate_system(
 
 
 def _sum_rate(powers: np.ndarray, noise_power: float, cross_talk: float) -> float:
-    """Sum-rate under the shared cross-talk interference model."""
-    interference = cross_talk * (np.sum(powers) - powers)
-    return float(np.sum(np.log2(1 + powers / (noise_power + interference))))
+    """Sum-rate under orthogonal time sharing.
+
+    Each user gets 1/U of the airtime, matching
+    ``experiments.baselines_multiuser._multiuser_rates`` and
+    ``RISClient._sum_rate``. ``cross_talk`` is 0 for a single-antenna BS with one
+    shared RIS -- there is no co-channel interference term.
+    """
+    powers = np.asarray(powers, dtype=float)
+    num_users = max(powers.size, 1)
+    interference = cross_talk * (np.sum(powers) - powers) if cross_talk else 0.0
+    rates = np.log2(1 + powers / (noise_power + interference))
+    return float(np.sum(rates) / num_users)

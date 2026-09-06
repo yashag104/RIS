@@ -62,23 +62,34 @@ class Config:
     # Floor area of the deployment room (not silicon die area – RIS chip dies are µm-scale).
     # Used as a normalisation constant for tile-density metrics in Exp 17.
     DEPLOYMENT_AREA_M2 = ROOM_SIZE[0] * ROOM_SIZE[1]  # e.g. 10m × 10m = 100 m²
-    NUM_USERS = 10  # Number of users in the environment
+    # Users served by the RIS. The phase-prediction label is the configuration
+    # that is optimal for the target user, so every extra user adds 2*(N+1)
+    # input features that the label does not depend on. At NUM_USERS = 10 those
+    # distractors are ~90% of the input and the model cannot recover the
+    # mapping: measured test phase error stays at 87 deg against a 90 deg
+    # random-guess baseline, versus 66 deg for the single-user input. The base
+    # system model is therefore single-user; experiment 10 overrides this to
+    # sweep 1, 2, 4 and 8 users for the multi-user study.
+    NUM_USERS = 1
 
     # ============ Channel Model Parameters ============
     PATH_LOSS_EXPONENT = 2.5
     NOISE_POWER_DBM = -90  # Noise power in dBm
     TX_POWER_DBM = 30  # Transmit power in dBm
+
+    # Excess attenuation on the BS->user direct link, in dB. An RIS is deployed
+    # precisely when the direct path is obstructed; without a blockage term the
+    # unobstructed direct link at these distances sits ~44 dB above the
+    # doubly-attenuated BS->RIS->user cascade, so the RIS cannot influence the
+    # received SNR and phase optimisation has nothing to optimise. 30 dB is a
+    # representative mmWave blockage loss for a human body or building corner
+    # at 28 GHz [Rappaport et al., IEEE Access 2019]. Set to 0.0 to model an
+    # unobstructed direct link.
+    DIRECT_LINK_BLOCKAGE_DB = 30.0
     
     # Rician Fading
     RICIAN_K_FACTOR_DB = 10.0  # K-factor in dB (LoS component strength)
     CHANNEL_SCENARIO = "LoS"  # "LoS", "NLoS", or "mixed"
-
-    # Direct-link blockage (BS -> User).
-    # An RIS is only worth deploying when the direct path is obstructed; with an
-    # unobstructed direct link the cascaded path (which pays path loss twice) is
-    # ~3500x weaker per element and the RIS cannot influence the received SNR at
-    # all. Measured genie-optimal gain with no blockage: 0.70 dB.
-    DIRECT_LINK_BLOCKAGE_DB = 30.0  # Attenuation applied to h_direct power (0 = unobstructed)
 
     # RIS element aperture gain.
     # Each reflecting element has physical area (element_spacing^2) and therefore
@@ -110,16 +121,25 @@ class Config:
     #             cross-talk model as the multi-user evaluation. This is what
     #             removes the single-user restriction; 'mse' can only ever serve
     #             the one user its label was built for.
+    TRAINING_OBJECTIVE = 'sumrate'
+    SUM_RATE_USER_WEIGHTS = None  # None = equal weight per user
+    # Co-channel leakage between users, as a fraction of another user's received
+    # power. A single-antenna BS with one shared RIS serves users on ORTHOGONAL
+    # resources (time sharing), so there is no co-channel interference and this
+    # is 0.0. An earlier version hard-coded 0.1, which was fabricated and by
+    # itself produced a ~40 dB cliff between one and two users. The genuine
+    # multi-user costs are that one phase configuration cannot align to every
+    # user at once, and that each user gets only 1/U of the airtime.
+    # Shared by the training objective, the per-tile metrics and system_eval so
+    # all three score the same physical model.
+    CROSS_TALK_FACTOR = 0.0
+
     # Generate every tile against ONE shared scene per sample, so the tiles'
     # reflected paths can be coherently summed into a single
     # TOTAL_RIS_ELEMENTS-element surface (see src/system_eval.py). With this off,
     # each tile is drawn from its own independent scene and only
     # ELEMENTS_PER_TILE can ever be evaluated -- TOTAL_RIS_ELEMENTS is decorative.
     SHARED_SCENE_TILES = True
-
-    TRAINING_OBJECTIVE = 'sumrate'
-    SUM_RATE_USER_WEIGHTS = None  # None = equal weight per user
-    CROSS_TALK_FACTOR = 0.1  # Shared by the objective and the multi-user metric
 
     # ============ DeepMIMO Dataset Configuration ============
     USE_DEEPMIMO = False  # O1_28 data not available; using synthetic Rician channel
@@ -196,6 +216,12 @@ class Config:
     COMM_BYTES_PER_PARAM = 1  # INT8 quantized transmission (1 byte/param)
     NOC_BANDWIDTH_GBPS = 10  # Network-on-Chip bandwidth
     TARGET_NOC_UTILIZATION = 0.8  # Target max utilization (<80%)
+    # Wall-clock period of one FL round, i.e. how often the RIS controller
+    # re-optimises its phase configuration. NoC bandwidth utilization is the
+    # fraction of this period spent transmitting model updates, so the value
+    # must be stated explicitly rather than assumed. 100 ms corresponds to a
+    # typical RIS control-loop rate for pedestrian-mobility channels.
+    FL_ROUND_PERIOD_S = 0.1
 
     # ============ NoC Topology Configuration ============
     # Torus: ~33% fewer hops than Mesh via wrap-around links [Dally & Towles, 2004]

@@ -8,13 +8,43 @@ from config import Config
 class BaseModel(nn.Module):
     """Abstract base class for all RIS phase-prediction models.
 
-    Provides a shared :meth:`count_parameters` utility so that training
-    scripts can uniformly report model complexity regardless of architecture.
+    Phase is a circular quantity, so every model in this module predicts each
+    element's phase as a point on the unit circle: two unconstrained outputs
+    (cos, sin) per element, from which the angle is recovered with ``atan2``.
+
+    Regressing the angle directly and penalising the wrapped difference makes
+    the objective periodic in the network output. That surface has no single
+    descent direction -- a target near 0 and a target near 2*pi pull the same
+    output in opposite directions -- and training stalls at the random-guess
+    error of 90 degrees regardless of how long it runs. The (cos, sin) target
+    is smooth and non-periodic, so ordinary MSE has a well-behaved gradient.
+
+    Subclasses emit ``2 * num_elements`` values from their head and return
+    ``(batch, num_elements, 2)`` from :meth:`forward_components`. Callers that
+    want angles use :meth:`forward`, which stays ``(batch, num_elements)``.
     """
 
     def count_parameters(self) -> int:
         """Return the total number of trainable parameters."""
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
+
+    def forward_components(self, x: "torch.Tensor") -> "torch.Tensor":
+        """Return the raw (cos, sin) pair per element, shape ``(B, N, 2)``.
+
+        This is what the training loss should consume; it is differentiable
+        everywhere and free of the 2*pi wrap discontinuity.
+        """
+        raise NotImplementedError
+
+    def forward(self, x: "torch.Tensor") -> "torch.Tensor":
+        """Return predicted phase shifts in ``(-pi, pi]``, shape ``(B, N)``."""
+        comp = self.forward_components(x)
+        return torch.atan2(comp[..., 1], comp[..., 0])
+
+    @staticmethod
+    def phase_targets(phases: "torch.Tensor") -> "torch.Tensor":
+        """Map target angles ``(B, N)`` onto the unit circle ``(B, N, 2)``."""
+        return torch.stack([torch.cos(phases), torch.sin(phases)], dim=-1)
 
 
 class MLPModel(BaseModel):
@@ -38,6 +68,7 @@ class MLPModel(BaseModel):
         super().__init__()
         if num_layers < 1:
             raise ValueError("num_layers must be >= 1")
+        self.num_elements = num_elements
 
         layers = []
         in_dim = input_dim
@@ -47,19 +78,20 @@ class MLPModel(BaseModel):
             if dropout > 0:
                 layers.append(nn.Dropout(dropout))
             in_dim = hidden_dim
-        layers.append(nn.Linear(hidden_dim, num_elements))
+        # Two outputs per element: the (cos, sin) pair (see BaseModel).
+        layers.append(nn.Linear(hidden_dim, 2 * num_elements))
         self.net = nn.Sequential(*layers)
 
-    def forward(self, x):
-        """Forward pass: map input features to predicted phase shifts.
+    def forward_components(self, x):
+        """Map input features to per-element (cos, sin) pairs.
 
         Args:
             x: Input tensor of shape ``(batch, input_dim)``.
 
         Returns:
-            Predicted phase shifts of shape ``(batch, num_elements)``.
+            Tensor of shape ``(batch, num_elements, 2)``.
         """
-        return self.net(x)
+        return self.net(x).view(x.size(0), self.num_elements, 2)
 
 
 class RISNet(MLPModel):
@@ -268,7 +300,7 @@ class GNNModel(BaseModel):
             )
         
         # Output projection
-        self.out_proj = nn.Linear(self.node_dim, 1)
+        self.out_proj = nn.Linear(self.node_dim, 2)  # (cos, sin) per node
 
     @staticmethod
     def _infer_num_users(input_dim: int, num_elements: int) -> int:
@@ -325,14 +357,15 @@ class GNNModel(BaseModel):
                         adj[idx, n_idx] = 1
         return adj
 
-    def forward(self, x):
+    def forward_components(self, x):
         """Forward pass through encoder, node-embedding fusion, and GAT layers.
 
         Args:
             x: Input tensor of shape ``(batch, input_dim)``.
 
         Returns:
-            Predicted phase shifts of shape ``(batch, num_elements)``.
+            Per-element (cos, sin) pairs of shape ``(batch, num_elements, 2)``;
+            use :meth:`forward` to obtain angles.
         """
         # x: (batch, input_dim)
         batch_size = x.size(0)
@@ -349,8 +382,7 @@ class GNNModel(BaseModel):
         for gat in self.gats:
             h = gat(h, self.adj)
             
-        out = self.out_proj(h).squeeze(-1) # (batch, num_elements)
-        return out
+        return self.out_proj(h)  # (batch, num_elements, 2)
 
 
 class SEBlock(nn.Module):
@@ -450,23 +482,24 @@ class CNNModel(BaseModel):
             SEBlock(channels, se_reduction)
         )
         
-        self.out_conv = nn.Conv2d(channels, 1, kernel_size=1)
+        self.out_conv = nn.Conv2d(channels, 2, kernel_size=1)  # (cos, sin)
         
-    def forward(self, x):
+    def forward_components(self, x):
         """Forward pass: encode CSI, fuse spatial embedding, apply CNN trunk.
 
         Args:
             x: Input tensor of shape ``(batch, input_dim)``.
 
         Returns:
-            Predicted phase shifts of shape ``(batch, num_elements)``.
+            Per-element (cos, sin) pairs of shape ``(batch, num_elements, 2)``;
+            use :meth:`forward` to obtain angles.
         """
         b = x.size(0)
         context = self.feature_encoder(x).view(b, -1, 1, 1)
         h = context + self.spatial_embedding.expand(b, -1, -1, -1)
         h = self.conv_net(h)
-        out = self.out_conv(h).view(b, self.num_elements)
-        return out
+        # (B, 2, R, C) -> (B, N, 2)
+        return self.out_conv(h).view(b, 2, self.num_elements).permute(0, 2, 1)
 
 
 class RISNetCNN(BaseModel):
@@ -496,9 +529,9 @@ class RISNetCNN(BaseModel):
             nn.ReLU(),
             SEBlock(hidden_channels, se_reduction),
         )
-        self.out_conv = nn.Conv2d(hidden_channels, 1, kernel_size=1)
+        self.out_conv = nn.Conv2d(hidden_channels, 2, kernel_size=1)  # (cos, sin)
 
-    def forward(self, x):
+    def forward_components(self, x):
         """Apply the convolutional trunk to an image-format input.
 
         Args:
@@ -506,10 +539,12 @@ class RISNetCNN(BaseModel):
                 ``(batch, input_channels, grid_rows, grid_cols)``.
 
         Returns:
-            Predicted phase shifts of shape ``(batch, num_elements)``.
+            Per-element (cos, sin) pairs of shape ``(batch, num_elements, 2)``;
+            use :meth:`forward` to obtain angles.
         """
         b = x.size(0)
-        return self.out_conv(self.conv_net(x)).view(b, self.num_elements)
+        return (self.out_conv(self.conv_net(x))
+                .view(b, 2, self.num_elements).permute(0, 2, 1))
 
 
 class TransformerModel(BaseModel):
@@ -560,23 +595,23 @@ class TransformerModel(BaseModel):
         )
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers_tf)
         
-        self.out_proj = nn.Linear(d_model, 1)
+        self.out_proj = nn.Linear(d_model, 2)  # (cos, sin) per element
 
-    def forward(self, x):
+    def forward_components(self, x):
         """Forward pass: encode CSI, add positional embeddings, apply transformer.
 
         Args:
             x: Input tensor of shape ``(batch, input_dim)``.
 
         Returns:
-            Predicted phase shifts of shape ``(batch, num_elements)``.
+            Per-element (cos, sin) pairs of shape ``(batch, num_elements, 2)``;
+            use :meth:`forward` to obtain angles.
         """
         b = x.size(0)
         context = self.feature_encoder(x)
         h = context.unsqueeze(1) + self.pos_emb.expand(b, -1, -1)
         h = self.transformer(h)
-        out = self.out_proj(h).squeeze(-1)
-        return out
+        return self.out_proj(h)  # (batch, num_elements, 2)
 
 
 def create_model(

@@ -138,7 +138,7 @@ class RISChannelDataset(Dataset):
                  grid_cols: int = 8, use_deepmimo: bool = False,
                  deepmimo_scenario: str = 'O1_28',
                  deepmimo_data_dir: str = 'data/deepmimo',
-                 blockage_db: float = 0.0,
+                 direct_link_blockage_db: float = 30.0,
                  element_gain_enabled: bool = False):
         """Generate a synthetic RIS dataset using the configured channel model.
 
@@ -163,11 +163,10 @@ class RISChannelDataset(Dataset):
             use_deepmimo: If ``True``, use DeepMIMO ray-tracing data instead of
                 the synthetic Rician model (requires DeepMIMOv3 package).
             deepmimo_scenario: DeepMIMO scenario name (e.g. ``'O1_28'``).
+            direct_link_blockage_db: Excess attenuation on the obstructed
+                BS->user direct path, in dB. See RicianChannel.
             deepmimo_data_dir: Path to the directory containing DeepMIMO
                 scenario data files.
-            blockage_db: Attenuation in dB applied to the direct BS-user link.
-                Non-zero values model the obstructed-direct-path deployment that
-                motivates an RIS in the first place.
             element_gain_enabled: Apply the per-element aperture gain to each
                 cascaded hop.
 
@@ -206,7 +205,7 @@ class RISChannelDataset(Dataset):
             use_deepmimo=use_deepmimo,
             deepmimo_scenario=deepmimo_scenario,
             deepmimo_data_dir=deepmimo_data_dir,
-            blockage_db=blockage_db,
+            direct_link_blockage_db=direct_link_blockage_db,
             element_gain_enabled=element_gain_enabled,
         )
         expected = expected_feature_dim(num_ris_elements, num_users)
@@ -334,7 +333,7 @@ def create_non_iid_datasets(config, num_tiles: int) -> tuple[list, list]:
             scenario=getattr(config, 'CHANNEL_SCENARIO', 'LoS'),
             grid_rows=config.PIXEL_GRID_ROWS,
             grid_cols=config.PIXEL_GRID_COLS,
-            blockage_db=getattr(config, 'DIRECT_LINK_BLOCKAGE_DB', 0.0),
+            direct_link_blockage_db=getattr(config, 'DIRECT_LINK_BLOCKAGE_DB', 30.0),
             element_gain_enabled=getattr(config, 'RIS_ELEMENT_GAIN_ENABLED', False),
         )
         datasets = [
@@ -374,7 +373,7 @@ def create_non_iid_datasets(config, num_tiles: int) -> tuple[list, list]:
             use_deepmimo=getattr(config, 'USE_DEEPMIMO', False),
             deepmimo_scenario=getattr(config, 'DEEPMIMO_SCENARIO', 'O1_28'),
             deepmimo_data_dir=getattr(config, 'DEEPMIMO_DATA_DIR', 'data/deepmimo'),
-            blockage_db=getattr(config, 'DIRECT_LINK_BLOCKAGE_DB', 0.0),
+            direct_link_blockage_db=getattr(config, 'DIRECT_LINK_BLOCKAGE_DB', 30.0),
             element_gain_enabled=getattr(config, 'RIS_ELEMENT_GAIN_ENABLED', False),
         )
         datasets.append(dataset)
@@ -413,7 +412,7 @@ def create_test_dataset(config) -> "RISChannelDataset":
         use_deepmimo=getattr(config, 'USE_DEEPMIMO', False),
         deepmimo_scenario=getattr(config, 'DEEPMIMO_SCENARIO', 'O1_28'),
         deepmimo_data_dir=getattr(config, 'DEEPMIMO_DATA_DIR', 'data/deepmimo'),
-        blockage_db=getattr(config, 'DIRECT_LINK_BLOCKAGE_DB', 0.0),
+        direct_link_blockage_db=getattr(config, 'DIRECT_LINK_BLOCKAGE_DB', 30.0),
         element_gain_enabled=getattr(config, 'RIS_ELEMENT_GAIN_ENABLED', False),
     )
 
@@ -473,7 +472,7 @@ def create_system_test_dataset(config, tile_positions) -> list:
         scenario=getattr(config, 'CHANNEL_SCENARIO', 'LoS'),
         grid_rows=config.PIXEL_GRID_ROWS,
         grid_cols=config.PIXEL_GRID_COLS,
-        blockage_db=getattr(config, 'DIRECT_LINK_BLOCKAGE_DB', 0.0),
+        direct_link_blockage_db=getattr(config, 'DIRECT_LINK_BLOCKAGE_DB', 30.0),
         element_gain_enabled=getattr(config, 'RIS_ELEMENT_GAIN_ENABLED', False),
     )
     return [

@@ -91,7 +91,7 @@ class RandomSearch:
         self,
         channel_samples: list[dict],
         noise_power: float
-    ) -> tuple[np.ndarray, dict]:
+    ) -> dict:
         """
         Run random search on multiple channel realizations.
         
@@ -125,7 +125,7 @@ class RandomSearch:
             'total_trials': self.num_trials * num_samples
         }
         
-        return all_phases, metrics
+        return metrics
 
 
 def random_ris_single_trial(

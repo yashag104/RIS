@@ -47,8 +47,8 @@ class ADMMOptimizer:
         self,
         num_elements: int,
         max_iterations: int = 300,
-        rho: float = 1.0,
-        rho_min: float = 0.1,
+        rho: float = 2.0,
+        rho_min: float = 2.0,
         rho_max: float = 100.0,
         convergence_threshold: float = 1e-5,
         adaptive_rho: bool = True,
@@ -60,9 +60,11 @@ class ADMMOptimizer:
         Args:
             num_elements: Number of RIS reflecting elements
             max_iterations: Maximum ADMM iterations
-            rho: Initial penalty parameter
-            rho_min: Minimum penalty parameter
-            rho_max: Maximum penalty parameter
+            rho: Initial penalty parameter, as a multiple of ||a||^2 where a is
+                the cascaded channel. Must be >= 2 for the maximisation step to
+                stay positive definite.
+            rho_min: Minimum penalty parameter, same units as rho
+            rho_max: Maximum penalty parameter, same units as rho
             convergence_threshold: Primal/dual residual threshold
             adaptive_rho: Whether to auto-tune rho via residual balancing
             mu_adapt: Threshold ratio for rho adaptation
@@ -124,11 +126,24 @@ class ADMMOptimizer:
         
         z = theta.copy()
         u = np.zeros(N, dtype=complex)  # Scaled dual variable
-        rho = self.rho
         
         # Precompute: H = a a^H is rank-1, so (H + ρI)^{-1} has closed form
         # via Sherman-Morrison: (ρI + a a^H)^{-1} = (1/ρ)(I - a a^H / (ρ + ||a||^2))
         a_norm_sq = np.dot(a, np.conj(a)).real
+
+        # The penalty parameter has the units of the objective, and for these
+        # cascaded mmWave channels ||a||^2 is of order 1e-20. A fixed rho = 1
+        # therefore swamps the data term completely: the theta-update collapses
+        # to theta = z - u, no channel information enters, and ADMM returns
+        # something indistinguishable from its random initialisation. Scale rho
+        # to the problem instead. The maximisation also requires
+        # rho > ||a||^2 for (rho*I - conj(a) a^T) to stay positive definite;
+        # empirically rho >= 2 ||a||^2 recovers the exact optimum.
+        rho_scale = max(self.rho, 2.0)
+        rho = rho_scale * a_norm_sq if a_norm_sq > 0 else max(self.rho, 2.0)
+        rho_min = self.rho_min * a_norm_sq if a_norm_sq > 0 else self.rho_min
+        rho_max = self.rho_max * a_norm_sq if a_norm_sq > 0 else self.rho_max
+        rho_min = max(rho_min, 2.0 * a_norm_sq)
         
         obj_history = []
         primal_residuals = []
@@ -144,11 +159,19 @@ class ADMMOptimizer:
             # This is complex, so we use an iterative approach on θ:
             # (a a^H + ρ I) θ = a * conj(h_d) + ρ(z - u)
             
-            rhs = a * np.conj(h_d) + rho * (z - u)
-            
-            # Sherman-Morrison inverse: (ρI + a a^H)^{-1} b = (1/ρ)(b - a(a^H b)/(ρ + ||a||^2))
-            a_dot_rhs = np.dot(np.conj(a), rhs)
-            theta = (rhs - a * a_dot_rhs / (rho + a_norm_sq)) / rho
+            # h_eff = h_d + a^T theta, so d|h_eff|^2/d(theta*) = conj(a) * h_eff.
+            # Stationarity of the augmented Lagrangian for the MAXIMISATION is
+            #     (rho I - conj(a) a^T) theta = conj(a) h_d + rho (z - u)
+            # The previous form used (rho I + a a^H) with rhs a*conj(h_d): both
+            # the sign of the rank-one term and the conjugation were wrong, so
+            # it solved a minimisation of |h_eff|^2 and drove the phases away
+            # from the optimum.
+            rhs = np.conj(a) * h_d + rho * (z - u)
+
+            # Sherman-Morrison for the rank-one update:
+            #   (rho I - conj(a) a^T)^{-1} b = (1/rho)(b + conj(a)(a^T b)/(rho - ||a||^2))
+            a_dot_rhs = np.dot(a, rhs)
+            theta = (rhs + np.conj(a) * a_dot_rhs / (rho - a_norm_sq)) / rho
             
             # === z-update: project onto unit-modulus ===
             # min (ρ/2)||θ + u - z||^2  s.t. |z_n| = 1
@@ -184,9 +207,7 @@ class ADMMOptimizer:
                 elif dual_res > self.mu_adapt * primal_res:
                     rho /= self.tau_adapt
                     u *= self.tau_adapt
-                rho = np.clip(rho, self.rho_min, self.rho_max)
-                # Update precomputation
-                a_norm_sq = np.dot(a, np.conj(a)).real
+                rho = np.clip(rho, rho_min, rho_max)
             
             # === Convergence check ===
             eps_pri = np.sqrt(N) * 1e-4 + self.convergence_threshold * max(

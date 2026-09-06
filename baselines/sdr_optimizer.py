@@ -134,11 +134,23 @@ class SDROptimizer:
         
         N = self.num_elements
         Q = self._construct_q_matrix(h_direct, h_ris_user, h_bs_ris)
-        
+
+        # Normalise Q before handing it to the solver. The cascaded mmWave
+        # channel has |a| of order 1e-10, so the entries of Q = a a^H are around
+        # 1e-20 and the whole objective sits far below the solver's default
+        # tolerance (~1e-8): SCS returns numerical noise rather than the
+        # optimum. The feasible set (unit-diagonal PSD) does not depend on the
+        # scale and the maximiser is invariant under it, so we solve on the
+        # normalised problem and undo the scaling on the reported bound.
+        q_scale = float(np.max(np.abs(Q)))
+        if q_scale <= 0 or not np.isfinite(q_scale):
+            q_scale = 1.0
+        Q_scaled = Q / q_scale
+
         # SDR: max trace(Q @ V) s.t. V_nn = 1, V >> 0
         V = cp.Variable((N + 1, N + 1), hermitian=True)
-        
-        objective = cp.Maximize(cp.real(cp.trace(Q @ V)))
+
+        objective = cp.Maximize(cp.real(cp.trace(Q_scaled @ V)))
         constraints = [V >> 0]  # PSD constraint
         
         # Unit-modulus: diagonal elements = 1
@@ -211,7 +223,8 @@ class SDROptimizer:
         self.solve_times.append(solve_time)
         
         # Upper bound from SDR relaxation
-        sdr_upper_bound = 10 * np.log10(max(problem.value / noise_power, 1e-20))
+        sdr_upper_bound = 10 * np.log10(
+            max(problem.value * q_scale / noise_power, 1e-20))
         
         return self._build_result(best_phases, h_direct, h_ris_user,
                                  h_bs_ris, noise_power, solve_time,

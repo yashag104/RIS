@@ -18,6 +18,30 @@ from torch.utils.data import ConcatDataset, DataLoader
 from utils.logger import logger
 
 
+
+def circular_loss(components, target):
+    """Training objective on the unit circle, identical to the federated clients'.
+
+    Args:
+        components: Model output ``(batch, num_elements, 2)`` holding the
+            unnormalised (cos, sin) pair per element.
+        target: Target angles in radians, ``(batch, num_elements)``.
+
+    The centralized baseline must optimise exactly what the federated clients
+    optimise, otherwise the FL-vs-centralized comparison measures the choice of
+    loss rather than the choice of training scheme. Plain MSE on raw angles,
+    which this file previously used, is not even wrap-aware.
+    """
+    target_cs = torch.stack([torch.cos(target), torch.sin(target)], dim=-1)
+    return torch.mean((components - target_cs) ** 2)
+
+
+def circular_mse(pred_angles, target):
+    """Circular MSE in radians squared, for reporting."""
+    diff = torch.remainder(pred_angles - target + torch.pi, 2 * torch.pi) - torch.pi
+    return torch.mean(diff ** 2)
+
+
 class CentralizedRIS:
     """
     Centralized training baseline.
@@ -78,7 +102,6 @@ class CentralizedRIS:
         
         # Setup optimizer and loss
         optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
-        criterion = nn.MSELoss()
         
         # Training loop
         self.model.train()
@@ -92,10 +115,11 @@ class CentralizedRIS:
                 features = features.to(self.device)
                 targets = targets.to(self.device)
                 
-                # Forward pass
+                # Forward pass on the circular (cos, sin) representation,
+                # matching the federated clients exactly.
                 optimizer.zero_grad()
-                predictions = self.model(features)
-                loss = criterion(predictions, targets)
+                components = self.model.forward_components(features)
+                loss = circular_loss(components, targets)
                 
                 # Backward pass
                 loss.backward()
@@ -138,7 +162,6 @@ class CentralizedRIS:
             eval_metrics: Evaluation metrics
         """
         self.model.eval()
-        criterion = nn.MSELoss()
         
         total_loss = 0.0
         all_predictions = []
@@ -149,8 +172,8 @@ class CentralizedRIS:
                 features = features.to(self.device)
                 targets = targets.to(self.device)
                 
-                predictions = self.model(features)
-                loss = criterion(predictions, targets)
+                predictions = self.model(features)  # angles, via atan2
+                loss = circular_mse(predictions, targets)
                 
                 total_loss += loss.item()
                 all_predictions.append(predictions.cpu().numpy())
@@ -234,8 +257,7 @@ def compare_centralized_vs_federated(
     Returns:
         comparison: Comparison metrics
     """
-    # Evaluate both models
-    criterion = nn.MSELoss()
+    # Evaluate both models on the same circular metric
     
     def evaluate_model(model):
         model.eval()
@@ -244,8 +266,8 @@ def compare_centralized_vs_federated(
             for features, targets in test_loader:
                 features = features.to(config.DEVICE)
                 targets = targets.to(config.DEVICE)
-                predictions = model(features)
-                loss = criterion(predictions, targets)
+                predictions = model(features)  # angles, via atan2
+                loss = circular_mse(predictions, targets)
                 total_loss += loss.item()
         return total_loss / len(test_loader)
     

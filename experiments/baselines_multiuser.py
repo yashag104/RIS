@@ -454,22 +454,23 @@ class BaselineMultiuserExperimentsMixin:
             for i in range(num_eval_samples):
                 metadata = test_dataset.metadata[i]
 
-                # Get channels for all users.
-                # H_ris is the RIS->user hop only; the reflected path a phase shift
-                # actually controls is the CASCADE h_ris_user * h_bs_ris. Omitting the
-                # BS->RIS hop overstates the reflected path by orders of magnitude and
-                # disagrees with the single-user evaluation in client.py.
+                # Get channels for all users. metadata['H_ris'] is the
+                # RIS->user hop only; the channel the RIS actually controls is
+                # the BS->RIS->user cascade, so the BS->RIS hop has to be
+                # included. Omitting it drops one path loss and inflates the
+                # reflected path by tens of dB.
                 H_direct = metadata['H_direct'][:num_users]  # [num_users] complex
                 h_bs_ris = metadata['h_bs_ris']              # [N] complex
-                H_ris = metadata['H_ris'][:num_users] * h_bs_ris  # [num_users, N] cascade
+                H_casc = metadata['H_ris'][:num_users] * h_bs_ris[None, :]
 
-                # Classical gradient-ascent optimizer: an upper reference, NOT the
+                # One shared RIS configuration must serve every user at once.
+                # This is the classical optimizer: a reference bound, NOT the
                 # federated model. Reported separately so the two are never confused.
                 optimal_phases = self._optimize_multiuser_phases(
-                    H_direct, H_ris, num_users, noise_power, tx_power
+                    H_direct, H_casc, num_users, noise_power, tx_power
                 )
-                user_snrs, user_rates = self._multiuser_sinr(
-                    H_direct, H_ris, optimal_phases, num_users, noise_power, tx_power
+                user_snrs, user_rates = self._multiuser_rates(
+                    H_direct, H_casc, optimal_phases, num_users, noise_power, tx_power
                 )
 
                 per_user_snrs.append(user_snrs)
@@ -481,8 +482,8 @@ class BaselineMultiuserExperimentsMixin:
                 # the classical optimizer, so they said nothing about what FL learned.
                 if fl_phase_fn is not None:
                     fl_phases = fl_phase_fn(i)
-                    fl_snrs, fl_rates = self._multiuser_sinr(
-                        H_direct, H_ris, fl_phases, num_users, noise_power, tx_power
+                    fl_snrs, fl_rates = self._multiuser_rates(
+                        H_direct, H_casc, fl_phases, num_users, noise_power, tx_power
                     )
                     fl_per_user_snrs.append(fl_snrs)
                     fl_sum_rates.append(np.sum(fl_rates))
@@ -533,36 +534,35 @@ class BaselineMultiuserExperimentsMixin:
 
         return results
 
-    # Fraction of another user's received power that leaks into this user's
-    # SINR. Used by BOTH the optimizer and the evaluation below -- if the two
-    # disagree, the optimizer maximizes a quantity that is never measured.
-    CROSS_TALK_FACTOR = 0.1
+    @staticmethod
+    def _multiuser_rates(H_direct, H_casc, phases, num_users, noise_power, tx_power):
+        """Per-user SNR (dB) and achieved rate under orthogonal time sharing.
 
-    def _multiuser_sinr(self, H_direct, H_ris, phases, num_users,
-                        noise_power, tx_power):
-        """Per-user SINR (dB) and rate under the shared cross-talk model.
+        A single-antenna BS with one shared RIS serves users on orthogonal
+        resources, so there is no co-channel interference term. An earlier
+        version added a fabricated 0.1 cross-talk factor, which by itself
+        produced a ~40 dB cliff between one and two users. The genuine
+        multi-user costs are that one phase configuration cannot align to every
+        user at once, and that each user receives only 1/U of the airtime.
+
+        Shared by the classical optimizer and the federated model so the two are
+        always scored by the identical rule.
 
         Args:
-            H_direct: Direct BS->user channel, [num_users] complex.
-            H_ris: CASCADE channel h_ris_user * h_bs_ris, [num_users, N] complex.
-            phases: RIS phase shifts to apply, [N].
+            H_direct: Direct BS->user channel, ``[num_users]`` complex.
+            H_casc: Cascade ``h_ris_user * h_bs_ris``, ``[num_users, N]`` complex.
+            phases: RIS phase shifts to apply, ``[N]``.
 
         Returns:
-            (snr_db_list, rate_list), both length ``num_users``.
+            ``(snr_db_list, rate_list)``, both length ``num_users``.
         """
         reflect = np.exp(1j * phases)
-        powers = np.array([
-            tx_power * np.abs(H_direct[u] + np.sum(H_ris[u] * reflect)) ** 2
-            for u in range(num_users)
-        ])
-        total_power = np.sum(powers)
-
         snr_db, rates = [], []
         for u in range(num_users):
-            interference = self.CROSS_TALK_FACTOR * (total_power - powers[u])
-            sinr = powers[u] / (noise_power + interference)
-            snr_db.append(10 * np.log10(sinr))
-            rates.append(np.log2(1 + sinr))
+            h_total = H_direct[u] + np.sum(H_casc[u] * reflect)
+            snr = tx_power * np.abs(h_total) ** 2 / noise_power
+            snr_db.append(10 * np.log10(max(snr, 1e-20)))
+            rates.append(np.log2(1 + snr) / num_users)
         return snr_db, rates
 
     @staticmethod
@@ -607,72 +607,64 @@ class BaselineMultiuserExperimentsMixin:
 
         return provider
 
-    def _optimize_multiuser_phases(self, H_direct, H_ris, num_users,
-                                     noise_power, tx_power, num_iterations=50):
+    def _optimize_multiuser_phases(self, H_direct, H_casc, num_users,
+                                     noise_power, tx_power, num_iterations=100):
         """
-        Optimize RIS phases for multi-user sum-rate maximization.
+        Optimize one shared RIS phase configuration for weighted sum-rate.
 
-        Uses gradient ascent on weighted sum-rate under the same cross-talk
-        interference model the evaluation applies.
+        Args:
+            H_direct: Direct BS->user channels, shape [num_users]
+            H_casc: Cascaded BS->RIS->user channels, shape [num_users, N]
+
+        Uses normalised gradient ascent with backtracking, initialised at the
+        single-user optimum so the search starts on a useful part of the
+        sum-rate surface.
         """
-        num_elements = H_ris.shape[1]
-        phases = np.random.uniform(0, 2 * np.pi, num_elements)
-
-        # Largest phase update on the first step, in radians, decayed over the run.
-        #
-        # A fixed learning rate cannot work here. The gradient of the sum-rate
-        # w.r.t. a phase scales with absolute received power, which at these path
-        # losses is ~1e-18, so the previous `phases += 0.05 * gradient` moved the
-        # phases by ~1e-6 radians per step: over 300 iterations the objective went
-        # from 0.002081 to 0.002085 while a plain single-user MRC solution scored
-        # 0.010603. The "optimized" phases this returned were indistinguishable
-        # from the random vector it started at.
-        #
-        # Normalizing by the gradient's max magnitude makes the step size
-        # scale-invariant, so the same schedule works at any path loss.
-        step0 = 0.5
+        num_elements = H_casc.shape[1]
         weights = np.ones(num_users) / num_users  # Equal weights
 
-        for iteration in range(num_iterations):
-            # Received amplitude and power for every user under the current phases
-            h_totals = np.array([
-                H_direct[u] + np.sum(H_ris[u] * np.exp(1j * phases))
-                for u in range(num_users)
-            ])
-            powers = tx_power * np.abs(h_totals) ** 2
-            total_power = np.sum(powers)
+        # Initialise by aligning to user 0, the single-user optimum. Starting
+        # from random phases leaves the search in a flat region of the sum-rate
+        # surface and the run finishes no better than random.
+        phases = np.mod(np.angle(H_direct[0]) - np.angle(H_casc[0]), 2 * np.pi)
 
-            # d|h_u|^2/dtheta_n, vectorized over elements
-            # = 2 * Re( conj(h_u) * j * H_ris[u,n] * exp(j*theta_n) )
-            dpower = np.stack([
-                2 * tx_power * np.real(
-                    np.conj(h_totals[u]) * 1j * H_ris[u] * np.exp(1j * phases)
-                )
-                for u in range(num_users)
-            ])
+        def sum_rate(theta):
+            total = 0.0
+            for u in range(num_users):
+                h = H_direct[u] + np.sum(H_casc[u] * np.exp(1j * theta))
+                total += weights[u] * np.log2(
+                    1 + tx_power * np.abs(h) ** 2 / noise_power)
+            return total
 
+        best_phases, best_rate = phases.copy(), sum_rate(phases)
+        step = 0.5  # radians; scale-free because the gradient is normalised
+
+        for _ in range(num_iterations):
             gradient = np.zeros(num_elements)
             for u in range(num_users):
-                # Same SINR the evaluation computes: every other user's received
-                # power leaks in at CROSS_TALK_FACTOR.
-                interference = self.CROSS_TALK_FACTOR * (total_power - powers[u])
-                denom = noise_power + interference
-                sinr = powers[u] / denom
+                h_total = H_direct[u] + np.sum(H_casc[u] * np.exp(1j * phases))
+                snr = tx_power * np.abs(h_total) ** 2 / noise_power
+                # d|h|^2/dtheta_n = 2 Re{conj(h) * j * a_n * exp(j theta_n)}
+                d_abs2 = 2 * np.real(
+                    np.conj(h_total) * 1j * H_casc[u] * np.exp(1j * phases))
+                grad_rate = (tx_power * d_abs2 / noise_power) / ((1 + snr) * np.log(2))
+                gradient += weights[u] * grad_rate
 
-                # Quotient rule -- interference depends on the phases too, so the
-                # numerator-only gradient used previously pointed the wrong way
-                # whenever cross-talk was significant.
-                d_interference = self.CROSS_TALK_FACTOR * (np.sum(dpower, axis=0) - dpower[u])
-                d_sinr = (dpower[u] * denom - powers[u] * d_interference) / denom ** 2
-
-                gradient += weights[u] * d_sinr / ((1 + sinr) * np.log(2))
-
-            # Scale-invariant ascent: normalize by the largest component so the
-            # biggest phase move is `step` radians, annealing towards the end.
-            peak = np.max(np.abs(gradient))
-            if peak <= 0 or not np.isfinite(peak):
+            # Normalise: the raw gradient scales with the channel power, which
+            # is around 1e-20 here, so an absolute learning rate moves the
+            # phases not at all. A unit-norm step makes progress independent of
+            # that scale.
+            norm = np.linalg.norm(gradient)
+            if norm < 1e-30:
                 break
-            step = step0 * (1.0 - iteration / max(num_iterations, 1))
-            phases = np.mod(phases + step * gradient / peak, 2 * np.pi)
+            phases = np.mod(phases + step * gradient / norm, 2 * np.pi)
 
-        return phases
+            rate = sum_rate(phases)
+            if rate > best_rate:
+                best_phases, best_rate = phases.copy(), rate
+            else:
+                step *= 0.7  # backtrack when the step overshoots
+                if step < 1e-3:
+                    break
+
+        return best_phases

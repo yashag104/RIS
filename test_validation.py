@@ -353,14 +353,22 @@ def test_communication_volume():
     print(f"  Latency < 100 ms: {'PASS' if ok else 'FAIL'}")
     passed &= ok
 
-    # Utilization check
+    # Utilization check, against the configured FL round period rather than an
+    # implicit 1 s. Utilization is reported unclamped, so a value above 100%
+    # means the traffic does not fit inside a round and the configuration is
+    # infeasible; that must fail the check rather than be silently truncated.
+    round_period_s = Config.FL_ROUND_PERIOD_S
     total_transmission_time = (total * 8) / (Config.NOC_BANDWIDTH_GBPS * 1e9)
-    total_available_time = Config.FL_ROUNDS * 1.0
+    total_available_time = Config.FL_ROUNDS * round_period_s
     utilization = total_transmission_time / total_available_time
+    print(f"  FL round period: {round_period_s * 1000:.0f} ms")
     print(f"  Bandwidth utilization: {utilization * 100:.2f}%")
+    print(f"  Minimum feasible round period: "
+          f"{total_transmission_time / Config.FL_ROUNDS * 1000:.2f} ms")
 
-    ok = utilization < 0.8  # Under 80%
-    print(f"  Utilization < 80%: {'PASS' if ok else 'FAIL'}")
+    ok = utilization < Config.TARGET_NOC_UTILIZATION
+    print(f"  Utilization < {Config.TARGET_NOC_UTILIZATION * 100:.0f}%: "
+          f"{'PASS' if ok else 'FAIL'}")
     passed &= ok
 
     print(f"\n  Overall: {'PASS' if passed else 'FAIL'}")

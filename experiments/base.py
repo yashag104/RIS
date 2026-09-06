@@ -2,6 +2,7 @@
 
 """Shared imports for the RIS experiment package."""
 
+import datetime
 import json
 import os
 
@@ -98,6 +99,7 @@ class ExperimentBase:
 
             result = {
                 'convergence_round': convergence.get('converged_round', self.config.FL_ROUNDS),
+                'converged': convergence.get('converged', False),
                 'final_loss': final_eval['loss'],
                 'final_snr': final_snr['snr_optimized_ris_mean'],
                 'snr_gain': final_snr['snr_gain_over_no_ris'],
@@ -423,25 +425,53 @@ class ExperimentBase:
         }
 
     def _calculate_noc_metrics(self, result):
-        """Calculate Network-on-Chip metrics (Model-based)"""
+        """Network-on-Chip metrics from the cycle-level NoC contention model.
+
+        Latency, energy and link utilization come from ``NoCSimulator``, which
+        routes every model transfer over the configured topology and prices the
+        round by its most heavily loaded link. Dynamic power is the simulated
+        interconnect energy divided by the simulated aggregation time, so it is
+        derived from the traffic rather than fitted to it.
+        """
+        from src.noc_simulator import NoCSimulator
+
         num_tiles = result.get('num_tiles', self.config.NUM_TILES)
+        num_rounds = max(len(result.get('round_metrics', [])), 1)
         comm_kb = result['total_communication_kb']
-        
-        # Updated power model parameters
+
+        # Bytes actually exchanged per FL round (both directions, all tiles)
+        bytes_per_round = comm_kb * 1024 / num_rounds
+        model_size_bytes = max(int(bytes_per_round / max(2 * num_tiles, 1)), 1)
+
+        sim = NoCSimulator(
+            num_tiles=num_tiles,
+            topology=self.config.NOC_TOPOLOGY,
+            bandwidth_gbps=self.config.NOC_BANDWIDTH_GBPS,
+        )
+        round_noc = sim.simulate_fl_round(model_size_bytes, self.config.NOC_PROTOCOL)
+
+        avg_latency_us = round_noc['latency_us']
+        aggregation_time_s = round_noc['latency_ns'] * 1e-9
+
+        # Interconnect switching power over the aggregation window
+        dynamic_power_mw = (
+            round_noc['energy_j'] / aggregation_time_s * 1000
+            if aggregation_time_s > 0 else 0.0
+        )
         static_power_mw = num_tiles * self.config.IDLE_POWER_TILE * 1000
-        dynamic_power_mw = comm_kb * 0.05 # 0.05 mW per KB (approx)
         total_power_mw = static_power_mw + dynamic_power_mw
-        
-        # Latency model
-        base_latency_us = 5
-        congestion_factor = 1 + (num_tiles / 16.0) ** 2
-        avg_latency_us = base_latency_us * congestion_factor
-        
+
         return {
             'total_power_mw': total_power_mw,
             'static_power_mw': static_power_mw,
             'dynamic_power_mw': dynamic_power_mw,
-            'avg_latency_us': avg_latency_us
+            'avg_latency_us': avg_latency_us,
+            'noc_utilization': round_noc['utilization'],
+            'noc_congestion_ratio': round_noc['congestion_ratio'],
+            'noc_energy_nj_per_round': round_noc['energy_nj'],
+            'noc_aggregate_throughput_gbps': round_noc['aggregate_throughput_gbps'],
+            'noc_topology': self.config.NOC_TOPOLOGY,
+            'noc_protocol': self.config.NOC_PROTOCOL,
         }
 
     def _save_experiment_results(self, experiment_name, results):
@@ -478,11 +508,58 @@ class ExperimentBase:
             else:
                 return str(obj)  # Fallback: convert to string
 
-        clean_results = make_serializable(results)
+        # Per-sample prediction dumps are kept in memory for plotting but must
+        # not be persisted: they are (test_samples x elements) floats for every
+        # round of every configuration, which is what made these result files
+        # reach hundreds of megabytes. Nothing reads them back from disk.
+        BULK_KEYS = ('predictions', 'labels', 'global_weights')
+
+        def prune_bulk(obj):
+            if isinstance(obj, dict):
+                return {k: prune_bulk(v) for k, v in obj.items() if k not in BULK_KEYS}
+            if isinstance(obj, list):
+                return [prune_bulk(v) for v in obj]
+            return obj
+
+        clean_results = prune_bulk(make_serializable(results))
+
+        # Record the settings the run actually used. Without this a reduced
+        # smoke-test run (--quick drops to 5 rounds and 200 samples) produces
+        # files indistinguishable from a full run, and its figures can reach a
+        # paper unnoticed. is_reduced_run marks anything below the configured
+        # defaults so the provenance is explicit in the artifact itself.
+        cfg = self.config
+        provenance = {
+            'fl_rounds': cfg.FL_ROUNDS,
+            'local_epochs': cfg.LOCAL_EPOCHS,
+            'train_samples': cfg.TRAIN_SAMPLES,
+            'test_samples': cfg.TEST_SAMPLES,
+            'num_tiles': cfg.NUM_TILES,
+            'num_users': cfg.NUM_USERS,
+            'elements_per_tile': cfg.ELEMENTS_PER_TILE,
+            'model_type': cfg.MODEL_TYPE,
+            'aggregation_method': getattr(cfg, 'AGGREGATION_METHOD', None),
+            'noc_topology': cfg.NOC_TOPOLOGY,
+            'noc_protocol': cfg.NOC_PROTOCOL,
+            'direct_link_blockage_db': getattr(cfg, 'DIRECT_LINK_BLOCKAGE_DB', None),
+            'random_seed': getattr(cfg, 'RANDOM_SEED', None),
+            'is_reduced_run': bool(
+                cfg.FL_ROUNDS < 20 or cfg.TRAIN_SAMPLES < 2000
+            ),
+            'saved_at': datetime.datetime.now().isoformat(timespec='seconds'),
+        }
+
+        payload = {'provenance': provenance, 'results': clean_results}
 
         with open(save_path, 'w', encoding='utf-8') as f:
-            json.dump(clean_results, f, indent=4, cls=NumpyEncoder)
+            json.dump(payload, f, indent=4, cls=NumpyEncoder)
 
+        if provenance['is_reduced_run']:
+            self.logger.warning(
+                f"  {experiment_name}: REDUCED RUN "
+                f"({cfg.FL_ROUNDS} rounds, {cfg.TRAIN_SAMPLES} train samples). "
+                "Not suitable for publication figures."
+            )
         self.logger.info(f"\n[OK] Results saved to {save_path}")
 
 

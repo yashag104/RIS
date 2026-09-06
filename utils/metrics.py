@@ -251,7 +251,8 @@ def calculate_communication_efficiency(bytes_transmitted: int, performance_gain:
     return metrics
 
 
-def calculate_noc_metrics(bytes_transmitted: int, bandwidth_gbps: float, num_rounds: int) -> dict[str, float]:
+def calculate_noc_metrics(bytes_transmitted: int, bandwidth_gbps: float, num_rounds: int,
+                          round_period_s: float = 0.1) -> dict[str, float]:
     """
     Calculate Network-on-Chip metrics
 
@@ -259,9 +260,14 @@ def calculate_noc_metrics(bytes_transmitted: int, bandwidth_gbps: float, num_rou
         bytes_transmitted: Total bytes
         bandwidth_gbps: NoC bandwidth in Gbps
         num_rounds: Number of communication rounds
+        round_period_s: Wall-clock duration of one FL round. Utilization is the
+            fraction of this period spent transmitting, so it has to be stated
+            explicitly. Defaults to Config.FL_ROUND_PERIOD_S (100 ms).
 
     Returns:
-        NoC performance metrics
+        NoC performance metrics. ``bandwidth_utilization`` is reported
+        unclamped; a value above 1.0 means the traffic does not fit inside the
+        configured round period, which ``is_oversubscribed`` flags.
     """
     # Convert bandwidth to bytes/sec
     bandwidth_bytes_per_sec = bandwidth_gbps * 1e9 / 8
@@ -270,16 +276,19 @@ def calculate_noc_metrics(bytes_transmitted: int, bandwidth_gbps: float, num_rou
     avg_bytes_per_round = bytes_transmitted / num_rounds if num_rounds > 0 else 0
     avg_latency_sec = avg_bytes_per_round / bandwidth_bytes_per_sec
 
-    # Utilization
-    total_time = num_rounds * 1.0  # Assume 1 sec per round
+    # Utilization against the explicitly configured round period
+    total_time = num_rounds * round_period_s
     transmission_time = bytes_transmitted / bandwidth_bytes_per_sec
-    utilization = min(transmission_time / total_time, 1.0) if total_time > 0 else 0
+    utilization = transmission_time / total_time if total_time > 0 else 0
 
     metrics = {
         'avg_packet_latency_sec': avg_latency_sec,
         'avg_packet_latency_ms': avg_latency_sec * 1000,
         'avg_packet_latency_us': avg_latency_sec * 1e6,
         'bandwidth_utilization': utilization,
+        'is_oversubscribed': utilization > 1.0,
+        'fl_round_period_s': round_period_s,
+        'min_feasible_round_period_s': avg_latency_sec,
         'peak_bandwidth_gbps': bandwidth_gbps,
         'avg_throughput_gbps': (bytes_transmitted * 8) / (total_time * 1e9) if total_time > 0 else 0
     }
@@ -416,7 +425,8 @@ def create_comparison_table(fl_metrics: dict, baselines: dict) -> dict[str, list
 
 # ============ NoC Topology Metrics ============
 
-def calculate_noc_topology_metrics(num_tiles: int, topology: str, bytes_transmitted: int, bandwidth_gbps: float, num_rounds: int) -> dict[str, Any]:
+def calculate_noc_topology_metrics(num_tiles: int, topology: str, bytes_transmitted: int, bandwidth_gbps: float, num_rounds: int,
+                                   round_period_s: float = 0.1) -> dict[str, Any]:
     """
     Calculate NoC metrics for different topologies.
     
@@ -474,10 +484,11 @@ def calculate_noc_topology_metrics(num_tiles: int, topology: str, bytes_transmit
     hop_latency = avg_hops * 1e-9  # 1ns per hop (typical NoC)
     total_latency_sec = base_latency_sec + hop_latency
     
-    # Utilization
+    # Utilization against the explicitly configured round period, unclamped so
+    # that an infeasible (oversubscribed) configuration stays visible.
     total_transmission_time = bytes_transmitted / effective_bandwidth if effective_bandwidth > 0 else np.inf
-    total_time = num_rounds * 1.0  # 1 sec per round assumption
-    utilization = min(total_transmission_time / total_time, 1.0) if total_time > 0 else 0
+    total_time = num_rounds * round_period_s
+    utilization = total_transmission_time / total_time if total_time > 0 else 0
     
     # Power consumption (topology-dependent)
     power_factors = {
@@ -500,6 +511,9 @@ def calculate_noc_topology_metrics(num_tiles: int, topology: str, bytes_transmit
         'avg_latency_us': total_latency_sec * 1e6,
         'bandwidth_utilization': utilization,
         'is_congested': utilization > 0.8,
+        'is_oversubscribed': utilization > 1.0,
+        'fl_round_period_s': round_period_s,
+        'min_feasible_round_period_s': total_transmission_time / max(num_rounds, 1),
         'power_mw': topology_power_mw,
         'power_w': topology_power_mw / 1000
     }
@@ -507,7 +521,8 @@ def calculate_noc_topology_metrics(num_tiles: int, topology: str, bytes_transmit
     return metrics
 
 
-def compare_all_topologies(num_tiles: int, bytes_transmitted: int, bandwidth_gbps: float, num_rounds: int) -> dict[str, Any]:
+def compare_all_topologies(num_tiles: int, bytes_transmitted: int, bandwidth_gbps: float, num_rounds: int,
+                           round_period_s: float = 0.1) -> dict[str, Any]:
     """
     Compare all NoC topologies and rank them.
 
@@ -524,7 +539,7 @@ def compare_all_topologies(num_tiles: int, bytes_transmitted: int, bandwidth_gbp
     
     for topology in topologies:
         results[topology] = calculate_noc_topology_metrics(
-            num_tiles, topology, bytes_transmitted, bandwidth_gbps, num_rounds
+            num_tiles, topology, bytes_transmitted, bandwidth_gbps, num_rounds, round_period_s
         )
     
     # Rank by latency (lower is better)
