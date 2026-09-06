@@ -359,13 +359,24 @@ class BaselineMultiuserExperimentsMixin:
         self.logger.info("\n>>> Evaluating: Genie-Aided Optimal...")
         snr_optimal = []
         for i in range(num_eval_samples):
-            features, optimal_phases = test_dataset[i]
             metadata = test_dataset.metadata[i]
             h_direct = metadata['H_direct'][0]
             h_ris = metadata['H_ris'][0]
             h_bs_ris = metadata['h_bs_ris']
             h_cascade = h_ris * h_bs_ris
-            h_total = h_direct + np.sum(h_cascade * np.exp(1j * optimal_phases.numpy()))
+
+            # Recompute the MRC optimum from the raw channels rather than reading
+            # the dataset label. The label deliberately omits the global
+            # angle(h_direct) offset (it lives in metadata['phase_offset']), so
+            # applying it directly produces a MISALIGNED configuration that is not
+            # optimal at all -- which let both federated_ours and random_search
+            # score above this supposed upper bound. Recomputing here matches
+            # client.compute_snr_improvement and main.py, and stays correct
+            # regardless of how the label is parameterised.
+            true_optimal_phases = np.mod(
+                np.angle(h_direct) - np.angle(h_cascade), 2 * np.pi
+            )
+            h_total = h_direct + np.sum(h_cascade * np.exp(1j * true_optimal_phases))
             signal = tx_power * np.abs(h_total) ** 2
             snr = 10 * np.log10(signal / noise_power)
             snr_optimal.append(snr)

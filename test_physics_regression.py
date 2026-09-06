@@ -433,6 +433,47 @@ def test_multiuser_optimizer_actually_optimizes():
     )
 
 
+def test_genie_baseline_is_an_upper_bound():
+    """A genie/oracle baseline must not be beatable by anything.
+
+    experiment_9 computed its 'optimal' row by applying the dataset label
+    directly. The label omits the global angle(h_direct) offset by design, so
+    that produced a misaligned configuration which was not optimal -- both
+    federated_ours (7.32 dB) and random_search (6.58 dB) scored above the
+    supposed upper bound of 6.11 dB. Genie phases must be recomputed from the
+    raw channels, which is convention-independent.
+    """
+    _, labels, metadata = _dataset(80, seed=7)
+
+    label_only, recomputed = [], []
+    for md, label in zip(metadata, labels):
+        h_direct = md['H_direct'][0]
+        h_cascade = md['H_ris'][0] * md['h_bs_ris']
+
+        # What the buggy code did: label applied without the offset.
+        label_only.append(_snr_db(h_direct + np.sum(h_cascade * np.exp(1j * label))))
+
+        # What a genie actually is.
+        true_opt = np.mod(np.angle(h_direct) - np.angle(h_cascade), 2 * np.pi)
+        recomputed.append(_snr_db(h_direct + np.sum(h_cascade * np.exp(1j * true_opt))))
+
+    assert np.mean(recomputed) > np.mean(label_only) + 0.5, (
+        f"applying the raw label ({np.mean(label_only):.2f} dB) scores as well as "
+        f"the recomputed genie ({np.mean(recomputed):.2f} dB); the genie baseline "
+        "is not being computed from the raw channels"
+    )
+
+    # And the genie must dominate every sample, not just on average.
+    for md, label in zip(metadata, labels):
+        h_direct = md['H_direct'][0]
+        h_cascade = md['H_ris'][0] * md['h_bs_ris']
+        true_opt = np.mod(np.angle(h_direct) - np.angle(h_cascade), 2 * np.pi)
+        genie = np.abs(h_direct + np.sum(h_cascade * np.exp(1j * true_opt)))
+        random_phases = np.random.uniform(0, 2 * np.pi, len(h_cascade))
+        got = np.abs(h_direct + np.sum(h_cascade * np.exp(1j * random_phases)))
+        assert genie >= got - 1e-9, "a random configuration beat the genie bound"
+
+
 def test_duty_cycle_metrics_respond_to_flag():
     """Toggling DUTY_CYCLE_ENABLED must actually change reported metrics.
 
@@ -444,6 +485,14 @@ def test_duty_cycle_metrics_respond_to_flag():
     class _Cfg(Config):
         pass
 
+    # 'topk' keeps exactly the strongest dc_min_active_ratio fraction, so the
+    # expected ratio is deterministic. The 'threshold' strategy depends on the
+    # CSI's dynamic range -- with unit-scale synthetic noise almost every pixel
+    # sits within 20 dB of the peak and nothing is masked, which says nothing
+    # about whether the mask is wired through to the metrics. Threshold
+    # behaviour itself is covered by
+    # test_physical_invariants.test_duty_cycling_thresholds_are_distinguishable.
+    np.random.seed(11)
     csi = (np.random.randn(Config.ELEMENTS_PER_TILE)
            + 1j * np.random.randn(Config.ELEMENTS_PER_TILE))
     phases = np.random.uniform(0, 2 * np.pi, Config.ELEMENTS_PER_TILE)
@@ -455,9 +504,9 @@ def test_duty_cycle_metrics_respond_to_flag():
         client.config = _Cfg
         client.num_pixels = Config.ELEMENTS_PER_TILE
         client.duty_cycle_enabled = enabled
-        client.dc_strategy = getattr(Config, 'DUTY_CYCLE_STRATEGY', 'topk')
-        client.dc_threshold_db = getattr(Config, 'DUTY_CYCLE_THRESHOLD_DB', -100.0)
-        client.dc_min_active_ratio = getattr(Config, 'DUTY_CYCLE_MIN_ACTIVE_RATIO', 0.3)
+        client.dc_strategy = 'topk'
+        client.dc_threshold_db = getattr(Config, 'DUTY_CYCLE_THRESHOLD_DB', -20.0)
+        client.dc_min_active_ratio = 0.25
         client.pixel_mask = np.ones(Config.ELEMENTS_PER_TILE, dtype=bool)
         client.dc_history = []
         client.active_power_pixel = getattr(Config, 'ACTIVE_POWER_PIXEL', 0.01)
@@ -467,7 +516,7 @@ def test_duty_cycle_metrics_respond_to_flag():
         ratios[enabled] = client.get_duty_cycle_metrics()['active_ratio']
 
     assert ratios[False] == pytest.approx(1.0)
-    assert ratios[True] < 1.0, (
-        "enabling duty cycling did not reduce the active-pixel ratio; "
-        "the mask is not reaching the metrics"
+    assert ratios[True] == pytest.approx(0.25), (
+        f"topk duty cycling reported active_ratio {ratios[True]} instead of the "
+        "configured 0.25; the mask is not reaching the metrics"
     )
