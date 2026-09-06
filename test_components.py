@@ -259,7 +259,7 @@ def test_server():
 
         print("\n✓ Communication summary")
         print(f"  Total bytes: {comm_summary['total_kilobytes']:.2f} KB")
-        print(f"  Avg latency: {comm_summary['avg_packet_latency_ms']:.3f} ms")
+        print(f"  Avg round transfer: {comm_summary['avg_round_transfer_ms']:.3f} ms")
 
         return True
 

@@ -424,12 +424,16 @@ def plot_noc_metrics(comm_summary, save_path=None, round_metrics=None):
         ax2.set_ylabel('Data (MB)')
         ax2.set_title('(b) Total Communication', fontsize=9)
 
-        lat = comm_summary['avg_packet_latency_ms']
-        bars_lat = ax3.bar(['Packet Latency'], [lat], color=C[4], edgecolor='black',
+        # Per-round transfer time, not a per-packet latency -- the underlying
+        # quantity has no packet size or hop count in it, so labelling this
+        # "packet latency" overstated what the figure shows.
+        lat = comm_summary.get('avg_round_transfer_ms',
+                               comm_summary.get('avg_packet_latency_ms', 0.0))
+        bars_lat = ax3.bar(['Round Transfer'], [lat], color=C[4], edgecolor='black',
                            linewidth=0.5, width=0.35, zorder=3)
         _annotate_bars(ax3, bars_lat, fmt='{:.3f}')
-        ax3.set_ylabel('Latency (ms)')
-        ax3.set_title('(c) Average Latency', fontsize=9)
+        ax3.set_ylabel('Transfer time (ms)')
+        ax3.set_title('(c) NoC Transfer Time per Round', fontsize=9)
 
         util = comm_summary['bandwidth_utilization'] * 100
         period_ms = comm_summary.get('fl_round_period_s', 0.1) * 1000

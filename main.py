@@ -453,7 +453,7 @@ def save_results(config, server, clients, all_round_metrics, baselines, test_dat
         },
         'communication': {
             'total_mb': comm_summary.get('total_megabytes'),
-            'avg_latency_ms': comm_summary.get('avg_packet_latency_ms'),
+            'avg_round_transfer_ms': comm_summary.get('avg_round_transfer_ms'),
             'energy_j': comm_summary.get('energy_communication_joules')
         },
         'performance': {

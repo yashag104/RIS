@@ -31,6 +31,10 @@ def test_ring_allreduce_optimality():
     res_ps = sim.simulate_fl_round(model_size_bytes=1024, protocol="ParameterServer")
     res_ring = sim.simulate_fl_round(model_size_bytes=1024, protocol="RingAllReduce")
     
-    assert res_ring['bottleneck'] == 'longest_ring_link'
+    # The simulator selects the bottleneck by link *occupancy*
+    # (bottleneck_link_bytes / link rate), not by hop distance, so the label is
+    # 'busiest_ring_link'. This assertion previously expected
+    # 'longest_ring_link', which never matched the implementation.
+    assert res_ring['bottleneck'] == 'busiest_ring_link'
     assert res_ps['bottleneck'] == 'server_node'
     assert res_ring['utilization'] >= 0

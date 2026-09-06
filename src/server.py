@@ -372,10 +372,16 @@ class FederatedServer:
         """
         total_bytes = self.total_bytes_received + self.total_bytes_sent
 
-        # Calculate packet latency (simplified model)
-        # Latency = Data Size / Bandwidth
+        # Time to move one round's traffic across the NoC at full rate. Despite
+        # the legacy 'avg_packet_latency_*' keys below, this is NOT a per-packet
+        # latency -- there is no packet size or hop count in it. It is identical
+        # to min_feasible_round_period_s. The real per-packet model lives in
+        # src.noc_simulator.
         bandwidth_bytes_per_sec = self.config.NOC_BANDWIDTH_GBPS * 1e9 / 8
-        avg_packet_latency = (total_bytes / len(self.round_metrics)) / bandwidth_bytes_per_sec if self.round_metrics else 0
+        avg_round_transfer = (
+            (total_bytes / len(self.round_metrics)) / bandwidth_bytes_per_sec
+            if self.round_metrics else 0
+        )
 
         # Energy for communication
         energy_communication = total_bytes * 8 * self.config.ENERGY_PER_BIT
@@ -403,8 +409,11 @@ class FederatedServer:
             'total_kilobytes': total_bytes / 1024,
             'total_megabytes': total_bytes / (1024 * 1024),
             'avg_bytes_per_round': total_bytes / len(self.round_metrics) if self.round_metrics else 0,
-            'avg_packet_latency_sec': avg_packet_latency,
-            'avg_packet_latency_ms': avg_packet_latency * 1000,
+            'avg_round_transfer_sec': avg_round_transfer,
+            'avg_round_transfer_ms': avg_round_transfer * 1000,
+            # Deprecated aliases for the same quantity (see comment above).
+            'avg_packet_latency_sec': avg_round_transfer,
+            'avg_packet_latency_ms': avg_round_transfer * 1000,
             'energy_communication_joules': energy_communication,
             'bandwidth_utilization': bandwidth_utilization,
             'fl_round_period_s': round_period_s,

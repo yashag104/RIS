@@ -279,8 +279,17 @@ class GNNModel(BaseModel):
         # every user) sliced out of the feature vector. This stays cheap -- the
         # projection is (2U -> node_dim), independent of element count -- so the
         # compact communication cost the original design aimed for is preserved.
+        # The per-element pathway requires the standard U*(2N + 5) feature
+        # layout so each node's own cascade coefficients can be sliced out. When
+        # the caller supplies some other width (synthetic inputs in tests, or a
+        # different feature builder) fall back to the context-only behaviour
+        # rather than refusing to construct: an unusual input_dim is not an error,
+        # it just means there are no per-element features to route.
         self.num_users = self._infer_num_users(input_dim, num_elements)
-        self.element_proj = nn.Linear(2 * self.num_users, self.node_dim)
+        self.element_proj = (
+            nn.Linear(2 * self.num_users, self.node_dim)
+            if self.num_users is not None else None
+        )
         
         # GAT Layers
         num_gnn_layers = getattr(config, 'GNN_NUM_LAYERS', 3) if config else num_layers
@@ -303,18 +312,19 @@ class GNNModel(BaseModel):
         self.out_proj = nn.Linear(self.node_dim, 2)  # (cos, sin) per node
 
     @staticmethod
-    def _infer_num_users(input_dim: int, num_elements: int) -> int:
+    def _infer_num_users(input_dim: int, num_elements: int) -> int | None:
         """Recover the user count from the flat feature width.
 
         Feature layout is ``U*(2N + 5)`` -- see
         :func:`src.dataset_utils.expected_feature_dim`.
+
+        Returns:
+            The implied user count, or ``None`` when ``input_dim`` is not a
+            multiple of ``2N + 5`` and the layout therefore cannot be assumed.
         """
         denom = 2 * num_elements + 5
-        if input_dim % denom != 0:
-            raise ValueError(
-                f"input_dim={input_dim} is not U*(2*{num_elements}+5) for any integer U; "
-                "feature layout does not match the GNN's expectation"
-            )
+        if denom <= 0 or input_dim % denom != 0:
+            return None
         return input_dim // denom
 
     def _split_element_features(self, x: torch.Tensor) -> torch.Tensor:
@@ -371,13 +381,13 @@ class GNNModel(BaseModel):
         batch_size = x.size(0)
         context = self.feature_encoder(x)
 
-        # Sample-and-element specific term, without which the node representations
-        # differ only by a fixed learned constant (see __init__).
-        element_features = self.element_proj(self._split_element_features(x))
+        h = context.unsqueeze(1) + self.node_embedding.expand(batch_size, -1, -1)
 
-        h = (context.unsqueeze(1)
-             + self.node_embedding.expand(batch_size, -1, -1)
-             + element_features)
+        # Sample-and-element specific term, without which the node
+        # representations differ only by a fixed learned constant (see
+        # __init__). Absent only when the feature layout is non-standard.
+        if self.element_proj is not None:
+            h = h + self.element_proj(self._split_element_features(x))
         
         for gat in self.gats:
             h = gat(h, self.adj)

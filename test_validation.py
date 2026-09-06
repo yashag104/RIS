@@ -92,12 +92,21 @@ def test_path_loss():
         path_loss_exponent=2.5,
     )
 
-    # Expected: PL(d) = (lambda / (4*pi*d))^alpha
+    # Expected: close-in (CI) reference model, d_ref = 1 m
+    #   PL(d) = (lambda / (4*pi*d_ref))^2 * (d_ref / d)^alpha
+    # The exponent applies to the DISTANCE RATIO only. This test previously
+    # asserted PL(d) = (lambda / (4*pi*d))^alpha, which additionally scales the
+    # 1 m reference by (lambda/4pi)^(alpha-2) -- about -31 dB per unit of
+    # exponent at 28 GHz -- and left links with different exponents offset by
+    # tens of dB for reasons unrelated to propagation.
     # lambda = 3e8 / 28e9 = 0.01071 m
+
+    d_ref = 1.0
+    fspl_ref = (ch.wavelength / (4 * np.pi * d_ref)) ** 2
 
     for d in [1.0, 5.0, 10.0, 50.0]:
         pl = ch._compute_path_loss(d)
-        expected = (ch.wavelength / (4 * np.pi * d)) ** ch.path_loss_exponent
+        expected = fspl_ref * (d_ref / d) ** ch.path_loss_exponent
         ok = abs(pl - expected) / expected < 1e-6
         pl_db = 10 * np.log10(pl)
         print(f"  d={d:5.1f}m: PL={pl:.3e} ({pl_db:.1f} dB) {'PASS' if ok else 'FAIL'}")

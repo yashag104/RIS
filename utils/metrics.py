@@ -272,9 +272,14 @@ def calculate_noc_metrics(bytes_transmitted: int, bandwidth_gbps: float, num_rou
     # Convert bandwidth to bytes/sec
     bandwidth_bytes_per_sec = bandwidth_gbps * 1e9 / 8
 
-    # Average latency per round
+    # Time to move one round's traffic across the NoC at full rate. This is the
+    # smallest round period the configuration can sustain -- NOT a per-packet
+    # latency: it has no packet size and no hop count in it. The real per-packet
+    # model (bottleneck link occupancy plus traversal) lives in
+    # src.noc_simulator; the 'avg_packet_latency_*' keys below are retained only
+    # as deprecated aliases because plotting and analysis code still reads them.
     avg_bytes_per_round = bytes_transmitted / num_rounds if num_rounds > 0 else 0
-    avg_latency_sec = avg_bytes_per_round / bandwidth_bytes_per_sec
+    avg_round_transfer_sec = avg_bytes_per_round / bandwidth_bytes_per_sec
 
     # Utilization against the explicitly configured round period
     total_time = num_rounds * round_period_s
@@ -282,13 +287,18 @@ def calculate_noc_metrics(bytes_transmitted: int, bandwidth_gbps: float, num_rou
     utilization = transmission_time / total_time if total_time > 0 else 0
 
     metrics = {
-        'avg_packet_latency_sec': avg_latency_sec,
-        'avg_packet_latency_ms': avg_latency_sec * 1000,
-        'avg_packet_latency_us': avg_latency_sec * 1e6,
+        'avg_round_transfer_sec': avg_round_transfer_sec,
+        'avg_round_transfer_ms': avg_round_transfer_sec * 1000,
+        'avg_round_transfer_us': avg_round_transfer_sec * 1e6,
+        # Deprecated aliases: these were never a per-packet latency, they are the
+        # per-round transfer time above under a misleading name.
+        'avg_packet_latency_sec': avg_round_transfer_sec,
+        'avg_packet_latency_ms': avg_round_transfer_sec * 1000,
+        'avg_packet_latency_us': avg_round_transfer_sec * 1e6,
         'bandwidth_utilization': utilization,
         'is_oversubscribed': utilization > 1.0,
         'fl_round_period_s': round_period_s,
-        'min_feasible_round_period_s': avg_latency_sec,
+        'min_feasible_round_period_s': avg_round_transfer_sec,
         'peak_bandwidth_gbps': bandwidth_gbps,
         'avg_throughput_gbps': (bytes_transmitted * 8) / (total_time * 1e9) if total_time > 0 else 0
     }

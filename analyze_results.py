@@ -71,7 +71,7 @@ def compare_runs(results_dir='results/'):
             'Rate (bps/Hz)': metrics['achievable_rate_mean'],
             'Comm (MB)': metrics['comm_summary']['total_megabytes'],
             'Energy (mJ)': sum([m['total_energy'] * 1000 for m in metrics['round_metrics']]),
-            'Latency (ms)': metrics['comm_summary']['avg_packet_latency_ms']
+            'Round transfer (ms)': metrics['comm_summary']['avg_round_transfer_ms']
         }
 
         comparison_data.append(row)
