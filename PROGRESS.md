@@ -171,6 +171,31 @@ Each objective wins on the metric it optimizes — there is no dominant choice.
 `snr` and `sumrate` coincide because at these SINRs the noise term dominates the
 cross-talk term, so the interference model barely bites.
 
+### 14. Label convention — resolved on measurement
+
+The two audits disagreed on what the phase label should contain. The remote's
+`test_phase_label_is_learnable_from_features` asserted the full MRC solution
+`angle(h_direct) - angle(cascade_n)`; this branch stores only the per-element
+part `-angle(cascade_n)` and keeps the global term in
+`metadata['phase_offset']`, re-applying it when the phases are configured.
+
+Decided by achieved SNR rather than preference (600 samples, single user):
+
+| label convention | circular MSE | achieved SNR |
+|---|---|---|
+| offset removed (this branch) | **0.466** | **9.285 dB** |
+| full MRC label (remote) | 1.078 | 8.117 dB |
+| genie | — | 9.569 dB |
+| no-RIS | — | 3.629 dB |
+
+Splitting the offset out lands 0.28 dB from the genie bound versus 1.45 dB, and
+halves the phase error. The reason is straightforward: `angle(h_direct)` is a
+single per-sample constant computable exactly from CSI, so requiring the network
+to learn it can only introduce error. The invariant test now checks that
+`label + phase_offset` reconstructs the MRC optimum recoverable from the
+features, and additionally guards that the label does *not* already contain the
+offset (which would apply it twice at configuration time).
+
 ### Still open
 
 - The optimality gap at system scale is **10.6 dB** — with the surface now large
@@ -183,7 +208,14 @@ cross-talk term, so the interference model barely bites.
   measured energy/SNR trade-off is documented in `config.py`.
 - `target_user = 0` remains in the *label* construction (used only by the MSE
   path). The sum-rate objective and the new all-user evaluation metrics do not
-  use it.
+  use it. With `NUM_USERS = 1` this is moot for the base system model;
+  experiment 10 overrides the user count for the multi-user study.
+- The full experiment suite has only been executed at reduced scale
+  (`run_experiments_smoke.py`: 4 tiles, 150 samples, 4 rounds) to verify each
+  experiment runs after these corrections. At the shipped config
+  (2000 samples x 20 rounds x 16 tiles) the suite needs days on CPU and has not
+  been re-run end to end, so no number in `results/` should be treated as
+  current until it is.
 
 ---
 

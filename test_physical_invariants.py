@@ -152,9 +152,23 @@ def test_phase_model_outputs_are_circular():
 def test_phase_label_is_learnable_from_features():
     """The target must be recoverable from the features by construction.
 
-    The optimal phase is angle(h_direct) - angle(cascade_n), and both appear in
-    the feature vector. Extra users add features the label does not depend on,
-    which is why NUM_USERS is 1 for the single-user task.
+    The MRC optimum is angle(h_direct) - angle(cascade_n), and both terms appear
+    in the feature vector. Extra users add features the label does not depend
+    on, which is why NUM_USERS is 1 for the single-user task.
+
+    The LABEL itself, however, carries only the per-element part
+    ``-angle(cascade_n)``; the global ``angle(h_direct)`` term is a single
+    per-sample constant held in ``metadata['phase_offset']`` and re-applied when
+    the phases are configured. Splitting it out measurably helps, because the
+    offset is computable exactly from CSI and making the network learn it can
+    only add error -- measured on achieved SNR (600 samples, single user):
+
+        label without offset : circular MSE 0.466, SNR 9.285 dB
+        label with offset    : circular MSE 1.078, SNR 8.117 dB
+        genie                :                     SNR 9.569 dB
+
+    So the invariant to enforce is that label + phase_offset reconstructs the
+    full MRC solution recoverable from the features, which is what this checks.
     """
     from src.dataset_utils import RISChannelDataset
 
@@ -173,9 +187,21 @@ def test_phase_label_is_learnable_from_features():
     d_im, c_im = f[:, 4 + N], f[:, 5 + N:5 + 2 * N]
     recovered = np.mod(np.arctan2(d_im, d_re)[:, None]
                        - np.arctan2(c_im, c_re), 2 * np.pi)
-    err = np.abs(np.remainder(recovered - y + np.pi, 2 * np.pi) - np.pi)
+
+    offset = np.array([m['phase_offset'] for m in ds.metadata])[:, None]
+    applied = y + offset  # what actually gets configured on the surface
+
+    err = np.abs(np.remainder(recovered - applied + np.pi, 2 * np.pi) - np.pi)
     assert np.rad2deg(np.mean(err)) < 1.0, (
-        f"label not recoverable from features: {np.rad2deg(np.mean(err)):.2f} deg")
+        f"label + phase_offset does not reconstruct the MRC optimum recoverable "
+        f"from the features: {np.rad2deg(np.mean(err)):.2f} deg")
+
+    # The label on its own must NOT contain the global offset -- that is the
+    # whole point of splitting it out. Guard against a silent revert.
+    err_with_offset = np.abs(np.remainder(recovered - y + np.pi, 2 * np.pi) - np.pi)
+    assert np.rad2deg(np.mean(err_with_offset)) > 1.0, (
+        "label appears to already include the global MRC offset; "
+        "phase_offset would then be applied twice at configuration time")
 
 
 def test_duty_cycling_thresholds_are_distinguishable():
