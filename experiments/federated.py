@@ -23,20 +23,29 @@ class FederatedExperimentsMixin:
         local_epochs_values = [1, 3, 5, 10, 20]
         results = []
 
-        for E in local_epochs_values:
-            self.logger.info(f"\n>>> Testing with E = {E} local epochs...")
+        # The sweep writes onto the shared config object, which every later
+        # experiment in the same process reads. Without the restore below,
+        # LOCAL_EPOCHS stays at the last swept value (20) for experiments 2-20
+        # instead of the configured default, inflating their runtime and
+        # recording a provenance block that contradicts the paper.
+        original_local_epochs = self.config.LOCAL_EPOCHS
+        try:
+            for E in local_epochs_values:
+                self.logger.info(f"\n>>> Testing with E = {E} local epochs...")
 
-            # Update config
-            self.config.LOCAL_EPOCHS = E
+                # Update config
+                self.config.LOCAL_EPOCHS = E
 
-            # Run training
-            result = self._run_single_fl_experiment()
-            result['local_epochs'] = E
-            results.append(result)
+                # Run training
+                result = self._run_single_fl_experiment()
+                result['local_epochs'] = E
+                results.append(result)
 
-            self.logger.info(f"  Converged in: {result['convergence_round']} rounds")
-            self.logger.info(f"  Final SNR: {result['final_snr']:.2f} dB")
-            self.logger.info(f"  Total Communication: {result['total_communication_kb']:.2f} KB")
+                self.logger.info(f"  Converged in: {result['convergence_round']} rounds")
+                self.logger.info(f"  Final SNR: {result['final_snr']:.2f} dB")
+                self.logger.info(f"  Total Communication: {result['total_communication_kb']:.2f} KB")
+        finally:
+            self.config.LOCAL_EPOCHS = original_local_epochs
 
         # Save results
         self._save_experiment_results('local_epochs_variation', results)
@@ -171,21 +180,28 @@ class FederatedExperimentsMixin:
         alpha_values = [0.1, 0.3, 0.5, 0.7, 1.0]
         results = []
 
-        for alpha in alpha_values:
-            self.logger.info(f"\n>>> Testing with α = {alpha} (lower = more non-IID)...")
+        # Same shared-config hazard as experiment 1: without the restore the
+        # last swept alpha (1.0) leaks into experiments 6-20, silently making
+        # their data far more IID than the configured default.
+        original_alpha = self.config.NON_IID_ALPHA
+        try:
+            for alpha in alpha_values:
+                self.logger.info(f"\n>>> Testing with α = {alpha} (lower = more non-IID)...")
 
-            # Update config
-            self.config.NON_IID_ALPHA = alpha
+                # Update config
+                self.config.NON_IID_ALPHA = alpha
 
-            # Run training
-            result = self._run_single_fl_experiment()
-            result['alpha'] = alpha
-            fairness_index = 0.5 + (alpha * 0.4)
-            result['fairness_index'] = fairness_index
-            results.append(result)
+                # Run training
+                result = self._run_single_fl_experiment()
+                result['alpha'] = alpha
+                fairness_index = 0.5 + (alpha * 0.4)
+                result['fairness_index'] = fairness_index
+                results.append(result)
 
-            self.logger.info(f"  Fairness Index: {result['fairness_index']:.3f}")
-            self.logger.info(f"  Convergence: {result['convergence_round']} rounds")
+                self.logger.info(f"  Fairness Index: {result['fairness_index']:.3f}")
+                self.logger.info(f"  Convergence: {result['convergence_round']} rounds")
+        finally:
+            self.config.NON_IID_ALPHA = original_alpha
 
         self._save_experiment_results('non_iid_heterogeneity', results)
         self._plot_noniid_analysis(results)
