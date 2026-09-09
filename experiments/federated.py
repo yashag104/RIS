@@ -258,28 +258,33 @@ class FederatedExperimentsMixin:
         tile_configs = [2, 4, 8, 12, 16]
         results = []
 
-        for num_tiles in tile_configs:
-            self.logger.info(f"\n>>> Testing with {num_tiles} tiles...")
+        # The restore must sit in a finally block, not merely at the end of the
+        # loop body: the runner catches per-experiment failures and continues to
+        # the next one, so an exception mid-sweep would leave NUM_TILES at the
+        # last swept value for every experiment that follows. Same hazard that
+        # experiments 1 and 5 had.
+        original_tiles = self.config.NUM_TILES
+        try:
+            for num_tiles in tile_configs:
+                self.logger.info(f"\n>>> Testing with {num_tiles} tiles...")
 
-            # Update config
-            original_tiles = self.config.NUM_TILES
-            self.config.NUM_TILES = num_tiles
+                # Update config
+                self.config.NUM_TILES = num_tiles
 
-            # Run training
-            result = self._run_single_fl_experiment()
-            result['num_tiles'] = num_tiles
+                # Run training
+                result = self._run_single_fl_experiment()
+                result['num_tiles'] = num_tiles
 
-            # Calculate NoC metrics
-            noc_metrics = self._calculate_noc_metrics(result)
-            result.update(noc_metrics)
+                # Calculate NoC metrics
+                noc_metrics = self._calculate_noc_metrics(result)
+                result.update(noc_metrics)
 
-            results.append(result)
+                results.append(result)
 
-            # Restore
+                self.logger.info(f"  Power: {result['total_power_mw']:.2f} mW")
+                self.logger.info(f"  Latency: {result['avg_latency_us']:.2f} us")
+        finally:
             self.config.NUM_TILES = original_tiles
-
-            self.logger.info(f"  Power: {result['total_power_mw']:.2f} mW")
-            self.logger.info(f"  Latency: {result['avg_latency_us']:.2f} us")
 
         self._save_experiment_results('noc_traffic_power', results)
         self._plot_noc_analysis(results)

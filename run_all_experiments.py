@@ -4,9 +4,24 @@ import os
 import random
 import time
 import traceback
+from datetime import datetime
+
+import sys
 
 import numpy as np
 import torch
+
+# On Windows a redirected or piped stdout defaults to the ANSI code page
+# (cp1252), which cannot encode the box-drawing separators printed below. The
+# suite would then die with UnicodeEncodeError the moment anyone ran it as
+# `python run_all_experiments.py ... | tee run.log` or `> run.log` -- i.e.
+# exactly when they were trying to keep a record of the run. Force UTF-8 and
+# never let an encoding problem take down a multi-hour job.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding='utf-8', errors='replace')
+    except (AttributeError, ValueError):
+        pass
 
 from config import Config
 from experiments import AdvancedExperiments
@@ -78,6 +93,33 @@ def run_experiments(exp_ids, results_dir=None):
     print(f"Results: {Config.RESULTS_DIR}")
     print(f"{'='*60}")
 
+    # Per-experiment status is written to disk after every experiment, and
+    # mirrored into the log file. Previously it existed only as print() on
+    # stdout and a timings file written after the whole suite finished, so a
+    # run that was killed or stalled part way left no record of what had
+    # succeeded, what had failed, or where it had got to.
+    progress_path = os.path.join(Config.RESULTS_DIR, 'advanced_experiments',
+                                 'suite_progress.json')
+    os.makedirs(os.path.dirname(progress_path), exist_ok=True)
+
+    def _write_progress(current=None):
+        payload = {
+            'pid': os.getpid(),
+            'started_at': suite_started,
+            'updated_at': datetime.now().isoformat(timespec='seconds'),
+            'requested': list(exp_ids),
+            'current': current,
+            'status': {str(k): v for k, v in status.items()},
+            'seconds': {str(k): round(v, 1) for k, v in timings.items()},
+        }
+        tmp = progress_path + '.tmp'
+        with open(tmp, 'w') as fh:
+            json.dump(payload, fh, indent=2)
+        os.replace(tmp, progress_path)
+
+    suite_started = datetime.now().isoformat(timespec='seconds')
+    _write_progress()
+
     for eid in exp_ids:
         if eid not in EXPERIMENTS:
             print(f"\n[SKIP] Experiment {eid} not found")
@@ -94,6 +136,8 @@ def run_experiments(exp_ids, results_dir=None):
         # a rerun of the same experiment does not reproduce.
         seed_experiment(eid)
 
+        _write_progress(current={'id': eid, 'name': name,
+                                 'since': datetime.now().isoformat(timespec='seconds')})
         t0 = time.time()
         try:
             method = getattr(runner, method_name)
@@ -102,12 +146,19 @@ def run_experiments(exp_ids, results_dir=None):
             timings[eid] = elapsed
             status[eid] = 'OK'
             print(f"  [OK] {name} — {elapsed:.1f}s")
+            runner.logger.info(f"[SUITE] experiment {eid} ({name}) OK in {elapsed:.1f}s")
         except Exception as e:
             elapsed = time.time() - t0
             timings[eid] = elapsed
             status[eid] = f'FAIL: {e}'
             print(f"  [FAIL] {name}: {e}")
             traceback.print_exc()
+            # Into the log file too, otherwise the only copy of the traceback
+            # is on a terminal that may be closed before anyone reads it.
+            runner.logger.error(
+                f"[SUITE] experiment {eid} ({name}) FAILED after {elapsed:.1f}s: "
+                f"{type(e).__name__}: {e}\n{traceback.format_exc()}")
+        _write_progress()
 
     # Summary
     print(f"\n{'='*60}")
