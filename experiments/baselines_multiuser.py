@@ -18,6 +18,10 @@ from utils.metrics import *
 from utils.metrics import dbm_to_watts
 from utils.plotting import *
 
+# Slack allowed when checking that the genie-aided arm bounds every other arm.
+# Covers float noise and per-sample tie-breaking only; anything larger is a bug.
+ORACLE_TOLERANCE_DB = 0.05
+
 
 class BaselineMultiuserExperimentsMixin:
     def experiment_9_baseline_comparison(self):
@@ -341,8 +345,46 @@ class BaselineMultiuserExperimentsMixin:
         # ---- 6. Federated Learning (Ours) ----
         self.logger.info("\n>>> Evaluating: Federated Learning (Ours)...")
         fl_result = self._run_single_fl_experiment()
+
+        # Re-evaluate the trained global model on THIS test_dataset, the same
+        # channel realisations every other arm is scored on.
+        #
+        # _run_single_fl_experiment builds its own test set internally, so
+        # reading fl_result['final_snr'] compared a different draw of the
+        # channel against the baselines. Draw-to-draw spread here is several dB
+        # -- larger than the effects being measured -- which is how
+        # federated_ours came out ABOVE the genie-aided oracle.
+        fl_model = create_model(
+            model_type=self.config.MODEL_TYPE,
+            input_dim=input_dim,
+            num_elements=self.config.ELEMENTS_PER_TILE,
+            hidden_dim=self.config.HIDDEN_DIM,
+            num_layers=self.config.NUM_LAYERS,
+            dropout=self.config.DROPOUT,
+            config=self.config
+        )
+        fl_model.load_state_dict(fl_result['global_weights'])
+        fl_model.to(self.config.DEVICE)
+        fl_model.eval()
+        snr_fl = []
+        with torch.no_grad():
+            for i in range(num_eval_samples):
+                features, _ = test_dataset[i]
+                metadata = test_dataset.metadata[i]
+                h_direct = metadata['H_direct'][0]
+                h_ris = metadata['H_ris'][0]
+                h_bs_ris = metadata['h_bs_ris']
+                h_cascade = h_ris * h_bs_ris
+
+                pred = fl_model(features.unsqueeze(0).to(self.config.DEVICE))
+                pred_phases = pred.squeeze().cpu().numpy()
+
+                h_total = h_direct + np.sum(h_cascade * np.exp(1j * pred_phases))
+                signal = tx_power * np.abs(h_total) ** 2
+                snr_fl.append(10 * np.log10(signal / noise_power))
+
         results['federated_ours'] = {
-            'snr_db': fl_result['final_snr'],
+            'snr_db': float(np.mean(snr_fl)),
             'rate_bps_hz': calculate_achievable_rate(fl_result['final_snr']),
             'communication_kb': fl_result['total_communication_kb'],
             'energy_mj': fl_result['total_energy_mj'],
@@ -390,6 +432,24 @@ class BaselineMultiuserExperimentsMixin:
             'complexity': 'N/A (oracle)'
         }
         self.logger.info(f"  SNR: {results['optimal']['snr_db']:.2f} dB")
+
+        # ---- Oracle sanity check ----
+        # The genie-aided arm sees the true channels and applies the MRC optimum,
+        # so nothing else can beat it on the same realisations. If anything does,
+        # the arms are not being scored on the same data and the whole table is
+        # meaningless -- fail loudly instead of publishing it.
+        optimal_db = results['optimal']['snr_db']
+        violations = {
+            name: r['snr_db']
+            for name, r in results.items()
+            if name != 'optimal' and r['snr_db'] > optimal_db + ORACLE_TOLERANCE_DB
+        }
+        if violations:
+            detail = ", ".join(f"{n}={v:.2f} dB" for n, v in violations.items())
+            raise RuntimeError(
+                f"Genie-aided optimal ({optimal_db:.2f} dB) is not an upper bound: {detail}. "
+                "All arms must be evaluated on the same channel realisations."
+            )
 
         # ---- Summary Table ----
         self.logger.info("\n" + "=" * 80)

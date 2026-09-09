@@ -711,6 +711,10 @@ class JournalExperimentsMixin:
                 channel_model = ThreeGPPUMiChannel(
                     num_elements=num_elements,
                     frequency=scen.get('freq', 28e9),
+                    # Same obstructed direct link as the Rician scenarios,
+                    # otherwise the two model families are not comparable and
+                    # the 3GPP rows show a RIS gain of ~0 dB.
+                    direct_link_blockage_db=self.config.DIRECT_LINK_BLOCKAGE_DB,
                 )
             
             snrs_optimal = []
@@ -810,6 +814,7 @@ class JournalExperimentsMixin:
                 channel_model = ThreeGPPUMiChannel(
                     num_elements=num_elements,
                     frequency=28e9,
+                    direct_link_blockage_db=self.config.DIRECT_LINK_BLOCKAGE_DB,
                 )
 
             # Generate channel samples once

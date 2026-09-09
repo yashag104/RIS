@@ -5,6 +5,7 @@
 
 import numpy as np
 
+from src.dataset_utils import create_non_iid_datasets, create_test_dataset
 from utils.metrics import *
 from utils.plotting import *
 
@@ -184,7 +185,11 @@ class FederatedExperimentsMixin:
         # last swept alpha (1.0) leaks into experiments 6-20, silently making
         # their data far more IID than the configured default.
         original_alpha = self.config.NON_IID_ALPHA
+        original_enabled = getattr(self.config, 'NON_IID_ENABLED', False)
         try:
+            # This is the only experiment that actually partitions data across
+            # tiles; everything else runs the shared IID scene.
+            self.config.NON_IID_ENABLED = True
             for alpha in alpha_values:
                 self.logger.info(f"\n>>> Testing with α = {alpha} (lower = more non-IID)...")
 
@@ -194,14 +199,23 @@ class FederatedExperimentsMixin:
                 # Run training
                 result = self._run_single_fl_experiment()
                 result['alpha'] = alpha
-                fairness_index = 0.5 + (alpha * 0.4)
-                result['fairness_index'] = fairness_index
+                # fairness_index is measured in _run_single_fl_experiment as
+                # Jain's index over per-client accuracy of the global model.
+                # It used to be assigned here as `0.5 + alpha * 0.4`, a closed
+                # form that produced a perfectly linear "measurement" which
+                # never touched the data.
+                if 'fairness_index' not in result:
+                    raise RuntimeError(
+                        "fairness_index missing: per-client evaluation did not run. "
+                        "Refusing to report a heterogeneity result without it."
+                    )
                 results.append(result)
 
-                self.logger.info(f"  Fairness Index: {result['fairness_index']:.3f}")
+                self.logger.info(f"  Fairness Index (Jain): {result['fairness_index']:.3f}")
                 self.logger.info(f"  Convergence: {result['convergence_round']} rounds")
         finally:
             self.config.NON_IID_ALPHA = original_alpha
+            self.config.NON_IID_ENABLED = original_enabled
 
         self._save_experiment_results('non_iid_heterogeneity', results)
         self._plot_noniid_analysis(results)
@@ -304,15 +318,23 @@ class FederatedExperimentsMixin:
         methods = ['federated', 'centralized', 'local_only']
         results = []
 
+        # One dataset for all three arms. Each runner used to build its own,
+        # so the three bars described three different draws of the channel --
+        # which is how local_only came out above both the federated arm and the
+        # genie-aided bound.
+        shared_train, _tile_positions = create_non_iid_datasets(self.config, self.config.NUM_TILES)
+        shared_test = create_test_dataset(self.config)
+        shared = (shared_train, shared_test)
+
         for method in methods:
             self.logger.info(f"\n>>> Testing {method} approach...")
 
             if method == 'federated':
-                result = self._run_single_fl_experiment()
+                result = self._run_single_fl_experiment(datasets=shared)
             elif method == 'centralized':
-                result = self._run_centralized_experiment()
+                result = self._run_centralized_experiment(datasets=shared)
             else:  # local_only
-                result = self._run_local_only_experiment()
+                result = self._run_local_only_experiment(datasets=shared)
 
             result['method'] = method
             results.append(result)

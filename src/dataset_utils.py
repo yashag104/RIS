@@ -284,6 +284,52 @@ class RISChannelDataset(Dataset):
         return self.features.shape[1]
 
 
+def _spatial_scene_partition(scene_channels, tile_positions, alpha, room_size):
+    """Assign shared scenes to tiles with a spatial preference.
+
+    Each tile draws its local training set from the shared scene pool, weighted
+    toward scenes whose users lie near that tile. ``alpha`` follows the Dirichlet
+    convention used everywhere else in the literature:
+
+        alpha -> 0    strongly non-IID (a tile sees almost only its own users)
+        alpha -> inf  IID (uniform over the shared pool)
+
+    Returns a list of index arrays, one per tile, each of length len(scene_channels).
+    """
+    num_scenes = len(scene_channels)
+    num_tiles = len(tile_positions)
+    if num_scenes == 0 or num_tiles == 0:
+        return [np.arange(num_scenes) for _ in range(num_tiles)]
+
+    alpha = float(alpha)
+    if not np.isfinite(alpha) or alpha <= 0:
+        raise ValueError(f"NON_IID_ALPHA must be a positive finite number, got {alpha!r}")
+
+    # Representative user location per scene.
+    user_xy = np.array(
+        [np.mean(np.atleast_2d(ch['user_positions'])[:, :2], axis=0) for ch in scene_channels],
+        dtype=np.float64,
+    )
+    tile_xy = np.asarray(tile_positions, dtype=np.float64)[:, :2]
+
+    # Normalise distance by room scale so alpha means the same thing in any room.
+    room_scale = float(np.hypot(room_size[0], room_size[1])) or 1.0
+    # dist[t, s] = distance from tile t to the users of scene s
+    dist = np.linalg.norm(tile_xy[:, None, :] - user_xy[None, :, :], axis=2) / room_scale
+
+    # Softmax over -distance with temperature alpha. Large alpha flattens the
+    # weights to uniform (IID); small alpha sharpens them onto nearby scenes.
+    logits = -dist / alpha
+    logits -= logits.max(axis=1, keepdims=True)
+    weights = np.exp(logits)
+    weights /= weights.sum(axis=1, keepdims=True)
+
+    return [
+        np.random.choice(num_scenes, size=num_scenes, replace=True, p=weights[t])
+        for t in range(num_tiles)
+    ]
+
+
 def create_non_iid_datasets(config, num_tiles: int) -> tuple[list, list]:
     """Create spatially non-IID datasets for a fleet of RIS tiles.
 
@@ -336,23 +382,59 @@ def create_non_iid_datasets(config, num_tiles: int) -> tuple[list, list]:
             direct_link_blockage_db=getattr(config, 'DIRECT_LINK_BLOCKAGE_DB', 30.0),
             element_gain_enabled=getattr(config, 'RIS_ELEMENT_GAIN_ENABLED', False),
         )
-        datasets = [
-            RISChannelDataset.from_channels(
+        # Label-distribution heterogeneity across tiles.
+        #
+        # The shared scene deliberately shows every tile the SAME drawn users so
+        # their reflected paths stay summable, which also makes the tiles' local
+        # training distributions identical. NON_IID_ALPHA was never read on this
+        # path at all, so experiment 5 was silently sweeping a knob that did
+        # nothing and comparing five IID runs.
+        #
+        # Heterogeneity is introduced by resampling WHICH shared scenes each tile
+        # trains on -- biased toward users near that tile -- rather than by
+        # changing the physics. Convention matches Dirichlet: LOWER alpha means
+        # MORE non-IID. (The legacy per-tile path below used alpha as a direct
+        # bias multiplier, which ran the opposite way.)
+        scene_indices = None
+        if getattr(config, 'NON_IID_ENABLED', False):
+            scene_indices = _spatial_scene_partition(
+                channels_per_tile[0],
+                tile_positions,
+                alpha=config.NON_IID_ALPHA,
+                room_size=config.ROOM_SIZE,
+            )
+
+        datasets = []
+        for tile_idx, tile_channels in enumerate(channels_per_tile):
+            if scene_indices is not None:
+                idx = scene_indices[tile_idx]
+                tile_channels = [tile_channels[i] for i in idx]
+            dataset = RISChannelDataset.from_channels(
                 tile_channels,
                 num_ris_elements=config.ELEMENTS_PER_TILE,
                 num_users=config.NUM_USERS,
                 csi_error_variance=getattr(config, 'CSI_ERROR_VARIANCE', 0.0),
             )
-            for tile_channels in channels_per_tile
-        ]
+            # Record which shared scenes this tile holds so sample alignment
+            # stays recoverable for coherent multi-tile evaluation.
+            dataset.scene_indices = (
+                np.asarray(scene_indices[tile_idx]) if scene_indices is not None
+                else np.arange(len(tile_channels))
+            )
+            datasets.append(dataset)
         return datasets, tile_positions
 
     for i in range(num_tiles):
         x, y, _z = tile_positions[i]
 
-        # Non-IID bias: tiles see users near their position
-        bias_x = (x - config.ROOM_SIZE[0] / 2) * config.NON_IID_ALPHA
-        bias_y = (y - config.ROOM_SIZE[1] / 2) * config.NON_IID_ALPHA
+        # Non-IID bias: tiles see users near their position.
+        # alpha follows the Dirichlet convention (lower = more non-IID), so the
+        # bias STRENGTH must fall as alpha rises. Using alpha directly as the
+        # multiplier -- as this did -- ran the sweep backwards, labelling the
+        # most heterogeneous setting as the most IID one.
+        _bias_strength = 1.0 / (1.0 + float(config.NON_IID_ALPHA))
+        bias_x = (x - config.ROOM_SIZE[0] / 2) * _bias_strength
+        bias_y = (y - config.ROOM_SIZE[1] / 2) * _bias_strength
 
         dataset = RISChannelDataset(
             num_samples=config.TRAIN_SAMPLES,

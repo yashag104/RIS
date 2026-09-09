@@ -40,12 +40,15 @@ class ExperimentBase:
         )
         self.logger = get_experiment_logger(self.__class__.__name__)
 
-    def _run_single_fl_experiment(self, config_overrides=None):
+    def _run_single_fl_experiment(self, config_overrides=None, datasets=None):
         """
         Run standard FL experiment with current config and optional overrides.
-        
+
         Args:
             config_overrides: Dictionary of config parameters to override for this run only
+            datasets: Optional ``(train_datasets, test_dataset)`` pair. Pass one
+                when this run is compared against other arms, so all arms are
+                scored on the same channel realisations.
         """
         from main import evaluate_baselines, train_federated
         
@@ -73,8 +76,11 @@ class ExperimentBase:
 
             # Create datasets (re-create if params changed that affect data)
             # For efficiency, we could cache them, but for robustness, we re-create
-            train_datasets, _tile_positions = create_non_iid_datasets(self.config, self.config.NUM_TILES)
-            test_dataset = create_test_dataset(self.config)
+            if datasets is None:
+                train_datasets, _tile_positions = create_non_iid_datasets(self.config, self.config.NUM_TILES)
+                test_dataset = create_test_dataset(self.config)
+            else:
+                train_datasets, test_dataset = datasets
             validate_dataset_collection(
                 train_datasets,
                 test_dataset,
@@ -97,6 +103,25 @@ class ExperimentBase:
             convergence = server.get_convergence_metrics()
             comm_summary = server.get_communication_summary()
 
+            # Per-client performance of the SHARED global model on each tile's
+            # own local data. This is what federated fairness actually means:
+            # how evenly the single global model serves heterogeneous clients.
+            # Measured here rather than assumed, so that experiment 5 can report
+            # a real Jain index instead of a closed-form stand-in.
+            per_client_accuracy = []
+            global_weights = server.get_global_weights()
+            for client in clients:
+                if getattr(client, 'dataset', None) is None or len(client.dataset) == 0:
+                    continue
+                client.set_model_weights(global_weights)
+                local_loader = DataLoader(
+                    client.dataset, batch_size=self.config.BATCH_SIZE, shuffle=False
+                )
+                local_eval = client.evaluate(local_loader)
+                per_client_accuracy.append(float(local_eval['accuracy_30deg']))
+            # Restore client 0 to the global weights for the evaluation below.
+            clients[0].set_model_weights(global_weights)
+
             result = {
                 'convergence_round': convergence.get('converged_round', self.config.FL_ROUNDS),
                 'converged': convergence.get('converged', False),
@@ -109,8 +134,17 @@ class ExperimentBase:
                 'final_accuracy': final_eval['accuracy_30deg'],
                 'round_metrics': round_metrics,
                 'baselines': baselines,
+                'per_client_accuracy': per_client_accuracy,
                 'global_weights': server.get_global_weights() # Return weights for wrappers
             }
+
+            if per_client_accuracy:
+                from utils.metrics import calculate_fairness_index
+                fairness = calculate_fairness_index(per_client_accuracy)
+                result['fairness_index'] = float(fairness['jains_index'])
+                result['fairness_details'] = {
+                    k: float(v) for k, v in fairness.items()
+                }
             
             # Add quantization metadata if applicable
             if hasattr(self.config, 'PHASE_QUANTIZATION_BITS'):
@@ -195,11 +229,22 @@ class ExperimentBase:
         result['accuracy_degradation'] = result['final_accuracy'] - metrics['accuracy_30deg']
         result['final_snr'] = snr_metrics['snr_optimized_ris_mean']
         result['final_accuracy'] = metrics['accuracy_30deg']
-        
+
         # Update communication cost
         compression_ratio = 32 / bits
         result['total_communication_kb'] /= compression_ratio
-        
+
+        # Be explicit about what was actually measured. Training ran in full
+        # precision and quantization was applied once, to the final global
+        # model; the communication figure above is the analytic cost of sending
+        # that model at `bits` precision. It is NOT a measurement of quantizing
+        # every round's update, which compounds error across rounds and would
+        # degrade accuracy more. Claiming the latter from this number would
+        # overstate the result.
+        result['compression_mode'] = 'post_training'
+        result['compression_trained_in_precision_bits'] = 32
+        result['communication_kb_is_analytic'] = True
+
         return result
 
     def _run_fl_with_mobility(self, speed_mps):
@@ -327,15 +372,24 @@ class ExperimentBase:
         
         return result
 
-    def _run_centralized_experiment(self):
-        """Run centralized learning (All data at server)"""
+    def _run_centralized_experiment(self, datasets=None):
+        """Run centralized learning (All data at server).
+
+        Args:
+            datasets: Optional ``(train_datasets, test_dataset)`` pair. Pass one
+                when this arm is being compared against others so every arm is
+                scored on the same channel realisations.
+        """
         from baselines.centralized_learning import CentralizedRIS
         from models.ris_net import create_model
-        
+
         # Create datasets
-        train_datasets, _tile_positions = create_non_iid_datasets(self.config, self.config.NUM_TILES)
-        test_dataset = create_test_dataset(self.config)
-        
+        if datasets is None:
+            train_datasets, _tile_positions = create_non_iid_datasets(self.config, self.config.NUM_TILES)
+            test_dataset = create_test_dataset(self.config)
+        else:
+            train_datasets, test_dataset = datasets
+
         input_dim = validate_dataset_collection(
             train_datasets,
             test_dataset,
@@ -343,46 +397,56 @@ class ExperimentBase:
             expected_num_tiles=self.config.NUM_TILES,
         )
         cent_model = create_model(self.config.MODEL_TYPE, input_dim, self.config.ELEMENTS_PER_TILE, config=self.config)
-        
+
         centralized = CentralizedRIS(cent_model, self.config)
         cent_metrics = centralized.train_centralized(
             tile_datasets=train_datasets,
             epochs=self.config.LOCAL_EPOCHS * self.config.FL_ROUNDS
         )
-        
-        # Evaluate
+
+        # Evaluate. Reuse RISClient so accuracy, phase error and SNR are
+        # computed by exactly the same code that scores the federated arm --
+        # this arm used to return final_snr=0 and final_accuracy=0 placeholders,
+        # which made the whole FL-vs-centralized figure unreadable.
         test_loader = DataLoader(test_dataset, batch_size=self.config.BATCH_SIZE, shuffle=False)
-        centralized.evaluate(test_loader)
-        
-        # Calc SNR
-        features, _optimal_phases = test_dataset[0]
-        cent_model.eval()
-        with torch.no_grad():
-             cent_model(features.unsqueeze(0).to(self.config.DEVICE))
-        # (Simplified SNR calc for summary)
-        
+        eval_client = RISClient(0, centralized.get_model(), train_datasets[0], self.config)
+        cent_eval = eval_client.evaluate(test_loader)
+        cent_snr = eval_client.compute_snr_improvement(test_dataset, num_samples=200)
+
         # Communication: all raw data
         total_samples = sum(len(d) for d in train_datasets)
         raw_data_bytes = total_samples * (input_dim + self.config.ELEMENTS_PER_TILE) * 4
-        
+
         return {
             'convergence_round': cent_metrics['total_epochs'],
             'final_loss': cent_metrics['final_loss'],
-            'final_snr': 0, # Placeholder, computed fully in baseline comparison
+            'final_snr': cent_snr['snr_optimized_ris_mean'],
+            'snr_gain': cent_snr['snr_gain_over_no_ris'],
+            'phase_error_deg': np.rad2deg(cent_eval['phase_error_mean']),
             'total_communication_kb': raw_data_bytes / 1024,
-            'final_accuracy': 0, # computed elsewhere
-            'total_energy_mj': 0
+            'final_accuracy': cent_eval['accuracy_30deg'],
+            # Centralized training runs the same total epoch budget on one
+            # machine; price it with the same per-epoch figure used elsewhere.
+            'total_energy_mj': cent_metrics['total_epochs'] * 0.5,
         }
 
-    def _run_local_only_experiment(self):
-        """Run local-only learning (no aggregation)"""
+    def _run_local_only_experiment(self, datasets=None):
+        """Run local-only learning (no aggregation).
+
+        Args:
+            datasets: Optional ``(train_datasets, test_dataset)`` pair, shared
+                with the other arms of a comparison.
+        """
         from models.ris_net import create_model
-        
+
         # Create datasets
-        train_datasets, _tile_positions = create_non_iid_datasets(self.config, self.config.NUM_TILES)
-        test_dataset = create_test_dataset(self.config)
+        if datasets is None:
+            train_datasets, _tile_positions = create_non_iid_datasets(self.config, self.config.NUM_TILES)
+            test_dataset = create_test_dataset(self.config)
+        else:
+            train_datasets, test_dataset = datasets
         test_loader = DataLoader(test_dataset, batch_size=self.config.BATCH_SIZE, shuffle=False)
-        
+
         input_dim = validate_dataset_collection(
             train_datasets,
             test_dataset,
@@ -393,7 +457,9 @@ class ExperimentBase:
         # Train isolated clients
         final_snrs = []
         final_accs = []
-        
+        final_losses = []
+        snr_gains = []
+
         total_epochs = self.config.FL_ROUNDS * self.config.LOCAL_EPOCHS
         
         # We simulate all clients running in parallel
@@ -413,15 +479,26 @@ class ExperimentBase:
             
             final_accs.append(metrics['accuracy_30deg'])
             final_snrs.append(snr_metrics['snr_optimized_ris_mean'])
-        
+            final_losses.append(metrics['loss'])
+            snr_gains.append(snr_metrics['snr_gain_over_no_ris'])
+
+        # Each tile trains alone for the same total epoch budget, so the energy
+        # is the per-tile federated cost without the aggregation traffic.
+        # Reporting 0 here previously made local-only look free.
+        energy_mj = (
+            len(train_datasets) * total_epochs
+            * getattr(self.config, 'ENERGY_PER_EPOCH_MJ', 0.5)
+        )
+
         return {
              'convergence_round': self.config.FL_ROUNDS,
-             'final_loss': 0, # N/A
-             'final_snr': np.mean(final_snrs),
-             'snr_gain': 0, 
+             'final_loss': float(np.mean(final_losses)),
+             'final_snr': float(np.mean(final_snrs)),
+             'snr_gain': float(np.mean(snr_gains)),
              'total_communication_kb': 0,
-             'final_accuracy': np.mean(final_accs),
-             'total_energy_mj': 0
+             'final_accuracy': float(np.mean(final_accs)),
+             'total_energy_mj': energy_mj,
+             'per_client_accuracy': [float(a) for a in final_accs],
         }
 
     def _calculate_noc_metrics(self, result):
@@ -542,10 +619,17 @@ class ExperimentBase:
             'noc_topology': cfg.NOC_TOPOLOGY,
             'noc_protocol': cfg.NOC_PROTOCOL,
             'direct_link_blockage_db': getattr(cfg, 'DIRECT_LINK_BLOCKAGE_DB', None),
-            'random_seed': getattr(cfg, 'RANDOM_SEED', None),
+            # Config defines SEED (and RANDOM_SEEDS for campaigns); there is no
+            # RANDOM_SEED attribute, so this silently recorded null on every run
+            # and made a seeded suite look unseeded.
+            'base_seed': getattr(cfg, 'SEED', None),
+            'experiment_seed': getattr(cfg, '_ACTIVE_EXPERIMENT_SEED', None),
             'is_reduced_run': bool(
                 cfg.FL_ROUNDS < 20 or cfg.TRAIN_SAMPLES < 2000
             ),
+            'non_iid_enabled': getattr(cfg, 'NON_IID_ENABLED', False),
+            'non_iid_alpha': getattr(cfg, 'NON_IID_ALPHA', None),
+            'csi_error_variance': getattr(cfg, 'CSI_ERROR_VARIANCE', None),
             'saved_at': datetime.datetime.now().isoformat(timespec='seconds'),
         }
 

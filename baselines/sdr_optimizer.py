@@ -92,13 +92,21 @@ class SDROptimizer:
         """
         N = self.num_elements
         
-        # a = [h_r^* ⊙ g; h_d]  (N+1,)
+        # a = [h_r ⊙ g; h_d]  (N+1,)
         # For single user: h_ris_user is (N,), h_bs_ris is (N,)
+        #
+        # The cascade is h_ris_user * h_bs_ris, NOT conj(h_ris_user) * h_bs_ris.
+        # This optimizer was the only place in the codebase that conjugated the
+        # RIS-user channel, so it optimised (and scored itself on) a different
+        # channel from the one every other method and the genie bound use. The
+        # phases it returned were misaligned for the real cascade, which is why
+        # SDR came out BELOW random phases while its own relaxation bound sat
+        # up with AO, SCA and MRC.
         if h_ris_user.ndim > 1:
             h_ris_user = h_ris_user[0]  # Take first user if multi-user
-            
+
         a = np.zeros(N + 1, dtype=complex)
-        a[:N] = np.conj(h_ris_user) * h_bs_ris
+        a[:N] = h_ris_user * h_bs_ris
         
         if np.isscalar(h_direct):
             a[N] = h_direct
@@ -160,7 +168,13 @@ class SDROptimizer:
         problem = cp.Problem(objective, constraints)
         
         try:
-            problem.solve(solver=cp.SCS, verbose=False, max_iters=5000)
+            # SCS defaults (eps ~1e-4) leave V_opt far enough from the true
+            # optimum that Gaussian randomization extracts poor rank-1
+            # candidates -- SDR then scored below random phases even on
+            # RIS-dominated channels. The problem is small (N+1 <= 65), so the
+            # tighter tolerance costs little.
+            problem.solve(solver=cp.SCS, verbose=False, max_iters=20000,
+                          eps=1e-9)
         except cp.SolverError:
             try:
                 problem.solve(solver=cp.ECOS, verbose=False)
@@ -196,9 +210,16 @@ class SDROptimizer:
             # Project to unit modulus
             v = v / np.abs(v)
             
-            # Extract phases (relative to last element which should be 1)
+            # Extract phases (relative to last element which should be 1).
+            #
+            # The SDP maximises trace(Q V) = |a^H v|^2 = |sum_n conj(a_n) v_n|^2,
+            # whereas the received signal is h_eff = sum_n a_n exp(j*phase_n).
+            # Those two agree only under conjugation, so the maximiser of the
+            # SDP corresponds to the NEGATED phases. Without this flip the
+            # randomization returned near-worst-case configurations and SDR
+            # scored ~11 dB below the MRC optimum, at times below random phases.
             theta = v[:N] / v[N]
-            phases = np.angle(theta) % (2 * np.pi)
+            phases = (-np.angle(theta)) % (2 * np.pi)
             
             # Compute SNR
             snr = self._compute_snr(phases, h_direct, h_ris_user, h_bs_ris, noise_power)
@@ -212,7 +233,7 @@ class SDROptimizer:
         v_svd = U[:, 0] * np.sqrt(S[0])
         v_svd = v_svd / np.abs(v_svd)
         theta_svd = v_svd[:N] / v_svd[N]
-        phases_svd = np.angle(theta_svd) % (2 * np.pi)
+        phases_svd = (-np.angle(theta_svd)) % (2 * np.pi)
         snr_svd = self._compute_snr(phases_svd, h_direct, h_ris_user, h_bs_ris, noise_power)
         
         if snr_svd > best_snr:
@@ -241,7 +262,8 @@ class SDROptimizer:
             
         h_d = h_direct[0] if not np.isscalar(h_direct) else h_direct
         
-        h_eff = h_d + np.dot(np.conj(h_ris_user_1) * h_bs_ris, theta)
+        # Same cascade convention as MRC/AO/SCA/ADMM and the genie bound.
+        h_eff = h_d + np.dot(h_ris_user_1 * h_bs_ris, theta)
         signal_power = np.abs(h_eff) ** 2
         return signal_power / noise_power
     

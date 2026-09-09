@@ -23,10 +23,40 @@ except ImportError:
     HAS_NETWORKX = False
 
 
+def _ring_link_lengths(rows: int, cols: int, folded: bool) -> tuple[float, float]:
+    """Physical link lengths, in tile pitches, for a 2D (folded) torus.
+
+    An unfolded torus closes each row and column with one wrap-around wire that
+    spans the whole array; every other link spans one tile pitch. Folding
+    interleaves the nodes so that EVERY link spans two pitches instead.
+
+    That trade is the entire point of folding: the mean wire gets slightly
+    longer, but the longest wire -- which sets the critical path and hence the
+    achievable clock -- drops from (n-1) pitches to 2. Modelling only hop counts
+    made a folded torus and a plain torus produce byte-identical results.
+
+    Returns:
+        ``(mean_length, max_length)`` in tile pitches.
+    """
+    if folded:
+        return 2.0, 2.0
+
+    lengths = []
+    for n in (rows, cols):
+        if n <= 1:
+            continue
+        # n-1 short links of length 1 plus one wrap link of length n-1.
+        lengths.extend([1.0] * (n - 1))
+        lengths.append(float(n - 1))
+    if not lengths:
+        return 1.0, 1.0
+    return float(np.mean(lengths)), float(np.max(lengths))
+
+
 class NoCTopology:
     """
     Builds adjacency graph for various NoC topologies.
-    
+
     Each node represents a tile (processing element).
     Edges represent bidirectional communication links.
     """
@@ -98,20 +128,31 @@ class NoCTopology:
             'bisection_bandwidth': 2 * cols,
             'diameter': (rows // 2) + (cols // 2),
             'avg_hops': (rows + cols) / 4,
+            # A plain torus closes each ring with a wrap-around wire that spans
+            # the whole array. That long wire, not the hop count, is what a
+            # folded torus exists to remove -- so the cost has to live here.
+            # Mean link length in tile pitches, averaged over short internal
+            # links (1) and the (rows-1)-long wrap links, one per ring.
+            'mean_link_length': _ring_link_lengths(rows, cols, folded=False)[0],
+            'max_link_length': _ring_link_lengths(rows, cols, folded=False)[1],
         }
-    
+
     @staticmethod
     def build_folded_torus(rows: int, cols: int) -> dict:
         """
         Folded Torus: Torus with halved wrap-around distances.
         Each wrap-around link is the same length as internal links.
         """
-        # Same connectivity as torus, but with uniform link lengths
+        # Same connectivity (and therefore same hop counts) as a torus. The
+        # difference is physical: folding makes every wire the same length,
+        # which cuts wire delay and wire energy but not the number of hops.
+        # Reporting only hop-derived metrics made the two topologies produce
+        # byte-identical rows in the comparison table.
         torus = NoCTopology.build_torus(rows, cols)
         torus['name'] = 'FoldedTorus'
-        # In folded torus, all links are equal length (no longer wrap-around penalty)
-        torus['diameter'] = max(rows // 2, 1) + max(cols // 2, 1)
-        torus['avg_hops'] = (rows / 4 + cols / 4)
+        mean_len, max_len = _ring_link_lengths(rows, cols, folded=True)
+        torus['mean_link_length'] = mean_len
+        torus['max_link_length'] = max_len
         return torus
     
     @staticmethod
@@ -358,7 +399,15 @@ class NoCSimulator:
         bottleneck_bytes = max(link_bytes.values())
         # ns = bits / (Gbit/s), since 1 Gbit/s = 1 bit/ns
         busy_ns = bottleneck_bytes * 8 / self.bandwidth_gbps
-        traversal_ns = max_hops * (self.LINK_LATENCY_NS + self.SWITCH_LATENCY_NS)
+        # Wire delay scales with physical link length, so topologies with the
+        # same hop count but different wire lengths (torus vs folded torus) do
+        # not collapse onto identical numbers.
+        # Wire delay is set by the LONGEST link on the critical path, which is
+        # what folding shortens; router delay is fixed per hop.
+        link_len = self.topology.get('max_link_length', 1.0)
+        traversal_ns = max_hops * (
+            self.LINK_LATENCY_NS * link_len + self.SWITCH_LATENCY_NS
+        )
 
         return {
             'latency_ns': busy_ns + traversal_ns,
@@ -368,6 +417,17 @@ class NoCSimulator:
             'flit_hops': flit_hops,
             'max_hops': max_hops,
         }
+
+    def _energy_per_flit_hop(self) -> float:
+        """Energy for one flit crossing one router plus one link.
+
+        Router energy is fixed per hop; wire energy scales with the physical
+        length of the link. Without the length term a folded torus and a plain
+        torus -- identical in hop count, different in wire length -- report
+        exactly the same interconnect energy.
+        """
+        link_len = self.topology.get('mean_link_length', 1.0)
+        return self.ENERGY_PER_FLIT_SWITCH + self.ENERGY_PER_FLIT_LINK * link_len
 
     @staticmethod
     def _combine_phases(phases: list) -> dict:
@@ -439,8 +499,7 @@ class NoCSimulator:
         agg = self._combine_phases(phases)
 
         total_bytes = 2 * (N - 1) * model_size_bytes
-        total_energy = agg['flit_hops'] * (
-            self.ENERGY_PER_FLIT_SWITCH + self.ENERGY_PER_FLIT_LINK)
+        total_energy = agg['flit_hops'] * self._energy_per_flit_hop()
 
         return {
             'protocol': 'ParameterServer',
@@ -483,8 +542,7 @@ class NoCSimulator:
             total_bytes += 2 * len(transfers) * model_size_bytes
 
         agg = self._combine_phases(phases)
-        total_energy = agg['flit_hops'] * (
-            self.ENERGY_PER_FLIT_SWITCH + self.ENERGY_PER_FLIT_LINK)
+        total_energy = agg['flit_hops'] * self._energy_per_flit_hop()
 
         return {
             'protocol': 'AllReduce',
@@ -523,8 +581,7 @@ class NoCSimulator:
         agg = self._combine_phases(phases)
 
         total_bytes = num_steps * N * chunk_size
-        total_energy = agg['flit_hops'] * (
-            self.ENERGY_PER_FLIT_SWITCH + self.ENERGY_PER_FLIT_LINK)
+        total_energy = agg['flit_hops'] * self._energy_per_flit_hop()
 
         return {
             'protocol': 'RingAllReduce',
@@ -572,8 +629,7 @@ class NoCSimulator:
                 total_bytes += len(transfers) * model_size_bytes
 
         agg = self._combine_phases(phases)
-        total_energy = agg['flit_hops'] * (
-            self.ENERGY_PER_FLIT_SWITCH + self.ENERGY_PER_FLIT_LINK)
+        total_energy = agg['flit_hops'] * self._energy_per_flit_hop()
 
         return {
             'protocol': 'Gossip',

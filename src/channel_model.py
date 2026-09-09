@@ -515,20 +515,38 @@ def apply_csi_error(
 ) -> np.ndarray:
     """
     Add CSI estimation error to channel.
-    
-    h_estimated = h_true + N(0, sigma^2_e)
-    
+
+    h_estimated = h_true + e,  e ~ CN(0, sigma_e^2 * E[|h|^2])
+
+    ``error_variance`` is RELATIVE to the mean channel power, i.e. it is the
+    reciprocal of the estimation SNR: 0.01 means the error power is 1% of the
+    signal power (20 dB estimation SNR).
+
+    This scaling is not cosmetic. Physical channel gains here are O(1e-4) in
+    magnitude (O(1e-8) in power), so treating ``error_variance`` as an ABSOLUTE
+    noise variance made even the smallest swept value (0.01) roughly 1e6 times
+    the channel power. Every non-zero setting then produced a pure-noise
+    "estimate" with a uniformly distributed phase (mean error 90 deg), which
+    is what collapsed the CSI-robustness sweep into "perfect CSI vs no CSI"
+    with a meaningless x-axis.
+
     Args:
         channel: True channel (complex array, any shape)
-        error_variance: Variance of estimation error
-    
+        error_variance: Error power as a fraction of mean channel power
+
     Returns:
         Estimated channel with added error
     """
     if error_variance <= 0:
         return channel
-    
-    noise = np.sqrt(error_variance / 2) * (
+
+    channel = np.asarray(channel)
+    mean_channel_power = float(np.mean(np.abs(channel) ** 2))
+    if mean_channel_power <= 0:
+        return channel
+
+    noise_power = error_variance * mean_channel_power
+    noise = np.sqrt(noise_power / 2) * (
         np.random.randn(*channel.shape) + 1j * np.random.randn(*channel.shape)
     )
     return channel + noise
@@ -597,6 +615,7 @@ class ThreeGPPUMiChannel:
         element_spacing_factor: float = 0.5,
         bs_height: float = 10.0,
         ue_height: float = 1.5,
+        direct_link_blockage_db: float = 30.0,
     ):
         """
         Args:
@@ -607,7 +626,14 @@ class ThreeGPPUMiChannel:
             element_spacing_factor: Element spacing in wavelengths
             bs_height: BS antenna height in meters
             ue_height: UE height in meters
+            direct_link_blockage_db: Excess attenuation on the obstructed
+                BS->user direct path, in dB. Matches RicianChannel. Without it
+                the direct path dominates so completely that the RIS changes
+                nothing -- which is why the 3GPP rows showed a RIS gain of a
+                few hundredths of a dB and 1-bit phase quantization appeared to
+                cost nothing at all.
         """
+        self.direct_link_blockage_db = direct_link_blockage_db
         self.num_elements = num_elements
         self.frequency = frequency
         self.frequency_ghz = frequency / 1e9
@@ -747,6 +773,9 @@ class ThreeGPPUMiChannel:
             else:
                 pl_db = self.path_loss_nlos(dist_3d_direct, dist_2d_direct)
             
+            # Obstructed direct path: the RIS exists because this link is
+            # blocked. Applied in the voltage domain, same as the path loss.
+            pl_db = pl_db + self.direct_link_blockage_db
             pl_linear = 10 ** (-pl_db / 20)  # Voltage domain
             phase_direct = -2 * np.pi * dist_3d_direct / self.wavelength
             h_direct[u] = pl_linear * np.exp(1j * phase_direct)

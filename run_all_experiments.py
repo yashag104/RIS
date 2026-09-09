@@ -73,6 +73,9 @@ def seed_experiment(exp_id):
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
+    # Expose the effective seed so _save_experiment_results can record it in
+    # each result file's provenance block.
+    Config._ACTIVE_EXPERIMENT_SEED = seed
     return seed
 
 
