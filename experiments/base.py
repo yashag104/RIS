@@ -262,24 +262,21 @@ class ExperimentBase:
             # Let's assume evaluation happens "time_delta" seconds after CSI acquisition
             time_delta = 0.05 # 50ms (typical 5G frame/processing delay)
             
+            # Jakes' model: the temporal autocorrelation of a Rayleigh channel
+            # after time_delta is J0(2*pi*f_d*time_delta), the zeroth-order
+            # Bessel function of the FIRST kind. scipy is a hard requirement
+            # (requirements.txt), so use it directly rather than guessing.
+            #
+            # This previously called np.i0 (the MODIFIED Bessel I0, a different
+            # function that grows without bound) and discarded the result, then
+            # fell back to the small-argument expansion 1 - x^2/4 clamped at
+            # zero, which is wrong once the argument leaves the small-x regime
+            # -- exactly where fast mobility puts it.
+            from scipy.special import j0
+
             fd = speed_mps / self.config.WAVELENGTH
-            np.i0(2 * np.pi * fd * time_delta) # approximation: numpy has i0 (modified Bessel). 
-            # Wait, J0 is Bessel function of first kind. i0 is modified.
-            # Numpy doesn't have j0 natively without scipy.
-            # Standard approximation for small x: J0(x) ~ 1 - x^2/4
-            # Or cosine approximation J0(x) ~ cos(x) ? No.
-            # Let's import scipy if available, else simple AR1
-            
-            try:
-                from scipy.special import j0
-                correlation = j0(2 * np.pi * fd * time_delta)
-            except ImportError:
-                # Fallback: approximated correlation
-                # For small x, J0(x) approx 1 - x^2/4
-                arg = 2 * np.pi * fd * time_delta
-                correlation = 1.0 - (arg**2) / 4.0
-                correlation = max(correlation, 0)
-            
+            correlation = float(j0(2 * np.pi * fd * time_delta))
+
             # Generate "aged" test dataset
             # h_new = rho * h_old + sqrt(1 - rho^2) * noise
             test_dataset = create_test_dataset(self.config)
@@ -330,8 +327,12 @@ class ExperimentBase:
                  noise_ris = (np.random.randn(*h_ris.shape) + 1j * np.random.randn(*h_ris.shape)) / np.sqrt(2)
 
                  # h_new = rho * h + sqrt(1-rho^2) * independent_h
-                 gain_direct = np.mean(np.abs(h_direct))
-                 gain_ris = np.mean(np.abs(h_ris))
+                 # The innovation term must carry the same POWER as the
+                 # channel it replaces, so scale by the RMS magnitude.
+                 # np.mean(|h|) underestimates that for a fading channel
+                 # (~0.89x for Rayleigh), quietly shrinking the aging effect.
+                 gain_direct = np.sqrt(np.mean(np.abs(h_direct) ** 2))
+                 gain_ris = np.sqrt(np.mean(np.abs(h_ris) ** 2))
 
                  h_direct_new = correlation * h_direct + np.sqrt(1 - correlation**2) * noise_direct * gain_direct
                  h_ris_new = correlation * h_ris + np.sqrt(1 - correlation**2) * noise_ris * gain_ris
@@ -345,20 +346,30 @@ class ExperimentBase:
                  aged_snrs.append(snr)
             
             result['tracking_error'] = 1.0 - correlation
-            result['adaptation_time'] = 5 + speed_mps * 2  # rounds (still heuristic)
+            result['doppler_hz'] = float(fd)
+            # Jakes' 50%-correlation coherence time, T_c ~ 9 / (16*pi*f_d).
+            # Derived from the Doppler spread rather than assumed.
+            #
+            # This slot used to hold `5 + speed_mps * 2`, a straight line in the
+            # user's speed that was never measured and was plotted as though it
+            # were. Coherence time is the quantity that figure was reaching for:
+            # how long the CSI a round is trained on stays valid.
+            result['coherence_time_ms'] = float(9.0 / (16.0 * np.pi * fd) * 1e3)
+            result['csi_age_ms'] = float(time_delta * 1e3)
             result['final_snr'] = np.mean(aged_snrs)
         else:
             # Static case: no mobility, perfect tracking
             result['tracking_error'] = 0.0
-            result['adaptation_time'] = 0.0
-            
+            result['doppler_hz'] = 0.0
+            result['coherence_time_ms'] = float('inf')
+            result['csi_age_ms'] = 0.0
+
         return result
 
     def _run_fl_with_pilots(self, pilot_config):
         """Run FL with different pilot strategies (Simulated Overhead)"""
         result = self._run_single_fl_experiment()
-        
-        pilot_config['method']
+
         pilots_per_round = pilot_config['pilots_per_round']
         
         # Calculate overhead based on real convergence rounds
@@ -627,9 +638,15 @@ class ExperimentBase:
             'is_reduced_run': bool(
                 cfg.FL_ROUNDS < 20 or cfg.TRAIN_SAMPLES < 2000
             ),
-            'non_iid_enabled': getattr(cfg, 'NON_IID_ENABLED', False),
-            'non_iid_alpha': getattr(cfg, 'NON_IID_ALPHA', None),
-            'csi_error_variance': getattr(cfg, 'CSI_ERROR_VARIANCE', None),
+            # These are the config DEFAULTS at save time, not necessarily what
+            # any given row used. Experiments that sweep a parameter restore it
+            # before results are saved, so a swept value never appears here --
+            # read the per-row field instead (e.g. 'alpha', 'csi_variance',
+            # 'non_iid_enabled' on the individual result entries).
+            'default_non_iid_enabled': getattr(cfg, 'NON_IID_ENABLED', False),
+            'default_non_iid_alpha': getattr(cfg, 'NON_IID_ALPHA', None),
+            'default_csi_error_variance': getattr(cfg, 'CSI_ERROR_VARIANCE', None),
+            'swept_values_are_per_row': True,
             'saved_at': datetime.datetime.now().isoformat(timespec='seconds'),
         }
 

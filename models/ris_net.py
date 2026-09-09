@@ -458,7 +458,14 @@ class CNNModel(BaseModel):
 
     def __init__(self, input_dim: int, num_elements: int, hidden_dim: int,
                  num_layers: int, dropout: float, config=None):
-        """Build feature encoder, spatial embedding, and convolutional trunk."""
+        """Build feature encoder, spatial embedding, and convolutional trunk.
+
+        Note: ``hidden_dim`` and ``num_layers`` are accepted for a uniform
+        constructor signature across architectures but are NOT used here. This
+        model is sized by ``CNN_HIDDEN_CHANNELS`` and ``CNN_SE_REDUCTION`` on
+        the config, so changing Config.HIDDEN_DIM or Config.NUM_LAYERS has no
+        effect on it.
+        """
         super().__init__()
         self.num_elements = num_elements
         self.grid_rows = getattr(config, 'PIXEL_GRID_ROWS', 8) if config else 8
@@ -579,7 +586,13 @@ class TransformerModel(BaseModel):
 
     def __init__(self, input_dim: int, num_elements: int, hidden_dim: int,
                  num_layers: int, dropout: float, config=None):
-        """Build the feature encoder, positional embedding, and transformer encoder stack."""
+        """Build the feature encoder, positional embedding, and transformer encoder stack.
+
+        Note: ``hidden_dim`` and ``num_layers`` are accepted for a uniform
+        constructor signature but are NOT used. This model is sized by the
+        ``TRANSFORMER_*`` config keys, so Config.HIDDEN_DIM and
+        Config.NUM_LAYERS do not affect it.
+        """
         super().__init__()
         self.num_elements = num_elements
         

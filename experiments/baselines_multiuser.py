@@ -385,7 +385,10 @@ class BaselineMultiuserExperimentsMixin:
 
         results['federated_ours'] = {
             'snr_db': float(np.mean(snr_fl)),
-            'rate_bps_hz': calculate_achievable_rate(fl_result['final_snr']),
+            # Must come from the SAME re-evaluated SNR as snr_db above, not from
+            # fl_result, or the rate and SNR columns describe different runs.
+            'rate_bps_hz': calculate_achievable_rate(float(np.mean(snr_fl))),
+            'snr_db_own_test_set': fl_result['final_snr'],
             'communication_kb': fl_result['total_communication_kb'],
             'energy_mj': fl_result['total_energy_mj'],
             'convergence_iters': fl_result['convergence_round'],

@@ -265,8 +265,12 @@ def plot_energy_consumption(round_metrics, save_path=None):
         _save(fig, save_path, 'energy_consumption')
 
 
-def plot_tradeoff_curves(round_metrics, snr_metrics_per_round, save_path=None):
-    """Loss vs communication and energy trade-offs."""
+def plot_tradeoff_curves(round_metrics, save_path=None):
+    """Loss vs communication and energy trade-offs.
+
+    Previously took an ``snr_metrics_per_round`` argument that was never read;
+    its only caller passed None.
+    """
     losses = [m['avg_client_loss'] for m in round_metrics]
     comm = np.cumsum([m['total_bytes'] / 1024 for m in round_metrics]).tolist()
     energy = np.cumsum([m['total_energy'] * 1000 for m in round_metrics]).tolist()
@@ -319,7 +323,7 @@ def plot_beam_pattern(predicted_phases, metadata, save_path=None, filename='beam
     _add_reference_note(fig, 'baseline_comparison')
 
     if save_path:
-        _save(fig, save_path, 'beam_pattern')
+        _save(fig, save_path, filename)
 
 
 def plot_client_performance(client_metrics_per_round, save_path=None):

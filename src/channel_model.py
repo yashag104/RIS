@@ -665,41 +665,73 @@ class ThreeGPPUMiChannel:
             np.exp(-distance_2d / 36.0)
         return float(np.clip(p, 0, 1))
     
-    def path_loss_los(self, distance_3d: float, distance_2d: float) -> float:
+    def breakpoint_distance(self) -> float:
+        """2D breakpoint distance d_BP' (m) per 3GPP TR 38.901 Note 1.
+
+            d_BP' = 4 * h_BS' * h_UT' * f_c / c,   h' = h - 1.0 m (UMi)
+
+        Beyond it the LoS path-loss exponent steepens from 2.1 to 4.0.
         """
-        LoS path loss (dB) per 3GPP TR 38.901 Table 7.4.1-1.
-        
-        PL_UMi-LOS = 32.4 + 21 log10(d_3D) + 20 log10(f_c [GHz])
-        Valid for 10 m ≤ d_2D ≤ 5 km
+        h_bs_eff = max(self.bs_height - 1.0, 0.1)
+        h_ut_eff = max(self.ue_height - 1.0, 0.1)
+        return 4.0 * h_bs_eff * h_ut_eff * self.frequency / 3e8
+
+    def _path_loss_los_mean(self, distance_3d: float, distance_2d: float) -> float:
+        """LoS path loss (dB) without shadow fading, both distance regimes.
+
+        3GPP TR 38.901 Table 7.4.1-1 (UMi Street Canyon):
+            d_2D <= d_BP':  PL = 32.4 + 21 log10(d_3D) + 20 log10(f_c)
+            d_2D >  d_BP':  PL = 32.4 + 40 log10(d_3D) + 20 log10(f_c)
+                                  - 9.5 log10(d_BP'^2 + (h_BS - h_UT)^2)
+
+        The second branch was missing and `distance_2d` was accepted but never
+        read, so the model silently applied the short-range exponent at every
+        range. It happens not to change this paper's numbers -- the room is
+        10 m across and d_BP' is ~1.7 km at 28 GHz -- but the function was
+        wrong for any longer-range reuse.
         """
         d3d = max(distance_3d, 1.0)
+        d2d = max(distance_2d, 0.0)
         fc = self.frequency_ghz
-        
-        pl = 32.4 + 21.0 * np.log10(d3d) + 20.0 * np.log10(fc)
-        
-        # Add shadow fading
+        d_bp = self.breakpoint_distance()
+
+        if d2d <= d_bp:
+            return 32.4 + 21.0 * np.log10(d3d) + 20.0 * np.log10(fc)
+
+        delta_h = self.bs_height - self.ue_height
+        return (32.4 + 40.0 * np.log10(d3d) + 20.0 * np.log10(fc)
+                - 9.5 * np.log10(d_bp ** 2 + delta_h ** 2))
+
+    def path_loss_los(self, distance_3d: float, distance_2d: float) -> float:
+        """
+        LoS path loss (dB) per 3GPP TR 38.901 Table 7.4.1-1, with shadow fading.
+
+        Valid for 10 m <= d_2D <= 5 km.
+        """
+        pl = self._path_loss_los_mean(distance_3d, distance_2d)
         sf = np.random.normal(0, self.sf_std_los)
-        
         return pl + sf
-    
+
     def path_loss_nlos(self, distance_3d: float, distance_2d: float) -> float:
         """
         NLoS path loss (dB) per 3GPP TR 38.901 Table 7.4.1-1.
-        
-        PL_UMi-NLOS = 32.4 + 31.9 log10(d_3D) + 20 log10(f_c [GHz])
+
+        PL_UMi-NLOS = 32.4 + 31.9 log10(d_3D) + 20 log10(f_c [GHz]),
+        floored by the LoS path loss as the standard requires.
         """
         d3d = max(distance_3d, 1.0)
         fc = self.frequency_ghz
-        
+
         pl_nlos = 32.4 + 31.9 * np.log10(d3d) + 20.0 * np.log10(fc)
-        
-        # Take max with LoS path loss (3GPP requirement)
-        pl_los = 32.4 + 21.0 * np.log10(d3d) + 20.0 * np.log10(fc)
+
+        # Take max with LoS path loss (3GPP requirement). Uses the same
+        # breakpoint-aware LoS expression rather than a second inline copy.
+        pl_los = self._path_loss_los_mean(distance_3d, distance_2d)
         pl = max(pl_nlos, pl_los)
-        
+
         # Add shadow fading
         sf = np.random.normal(0, self.sf_std_nlos)
-        
+
         return pl + sf
     
     def _compute_steering_vector(
@@ -1282,7 +1314,19 @@ def _channels_to_dataset(
     features_list = []
     labels_list = []
     metadata_list = []
-    
+
+    # num_ris_elements was accepted and never checked, so a caller passing a
+    # value that disagreed with the channels built a dataset anyway and the
+    # mismatch only surfaced later in validate_dataset_feature_dim, far from
+    # its cause. Fail here instead.
+    if channels:
+        actual_elements = np.asarray(channels[0]['h_ris_user']).shape[-1]
+        if actual_elements != num_ris_elements:
+            raise ValueError(
+                f"channel data has {actual_elements} RIS elements but "
+                f"num_ris_elements={num_ris_elements} was requested"
+            )
+
     for ch in channels:
         h_direct = ch['h_direct']
         h_ris_user = ch['h_ris_user']

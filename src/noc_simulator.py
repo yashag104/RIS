@@ -16,11 +16,11 @@ from collections import defaultdict
 
 import numpy as np
 
-try:
-    import networkx as nx
-    HAS_NETWORKX = True
-except ImportError:
-    HAS_NETWORKX = False
+# Routing uses the built-in BFS below; networkx is only probed so callers can
+# tell whether richer graph analysis is available.
+import importlib.util
+
+HAS_NETWORKX = importlib.util.find_spec("networkx") is not None
 
 
 def _ring_link_lengths(rows: int, cols: int, folded: bool) -> tuple[float, float]:

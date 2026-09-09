@@ -160,8 +160,11 @@ class FederatedExperimentsMixin:
             result['mobility_name'] = config['name']
             results.append(result)
 
-            self.logger.info(f"  Tracking Error: {result['tracking_error']:.3f} m")
-            self.logger.info(f"  Adaptation Time: {result['adaptation_time']:.2f} rounds")
+            # tracking_error is 1 - J0(2*pi*f_d*dt): a correlation deficit,
+            # dimensionless. It was logged with a metres unit.
+            self.logger.info(f"  Tracking Error: {result['tracking_error']:.3f} (1 - correlation)")
+            self.logger.info(f"  Doppler: {result['doppler_hz']:.1f} Hz")
+            self.logger.info(f"  Coherence Time: {result['coherence_time_ms']:.2f} ms")
 
         self._save_experiment_results('user_mobility', results)
         self._plot_mobility_analysis(results)
@@ -199,6 +202,11 @@ class FederatedExperimentsMixin:
                 # Run training
                 result = self._run_single_fl_experiment()
                 result['alpha'] = alpha
+                # Record the partitioning state per row. The suite-level
+                # provenance block is written after the finally clause below has
+                # already restored NON_IID_ENABLED, so it would report False for
+                # the one experiment that actually turns partitioning on.
+                result['non_iid_enabled'] = True
                 # fairness_index is measured in _run_single_fl_experiment as
                 # Jain's index over per-client accuracy of the global model.
                 # It used to be assigned here as `0.5 + alpha * 0.4`, a closed
