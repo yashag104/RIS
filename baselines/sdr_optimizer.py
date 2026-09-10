@@ -168,13 +168,12 @@ class SDROptimizer:
         problem = cp.Problem(objective, constraints)
         
         try:
-            # SCS defaults (eps ~1e-4) leave V_opt far enough from the true
-            # optimum that Gaussian randomization extracts poor rank-1
-            # candidates -- SDR then scored below random phases even on
-            # RIS-dominated channels. The problem is small (N+1 <= 65), so the
-            # tighter tolerance costs little.
-            problem.solve(solver=cp.SCS, verbose=False, max_iters=20000,
-                          eps=1e-9)
+            # Default SCS tolerance is sufficient. A much tighter eps was tried
+            # while the phase-extraction sign error below was still present and
+            # SDR looked like a solver-accuracy problem; with that fixed, eps
+            # 1e-4 and 1e-9 both land exactly on the MRC optimum and the loose
+            # setting is ~2.4x faster.
+            problem.solve(solver=cp.SCS, verbose=False, max_iters=20000)
         except cp.SolverError:
             try:
                 problem.solve(solver=cp.ECOS, verbose=False)

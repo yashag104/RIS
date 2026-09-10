@@ -103,24 +103,19 @@ class ExperimentBase:
             convergence = server.get_convergence_metrics()
             comm_summary = server.get_communication_summary()
 
-            # Per-client performance of the SHARED global model on each tile's
-            # own local data. This is what federated fairness actually means:
-            # how evenly the single global model serves heterogeneous clients.
-            # Measured here rather than assumed, so that experiment 5 can report
-            # a real Jain index instead of a closed-form stand-in.
-            per_client_accuracy = []
+            # Federated fairness: how evenly the single global model serves the
+            # different regions of the room, measured on HELD-OUT data.
+            #
+            # An earlier version scored each client on its own TRAINING set.
+            # That rewards overfitting to a narrow slice, and under the spatial
+            # partition it inverted the result: the most heterogeneous setting
+            # gave each tile a small easy neighbourhood, so per-client accuracy
+            # went UP and spread went DOWN exactly where fairness should have
+            # degraded. Partitioning the held-out test set by nearest tile keeps
+            # the data unseen and still asks a per-region question.
             global_weights = server.get_global_weights()
-            for client in clients:
-                if getattr(client, 'dataset', None) is None or len(client.dataset) == 0:
-                    continue
-                client.set_model_weights(global_weights)
-                local_loader = DataLoader(
-                    client.dataset, batch_size=self.config.BATCH_SIZE, shuffle=False
-                )
-                local_eval = client.evaluate(local_loader)
-                per_client_accuracy.append(float(local_eval['accuracy_30deg']))
-            # Restore client 0 to the global weights for the evaluation below.
             clients[0].set_model_weights(global_weights)
+            per_region_accuracy = self._per_region_accuracy(clients[0], test_dataset)
 
             result = {
                 'convergence_round': convergence.get('converged_round', self.config.FL_ROUNDS),
@@ -134,13 +129,13 @@ class ExperimentBase:
                 'final_accuracy': final_eval['accuracy_30deg'],
                 'round_metrics': round_metrics,
                 'baselines': baselines,
-                'per_client_accuracy': per_client_accuracy,
+                'per_region_accuracy': per_region_accuracy,
                 'global_weights': server.get_global_weights() # Return weights for wrappers
             }
 
-            if per_client_accuracy:
+            if len(per_region_accuracy) >= 2:
                 from utils.metrics import calculate_fairness_index
-                fairness = calculate_fairness_index(per_client_accuracy)
+                fairness = calculate_fairness_index(per_region_accuracy)
                 result['fairness_index'] = float(fairness['jains_index'])
                 result['fairness_details'] = {
                     k: float(v) for k, v in fairness.items()
@@ -430,7 +425,12 @@ class ExperimentBase:
 
         return {
             'convergence_round': cent_metrics['total_epochs'],
-            'final_loss': cent_metrics['final_loss'],
+            # Test loss from the shared evaluation path, NOT cent_metrics'
+            # training loss -- the federated and local-only arms both report
+            # the held-out circular phase MSE, and mixing a training loss into
+            # the same column made centralized look ~70x better than it is.
+            'final_loss': cent_eval['loss'],
+            'train_loss': cent_metrics['final_loss'],
             'final_snr': cent_snr['snr_optimized_ris_mean'],
             'snr_gain': cent_snr['snr_gain_over_no_ris'],
             'phase_error_deg': np.rad2deg(cent_eval['phase_error_mean']),
@@ -509,7 +509,10 @@ class ExperimentBase:
              'total_communication_kb': 0,
              'final_accuracy': float(np.mean(final_accs)),
              'total_energy_mj': energy_mj,
-             'per_client_accuracy': [float(a) for a in final_accs],
+             # Genuinely per-client here: local-only trains a separate model
+             # per tile, so these are different models, not one global model
+             # scored on different regions.
+             'per_client_model_accuracy': [float(a) for a in final_accs],
         }
 
     def _calculate_noc_metrics(self, result):
@@ -561,6 +564,50 @@ class ExperimentBase:
             'noc_topology': self.config.NOC_TOPOLOGY,
             'noc_protocol': self.config.NOC_PROTOCOL,
         }
+
+    def _per_region_accuracy(self, eval_client, test_dataset):
+        """Accuracy of one model on each tile's neighbourhood of the test set.
+
+        Splits the held-out samples by which tile is nearest the user, then
+        scores the same global model on each split. Regions with too few samples
+        to be meaningful are skipped.
+
+        Returns a list of per-region accuracies, one per populated region.
+        """
+        from torch.utils.data import Subset
+
+        from src.dataset_utils import tile_positions_for
+
+        metadata = getattr(test_dataset, 'metadata', None)
+        if not metadata:
+            return []
+
+        tiles = np.asarray(tile_positions_for(self.config, self.config.NUM_TILES))[:, :2]
+        user_xy = np.array(
+            [np.atleast_2d(m['user_positions'])[0, :2] for m in metadata],
+            dtype=np.float64,
+        )
+        # nearest tile index per test sample
+        dist = np.linalg.norm(user_xy[:, None, :] - tiles[None, :, :], axis=2)
+        nearest = np.argmin(dist, axis=1)
+
+        # A region needs enough held-out samples for its accuracy to mean
+        # anything, but the floor must not scale with BATCH_SIZE: at 16 tiles a
+        # reduced run has ~12 samples per region and every region was skipped,
+        # which left the fairness metric undefined.
+        min_samples = 10
+        accuracies = []
+        for t in range(len(tiles)):
+            idx = np.flatnonzero(nearest == t)
+            if len(idx) < min_samples:
+                continue
+            loader = DataLoader(
+                Subset(test_dataset, idx.tolist()),
+                batch_size=self.config.BATCH_SIZE,
+                shuffle=False,
+            )
+            accuracies.append(float(eval_client.evaluate(loader)['accuracy_30deg']))
+        return accuracies
 
     def _save_experiment_results(self, experiment_name, results):
         """Save experiment results to file"""

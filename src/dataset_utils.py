@@ -284,6 +284,22 @@ class RISChannelDataset(Dataset):
         return self.features.shape[1]
 
 
+def tile_positions_for(config, num_tiles: int) -> list:
+    """Tile layout: evenly spaced on a circle around the room centre.
+
+    Shared by dataset generation and by any evaluation that needs to know where
+    a tile sits (for example partitioning a held-out set by nearest tile).
+    """
+    positions = []
+    for i in range(num_tiles):
+        angle = 2 * np.pi * i / num_tiles
+        x = config.ROOM_SIZE[0] / 2 + config.ROOM_SIZE[0] / 3 * np.cos(angle)
+        y = config.ROOM_SIZE[1] / 2 + config.ROOM_SIZE[1] / 3 * np.sin(angle)
+        z = config.ROOM_SIZE[2] / 2
+        positions.append([x, y, z])
+    return positions
+
+
 def _spatial_scene_partition(scene_channels, tile_positions, alpha, room_size):
     """Assign shared scenes to tiles with a spatial preference.
 
@@ -349,15 +365,7 @@ def create_non_iid_datasets(config, num_tiles: int) -> tuple[list, list]:
     datasets = []
 
     # Create spatial biases for non-IID distribution
-    tile_positions = []
-    for i in range(num_tiles):
-        # Distribute tiles around the room
-        angle = 2 * np.pi * i / num_tiles
-        x = config.ROOM_SIZE[0] / 2 + config.ROOM_SIZE[0] / 3 * np.cos(angle)
-        y = config.ROOM_SIZE[1] / 2 + config.ROOM_SIZE[1] / 3 * np.sin(angle)
-        z = config.ROOM_SIZE[2] / 2
-
-        tile_positions.append([x, y, z])
+    tile_positions = tile_positions_for(config, num_tiles)
 
     # Shared-scene generation: all tiles see the same drawn users and the same
     # direct link, so their reflected paths can be coherently combined into a

@@ -214,7 +214,9 @@ class FederatedExperimentsMixin:
                 # never touched the data.
                 if 'fairness_index' not in result:
                     raise RuntimeError(
-                        "fairness_index missing: per-client evaluation did not run. "
+                        "fairness_index missing: fewer than two test regions had "
+                        "enough held-out samples to score, so fairness could not "
+                        "be measured. Increase TEST_SAMPLES or reduce NUM_TILES. "
                         "Refusing to report a heterogeneity result without it."
                     )
                 results.append(result)
