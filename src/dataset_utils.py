@@ -255,6 +255,35 @@ class RISChannelDataset(Dataset):
         )
         return obj
 
+    @classmethod
+    def concat(cls, datasets: list) -> "RISChannelDataset":
+        """Pool several tile datasets into one.
+
+        The centralized-learning baseline must be the *same* learner as the
+        federated clients, differing only in that it sees all tiles' data at
+        once. Pooling with ``torch.utils.data.ConcatDataset`` loses the channel
+        arrays that the sum-rate objective needs, which would silently force the
+        baseline onto a different (MSE) objective and turn the FL-vs-centralized
+        comparison into an objective comparison. This keeps them comparable.
+        """
+        if not datasets:
+            raise ValueError("concat() needs at least one dataset")
+        widths = {d.features.shape[1] for d in datasets}
+        if len(widths) != 1:
+            raise ValueError(f"feature dimensions differ across datasets: {sorted(widths)}")
+
+        obj = cls.__new__(cls)
+        obj.num_ris_elements = datasets[0].num_ris_elements
+        obj.num_users = datasets[0].num_users
+        obj.features = np.concatenate([d.features for d in datasets], axis=0)
+        obj.labels = np.concatenate([d.labels for d in datasets], axis=0)
+        obj.metadata = [m for d in datasets for m in d.metadata]
+        obj.h_direct = np.concatenate([d.h_direct for d in datasets], axis=0)
+        obj.h_cascade = np.concatenate([d.h_cascade for d in datasets], axis=0)
+        obj.phase_offset = np.concatenate([d.phase_offset for d in datasets], axis=0)
+        obj.num_samples = obj.features.shape[0]
+        return obj
+
     def __len__(self) -> int:
         """Return the number of samples in the dataset."""
         return self.num_samples

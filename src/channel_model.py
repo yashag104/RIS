@@ -511,24 +511,46 @@ class RicianChannel:
 
 def apply_csi_error(
     channel: np.ndarray,
-    error_variance: float = 0.01
+    error_variance: float = 0.01,
+    absolute: bool = False,
 ) -> np.ndarray:
     """
     Add CSI estimation error to channel.
-    
-    h_estimated = h_true + N(0, sigma^2_e)
-    
+
+    ``h_est = h + e``, ``e ~ CN(0, sigma_e^2)``.
+
+    By default ``error_variance`` is the **normalized** estimation error
+    ``epsilon = sigma_e^2 / E[|h|^2]`` -- the convention the RIS literature
+    reports, where ``epsilon = 0.01`` means an estimate 20 dB above its own
+    error. Interpreting it as an absolute variance is meaningless here: these
+    cascaded 28 GHz channels have ``|h| ~ 1e-10``, so any ``error_variance``
+    above about ``1e-20`` replaces the CSI with pure noise rather than degrading
+    it, which collapses a robustness sweep into a cliff between "perfect CSI"
+    and "no CSI" with nothing in between.
+
     Args:
-        channel: True channel (complex array, any shape)
-        error_variance: Variance of estimation error
-    
+        channel: True channel (complex array, any shape).
+        error_variance: Normalized error ``epsilon`` (default), or the absolute
+            error variance when ``absolute=True``.
+        absolute: Treat ``error_variance`` as an absolute variance in the
+            channel's own units.
+
     Returns:
-        Estimated channel with added error
+        Estimated channel with added error.
     """
     if error_variance <= 0:
         return channel
-    
-    noise = np.sqrt(error_variance / 2) * (
+
+    channel = np.asarray(channel)
+    if absolute:
+        sigma2 = error_variance
+    else:
+        mean_power = float(np.mean(np.abs(channel) ** 2))
+        if mean_power <= 0:
+            return channel.copy()
+        sigma2 = error_variance * mean_power
+
+    noise = np.sqrt(sigma2 / 2) * (
         np.random.randn(*channel.shape) + 1j * np.random.randn(*channel.shape)
     )
     return channel + noise
@@ -1346,6 +1368,15 @@ def _channels_to_dataset(
             'H_direct': h_direct,
             'H_ris': h_ris_user,
             'h_bs_ris': h_bs_ris,
+            # The CSI the tile actually saw. Identical to the true channels when
+            # csi_error_variance == 0. Kept so that model-based baselines (SCA,
+            # AO, genie) can be driven from the *same* estimate the network was
+            # given a feature vector for -- comparing a learned design built on
+            # one noise draw against a convex solver built on an independent
+            # draw would confound estimator quality with CSI luck.
+            'H_direct_est': h_direct_est,
+            'H_ris_est': h_ris_user_est,
+            'h_bs_ris_est': h_bs_ris_est,
             'user_positions': user_pos,
             'bs_position': ch.get('bs_position', np.zeros(3)),
             'ris_position': ch.get('ris_pos', np.zeros(3)),

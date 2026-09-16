@@ -104,7 +104,10 @@ class Config:
     NUM_PATHS = 5  # Number of NLoS multipath components
     
     # CSI Estimation Error
-    CSI_ERROR_VARIANCE = 0.0  # 0 = perfect CSI, >0 adds estimation noise
+    # Normalized CSI estimation error eps = sigma_e^2 / E[|h|^2]; 0 = perfect CSI.
+    # Relative, not absolute -- at |h| ~ 1e-10 an absolute variance of 0.01 is
+    # not estimation error, it is erasure. See src.channel_model.apply_csi_error.
+    CSI_ERROR_VARIANCE = 0.0
     
     # Phase Noise (hardware imperfection)
     PHASE_NOISE_STD_DEG = 0.0  # Phase noise std in degrees (0=ideal, 2/5/10=realistic)
