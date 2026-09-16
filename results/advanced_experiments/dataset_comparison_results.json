@@ -1,0 +1,81 @@
+{
+    "provenance": {
+        "fl_rounds": 4,
+        "local_epochs": 1,
+        "train_samples": 150,
+        "test_samples": 150,
+        "num_tiles": 4,
+        "num_users": 1,
+        "elements_per_tile": 64,
+        "model_type": "GNN",
+        "aggregation_method": "FedAvg",
+        "noc_topology": "Torus",
+        "noc_protocol": "RingAllReduce",
+        "direct_link_blockage_db": 30.0,
+        "random_seed": null,
+        "is_reduced_run": true,
+        "saved_at": "2026-09-06T13:25:22"
+    },
+    "results": [
+        {
+            "scenario": "Synthetic Rician (LoS)",
+            "type": "synthetic",
+            "avg_snr_optimal_db": 5.170508773664626,
+            "std_snr_optimal_db": 5.6026819087881226,
+            "avg_snr_no_ris_db": 2.393548796217708,
+            "ris_gain_db": 2.7769599774469174,
+            "avg_channel_gain": 0.00013015444290096398,
+            "num_samples": 200
+        },
+        {
+            "scenario": "Synthetic Rician (NLoS)",
+            "type": "synthetic",
+            "avg_snr_optimal_db": 1.6125339016478457,
+            "std_snr_optimal_db": 8.000859694366586,
+            "avg_snr_no_ris_db": 0.5507417638813555,
+            "ris_gain_db": 1.0617921377664903,
+            "avg_channel_gain": 6.308807701410723e-05,
+            "num_samples": 200
+        },
+        {
+            "scenario": "Synthetic Rician (Mixed)",
+            "type": "synthetic",
+            "avg_snr_optimal_db": 4.468012848319606,
+            "std_snr_optimal_db": 5.496069647181425,
+            "avg_snr_no_ris_db": 1.4130115384718513,
+            "ris_gain_db": 3.0550013098477553,
+            "avg_channel_gain": 0.0001561152578990279,
+            "num_samples": 200
+        },
+        {
+            "scenario": "3GPP UMi 28 GHz (LoS)",
+            "type": "3gpp_umi",
+            "avg_snr_optimal_db": 42.70429673870474,
+            "std_snr_optimal_db": 5.283713690170094,
+            "avg_snr_no_ris_db": 42.595009818157486,
+            "ris_gain_db": 0.1092869205472553,
+            "avg_channel_gain": 0.00021189033128187924,
+            "num_samples": 200
+        },
+        {
+            "scenario": "3GPP UMi 28 GHz (NLoS)",
+            "type": "3gpp_umi",
+            "avg_snr_optimal_db": 34.39896075439765,
+            "std_snr_optimal_db": 10.229066103562822,
+            "avg_snr_no_ris_db": 34.14612395452588,
+            "ris_gain_db": 0.25283679987176555,
+            "avg_channel_gain": 0.00012954316266091057,
+            "num_samples": 200
+        },
+        {
+            "scenario": "3GPP UMi 60 GHz (Mixed)",
+            "type": "3gpp_umi",
+            "avg_snr_optimal_db": 35.67585031271148,
+            "std_snr_optimal_db": 5.535749255958934,
+            "avg_snr_no_ris_db": 35.63461625455287,
+            "ris_gain_db": 0.04123405815861503,
+            "avg_channel_gain": 9.268802025719603e-05,
+            "num_samples": 200
+        }
+    ]
+}

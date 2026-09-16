@@ -1,0 +1,104 @@
+{
+    "provenance": {
+        "fl_rounds": 4,
+        "local_epochs": 1,
+        "train_samples": 150,
+        "test_samples": 150,
+        "num_tiles": 4,
+        "num_users": 1,
+        "elements_per_tile": 64,
+        "model_type": "GNN",
+        "aggregation_method": "FedAvg",
+        "noc_topology": "Torus",
+        "noc_protocol": "RingAllReduce",
+        "direct_link_blockage_db": 30.0,
+        "random_seed": null,
+        "is_reduced_run": true,
+        "saved_at": "2026-09-08T16:05:59"
+    },
+    "results": [
+        {
+            "no_ris": {
+                "snr_db": 2.227075685679483,
+                "rate_bps_hz": 1.4168212445575785,
+                "communication_kb": 0,
+                "energy_mj": 0,
+                "convergence_iters": 0,
+                "privacy": true,
+                "complexity": "O(1)"
+            },
+            "random_ris": {
+                "snr_db": 2.3859944513473383,
+                "rate_bps_hz": 1.4500660657473015,
+                "communication_kb": 0,
+                "energy_mj": 0,
+                "convergence_iters": 1,
+                "privacy": true,
+                "complexity": "O(N)"
+            },
+            "random_search": {
+                "snr_db": 5.568926701505795,
+                "rate_bps_hz": 2.2031683922884238,
+                "communication_kb": 0,
+                "energy_mj": 0,
+                "convergence_iters": 1000,
+                "privacy": false,
+                "complexity": "O(N\u00b7T)"
+            },
+            "drl_td3": {
+                "snr_db": 2.6982254359472004,
+                "rate_bps_hz": 1.5166840934255392,
+                "communication_kb": 0,
+                "energy_mj": 150.0,
+                "convergence_iters": 150,
+                "privacy": true,
+                "complexity": "High"
+            },
+            "alternating_opt": {
+                "snr_db": 2.7073810124171422,
+                "rate_bps_hz": 1.5186632993602176,
+                "communication_kb": 50.0,
+                "energy_mj": 10.0,
+                "convergence_iters": 100.0,
+                "privacy": false,
+                "complexity": "O(N\u00b2\u00b7I) where N=64, I=50.0"
+            },
+            "centralized_dl": {
+                "snr_db": 4.879069214936696,
+                "rate_bps_hz": 2.02695498149032,
+                "communication_kb": 461.71875,
+                "energy_mj": 2.0,
+                "convergence_iters": 4,
+                "privacy": false,
+                "complexity": "O(N\u00b7E\u00b7B)",
+                "final_loss": 0.2555665718881707,
+                "training_history": [
+                    0.34479380595056636,
+                    0.2916275607912164,
+                    0.2675230346227947,
+                    0.2555665718881707
+                ]
+            },
+            "federated_ours": {
+                "snr_db": 7.21175752850232,
+                "rate_bps_hz": 2.6466930410083234,
+                "communication_kb": 9872.0625,
+                "energy_mj": 161.94092646400003,
+                "convergence_iters": 4,
+                "privacy": true,
+                "complexity": "O(N\u00b7E\u00b7B/K)",
+                "final_loss": 0.8720922470092773,
+                "phase_error_deg": 33.3753662109375
+            },
+            "optimal": {
+                "snr_db": 8.300564100435599,
+                "rate_bps_hz": 2.956374153139027,
+                "communication_kb": 0,
+                "energy_mj": 0,
+                "convergence_iters": 0,
+                "privacy": true,
+                "complexity": "N/A (oracle)"
+            }
+        }
+    ]
+}
