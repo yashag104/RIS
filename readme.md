@@ -22,10 +22,14 @@ Federated learning system for Reconfigurable Intelligent Surface (RIS) phase opt
 |-- run_all_experiments.py          # Experiment runner
 |-- models/
 |   `-- ris_net.py                  # MLP, GNN, CNN, Transformer model factory
+|-- run_link_level.py               # Link-level (BER/outage/SE) result suite
+|-- make_summary_tables.py          # Regenerates the Markdown tables in docs/
+|-- docs/                           # Novelty, paper-results and comparison write-ups
 |-- src/
 |   |-- channel_model.py            # Channel and phase hardware models
 |   |-- client.py                   # RIS tile client training/evaluation
 |   |-- dataset_utils.py            # Dataset generation helpers
+|   |-- link_metrics.py             # BER/SER/outage/spectral-efficiency math
 |   |-- noc_simulator.py            # NoC topology/protocol simulator
 |   `-- server.py                   # Federated aggregation server
 |-- baselines/                      # Optimization and learning baselines
@@ -94,6 +98,24 @@ python experiments_check.py
 ```
 
 `test_smoke.py` performs a compact end-to-end pass. `test_components.py` checks individual building blocks. `test_validation.py` checks channel/SNR/model sanity conditions. `experiments_check.py` runs mini versions of experiment infrastructure checks.
+
+## Paper Results
+
+The six link-level (physical-layer) results and the system figure:
+
+```bash
+python run_link_level.py                # BER/outage/SE/scaling + six figures
+python run_link_level.py --quick        # minutes, pipeline check only
+python run_link_level.py --plot-only    # re-render figures from saved JSON
+python -m utils.system_diagram          # end-to-end system architecture figure
+python make_summary_tables.py --write   # refresh the tables in docs/
+```
+
+Outputs land in `results/link_level/` and `results/figures/`. See
+[`docs/README.md`](docs/README.md) for what each figure argues,
+[`docs/NOVELTY.md`](docs/NOVELTY.md) for the contributions, and
+[`docs/BASELINE_COMPARISON.md`](docs/BASELINE_COMPARISON.md) for the comparison
+against baselines and against the published literature.
 
 ## Experiments
 
