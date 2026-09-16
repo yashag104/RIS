@@ -21,3 +21,8 @@ Thumbs.db
 
 .pytest_cache/
 .ruff_cache/
+
+# Smoke-run dumps: a single multi-megabyte JSON of every intermediate metric,
+# written by run_experiments_smoke.py to verify the suite executes. It is not a
+# result anyone reads, and it is far too large to version.
+results/experiments_smoke_*.json
