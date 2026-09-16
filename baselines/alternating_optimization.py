@@ -94,10 +94,11 @@ class AlternatingOptimization:
             # Step 1: Fix phases, optimize beamformer
             # For single-antenna BS, optimal beamformer is just phase alignment
             # (In multi-antenna case, this would be MRT or ZF beamforming)
-            Theta = np.diag(np.exp(1j * phases))
-            
-            # Effective channel: h_eff = h_direct + h_ris_user^H @ Theta @ h_bs_ris
-            h_cascade = np.conj(h_ris_user) @ Theta @ h_bs_ris
+            # Effective channel: h_eff = h_direct + h_ris_user^H @ Theta @ h_bs_ris.
+            # Theta is diagonal, so the triple product is a plain weighted sum;
+            # materialising the N x N diagonal made this O(N^2) in time and
+            # memory, which dominates the whole sweep once N reaches 1024.
+            h_cascade = np.sum(np.conj(h_ris_user) * np.exp(1j * phases) * h_bs_ris)
             h_eff = h_direct + h_cascade
             
             # Compute SNR
