@@ -21,7 +21,10 @@ import time
 import numpy as np
 import torch
 
+#: Paper results live here; --quick writes elsewhere so a pipeline check
+#: can never overwrite a full-scale run that took hours to produce.
 RESULTS_SUBDIR = "link_level"
+QUICK_RESULTS_SUBDIR = "link_level_quick"
 
 
 def _jsonable(o):
@@ -223,7 +226,8 @@ def main():
     from config import Config
 
     configure(args, Config)
-    results_dir = os.path.join(Config.RESULTS_DIR, RESULTS_SUBDIR)
+    subdir = QUICK_RESULTS_SUBDIR if args.quick else RESULTS_SUBDIR
+    results_dir = os.path.join(Config.RESULTS_DIR, subdir)
     os.makedirs(results_dir, exist_ok=True)
     json_path = os.path.join(results_dir, "link_level_results.json")
 
