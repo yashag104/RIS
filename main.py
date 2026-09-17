@@ -491,7 +491,7 @@ def save_results(config, server, clients, all_round_metrics, baselines, test_dat
     logger.info("  [OK] Energy consumption")
 
     # Trade-off curves
-    plot_tradeoff_curves(all_round_metrics, None, plots_dir)
+    plot_tradeoff_curves(all_round_metrics, plots_dir)
     logger.info("  [OK] Trade-off curves")
 
     # Client performance

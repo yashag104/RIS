@@ -269,17 +269,6 @@ rather than independently useful.
 
 ## Table 8 — System-level baseline table (experiment 9, earlier run)
 
-| Method | SNR (dB) | Rate (bit/s/Hz) | Comm (KB) | Energy (mJ) | Iterations | CSI stays local | Complexity |
-|---|---|---|---|---|---|---|---|
-| no_ris | 2.23 | 1.42 | 0.0 | 0.0 | 0 | yes | O(1) |
-| random_ris | 2.39 | 1.45 | 0.0 | 0.0 | 1 | yes | O(N) |
-| random_search | 5.57 | 2.20 | 0.0 | 0.0 | 1000 | no | O(N·T) |
-| drl_td3 | 2.70 | 1.52 | 0.0 | 150.0 | 150 | yes | High |
-| alternating_opt | 2.71 | 1.52 | 50.0 | 10.0 | 100.0 | no | O(N²·I) where N=64, I=50.0 |
-| centralized_dl | 4.88 | 2.03 | 461.7 | 2.0 | 4 | no | O(N·E·B) |
-| federated_ours | 7.21 | 2.65 | 9872.1 | 161.9 | 4 | yes | O(N·E·B/K) |
-| optimal | 8.30 | 2.96 | 0.0 | 0.0 | 0 | yes | N/A (oracle) |
-
-_Provenance: 4 tiles × 64 elements, 4 FL rounds, 150 train samples, reduced run = True, saved 2026-09-08T16:05:59._
+_(results/advanced_experiments/baseline_comparison_results.json not found.)_
 
 <!-- END GENERATED TABLES -->

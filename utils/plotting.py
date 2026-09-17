@@ -73,11 +73,44 @@ CMAP_PHASE = 'twilight'
 # ==================== Helpers ====================
 
 def _save(fig, save_path, name):
-    """Save figure as both PDF (vector) and PNG (raster)."""
+    """Save figure as both PDF (vector) and PNG (raster).
+
+    Stamps each figure with the metadata of the run that produced it. A figure
+    regenerated from a stale result file otherwise looks freshly made: the
+    golden-ratio figure was rebuilt four days after its source data and nothing
+    on the image said so.
+    """
     os.makedirs(save_path, exist_ok=True)
+    _stamp_provenance(fig)
     fig.savefig(os.path.join(save_path, f'{name}.pdf'), format='pdf')
     fig.savefig(os.path.join(save_path, f'{name}.png'), format='png')
     plt.close(fig)
+
+
+def _stamp_provenance(fig):
+    """Write a small run-provenance line in the figure corner."""
+    import datetime
+
+    try:
+        from config import Config
+        seed = getattr(Config, '_ACTIVE_EXPERIMENT_SEED', None)
+        reduced = Config.FL_ROUNDS < 20 or Config.TRAIN_SAMPLES < 2000
+        parts = [
+            datetime.datetime.now().strftime('%Y-%m-%d %H:%M'),
+            f"{Config.FL_ROUNDS}r/{Config.TRAIN_SAMPLES}s",
+        ]
+        if seed is not None:
+            parts.append(f"seed {seed}")
+        if reduced:
+            parts.append("REDUCED RUN - NOT FOR PUBLICATION")
+        stamp = " | ".join(parts)
+        color = '#cc0000' if reduced else '#999999'
+    except Exception:
+        stamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+        color = '#999999'
+
+    fig.text(0.995, 0.005, stamp, ha='right', va='bottom',
+             fontsize=4.5, color=color, transform=fig.transFigure)
 
 
 def _add_reference_note(fig, experiment_tag, y_offset=-0.03):
@@ -232,8 +265,12 @@ def plot_energy_consumption(round_metrics, save_path=None):
         _save(fig, save_path, 'energy_consumption')
 
 
-def plot_tradeoff_curves(round_metrics, snr_metrics_per_round, save_path=None):
-    """Loss vs communication and energy trade-offs."""
+def plot_tradeoff_curves(round_metrics, save_path=None):
+    """Loss vs communication and energy trade-offs.
+
+    Previously took an ``snr_metrics_per_round`` argument that was never read;
+    its only caller passed None.
+    """
     losses = [m['avg_client_loss'] for m in round_metrics]
     comm = np.cumsum([m['total_bytes'] / 1024 for m in round_metrics]).tolist()
     energy = np.cumsum([m['total_energy'] * 1000 for m in round_metrics]).tolist()
@@ -286,7 +323,7 @@ def plot_beam_pattern(predicted_phases, metadata, save_path=None, filename='beam
     _add_reference_note(fig, 'baseline_comparison')
 
     if save_path:
-        _save(fig, save_path, 'beam_pattern')
+        _save(fig, save_path, filename)
 
 
 def plot_client_performance(client_metrics_per_round, save_path=None):

@@ -511,46 +511,42 @@ class RicianChannel:
 
 def apply_csi_error(
     channel: np.ndarray,
-    error_variance: float = 0.01,
-    absolute: bool = False,
+    error_variance: float = 0.01
 ) -> np.ndarray:
     """
     Add CSI estimation error to channel.
 
-    ``h_est = h + e``, ``e ~ CN(0, sigma_e^2)``.
+    h_estimated = h_true + e,  e ~ CN(0, sigma_e^2 * E[|h|^2])
 
-    By default ``error_variance`` is the **normalized** estimation error
-    ``epsilon = sigma_e^2 / E[|h|^2]`` -- the convention the RIS literature
-    reports, where ``epsilon = 0.01`` means an estimate 20 dB above its own
-    error. Interpreting it as an absolute variance is meaningless here: these
-    cascaded 28 GHz channels have ``|h| ~ 1e-10``, so any ``error_variance``
-    above about ``1e-20`` replaces the CSI with pure noise rather than degrading
-    it, which collapses a robustness sweep into a cliff between "perfect CSI"
-    and "no CSI" with nothing in between.
+    ``error_variance`` is RELATIVE to the mean channel power, i.e. it is the
+    reciprocal of the estimation SNR: 0.01 means the error power is 1% of the
+    signal power (20 dB estimation SNR).
+
+    This scaling is not cosmetic. Physical channel gains here are O(1e-4) in
+    magnitude (O(1e-8) in power), so treating ``error_variance`` as an ABSOLUTE
+    noise variance made even the smallest swept value (0.01) roughly 1e6 times
+    the channel power. Every non-zero setting then produced a pure-noise
+    "estimate" with a uniformly distributed phase (mean error 90 deg), which
+    is what collapsed the CSI-robustness sweep into "perfect CSI vs no CSI"
+    with a meaningless x-axis.
 
     Args:
-        channel: True channel (complex array, any shape).
-        error_variance: Normalized error ``epsilon`` (default), or the absolute
-            error variance when ``absolute=True``.
-        absolute: Treat ``error_variance`` as an absolute variance in the
-            channel's own units.
+        channel: True channel (complex array, any shape)
+        error_variance: Error power as a fraction of mean channel power
 
     Returns:
-        Estimated channel with added error.
+        Estimated channel with added error
     """
     if error_variance <= 0:
         return channel
 
     channel = np.asarray(channel)
-    if absolute:
-        sigma2 = error_variance
-    else:
-        mean_power = float(np.mean(np.abs(channel) ** 2))
-        if mean_power <= 0:
-            return channel.copy()
-        sigma2 = error_variance * mean_power
+    mean_channel_power = float(np.mean(np.abs(channel) ** 2))
+    if mean_channel_power <= 0:
+        return channel
 
-    noise = np.sqrt(sigma2 / 2) * (
+    noise_power = error_variance * mean_channel_power
+    noise = np.sqrt(noise_power / 2) * (
         np.random.randn(*channel.shape) + 1j * np.random.randn(*channel.shape)
     )
     return channel + noise
@@ -619,6 +615,7 @@ class ThreeGPPUMiChannel:
         element_spacing_factor: float = 0.5,
         bs_height: float = 10.0,
         ue_height: float = 1.5,
+        direct_link_blockage_db: float = 30.0,
     ):
         """
         Args:
@@ -629,7 +626,14 @@ class ThreeGPPUMiChannel:
             element_spacing_factor: Element spacing in wavelengths
             bs_height: BS antenna height in meters
             ue_height: UE height in meters
+            direct_link_blockage_db: Excess attenuation on the obstructed
+                BS->user direct path, in dB. Matches RicianChannel. Without it
+                the direct path dominates so completely that the RIS changes
+                nothing -- which is why the 3GPP rows showed a RIS gain of a
+                few hundredths of a dB and 1-bit phase quantization appeared to
+                cost nothing at all.
         """
+        self.direct_link_blockage_db = direct_link_blockage_db
         self.num_elements = num_elements
         self.frequency = frequency
         self.frequency_ghz = frequency / 1e9
@@ -661,41 +665,73 @@ class ThreeGPPUMiChannel:
             np.exp(-distance_2d / 36.0)
         return float(np.clip(p, 0, 1))
     
-    def path_loss_los(self, distance_3d: float, distance_2d: float) -> float:
+    def breakpoint_distance(self) -> float:
+        """2D breakpoint distance d_BP' (m) per 3GPP TR 38.901 Note 1.
+
+            d_BP' = 4 * h_BS' * h_UT' * f_c / c,   h' = h - 1.0 m (UMi)
+
+        Beyond it the LoS path-loss exponent steepens from 2.1 to 4.0.
         """
-        LoS path loss (dB) per 3GPP TR 38.901 Table 7.4.1-1.
-        
-        PL_UMi-LOS = 32.4 + 21 log10(d_3D) + 20 log10(f_c [GHz])
-        Valid for 10 m ≤ d_2D ≤ 5 km
+        h_bs_eff = max(self.bs_height - 1.0, 0.1)
+        h_ut_eff = max(self.ue_height - 1.0, 0.1)
+        return 4.0 * h_bs_eff * h_ut_eff * self.frequency / 3e8
+
+    def _path_loss_los_mean(self, distance_3d: float, distance_2d: float) -> float:
+        """LoS path loss (dB) without shadow fading, both distance regimes.
+
+        3GPP TR 38.901 Table 7.4.1-1 (UMi Street Canyon):
+            d_2D <= d_BP':  PL = 32.4 + 21 log10(d_3D) + 20 log10(f_c)
+            d_2D >  d_BP':  PL = 32.4 + 40 log10(d_3D) + 20 log10(f_c)
+                                  - 9.5 log10(d_BP'^2 + (h_BS - h_UT)^2)
+
+        The second branch was missing and `distance_2d` was accepted but never
+        read, so the model silently applied the short-range exponent at every
+        range. It happens not to change this paper's numbers -- the room is
+        10 m across and d_BP' is ~1.7 km at 28 GHz -- but the function was
+        wrong for any longer-range reuse.
         """
         d3d = max(distance_3d, 1.0)
+        d2d = max(distance_2d, 0.0)
         fc = self.frequency_ghz
-        
-        pl = 32.4 + 21.0 * np.log10(d3d) + 20.0 * np.log10(fc)
-        
-        # Add shadow fading
+        d_bp = self.breakpoint_distance()
+
+        if d2d <= d_bp:
+            return 32.4 + 21.0 * np.log10(d3d) + 20.0 * np.log10(fc)
+
+        delta_h = self.bs_height - self.ue_height
+        return (32.4 + 40.0 * np.log10(d3d) + 20.0 * np.log10(fc)
+                - 9.5 * np.log10(d_bp ** 2 + delta_h ** 2))
+
+    def path_loss_los(self, distance_3d: float, distance_2d: float) -> float:
+        """
+        LoS path loss (dB) per 3GPP TR 38.901 Table 7.4.1-1, with shadow fading.
+
+        Valid for 10 m <= d_2D <= 5 km.
+        """
+        pl = self._path_loss_los_mean(distance_3d, distance_2d)
         sf = np.random.normal(0, self.sf_std_los)
-        
         return pl + sf
-    
+
     def path_loss_nlos(self, distance_3d: float, distance_2d: float) -> float:
         """
         NLoS path loss (dB) per 3GPP TR 38.901 Table 7.4.1-1.
-        
-        PL_UMi-NLOS = 32.4 + 31.9 log10(d_3D) + 20 log10(f_c [GHz])
+
+        PL_UMi-NLOS = 32.4 + 31.9 log10(d_3D) + 20 log10(f_c [GHz]),
+        floored by the LoS path loss as the standard requires.
         """
         d3d = max(distance_3d, 1.0)
         fc = self.frequency_ghz
-        
+
         pl_nlos = 32.4 + 31.9 * np.log10(d3d) + 20.0 * np.log10(fc)
-        
-        # Take max with LoS path loss (3GPP requirement)
-        pl_los = 32.4 + 21.0 * np.log10(d3d) + 20.0 * np.log10(fc)
+
+        # Take max with LoS path loss (3GPP requirement). Uses the same
+        # breakpoint-aware LoS expression rather than a second inline copy.
+        pl_los = self._path_loss_los_mean(distance_3d, distance_2d)
         pl = max(pl_nlos, pl_los)
-        
+
         # Add shadow fading
         sf = np.random.normal(0, self.sf_std_nlos)
-        
+
         return pl + sf
     
     def _compute_steering_vector(
@@ -769,6 +805,9 @@ class ThreeGPPUMiChannel:
             else:
                 pl_db = self.path_loss_nlos(dist_3d_direct, dist_2d_direct)
             
+            # Obstructed direct path: the RIS exists because this link is
+            # blocked. Applied in the voltage domain, same as the path loss.
+            pl_db = pl_db + self.direct_link_blockage_db
             pl_linear = 10 ** (-pl_db / 20)  # Voltage domain
             phase_direct = -2 * np.pi * dist_3d_direct / self.wavelength
             h_direct[u] = pl_linear * np.exp(1j * phase_direct)
@@ -1275,7 +1314,19 @@ def _channels_to_dataset(
     features_list = []
     labels_list = []
     metadata_list = []
-    
+
+    # num_ris_elements was accepted and never checked, so a caller passing a
+    # value that disagreed with the channels built a dataset anyway and the
+    # mismatch only surfaced later in validate_dataset_feature_dim, far from
+    # its cause. Fail here instead.
+    if channels:
+        actual_elements = np.asarray(channels[0]['h_ris_user']).shape[-1]
+        if actual_elements != num_ris_elements:
+            raise ValueError(
+                f"channel data has {actual_elements} RIS elements but "
+                f"num_ris_elements={num_ris_elements} was requested"
+            )
+
     for ch in channels:
         h_direct = ch['h_direct']
         h_ris_user = ch['h_ris_user']

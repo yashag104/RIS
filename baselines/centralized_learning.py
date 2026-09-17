@@ -91,15 +91,37 @@ class CentralizedRIS:
         if learning_rate is None:
             learning_rate = self.config.LEARNING_RATE
         
+        # Train on whatever the federated clients train on.
+        #
+        # This file used to hardcode circular_loss. That was correct when the
+        # clients also used it, but Config.TRAINING_OBJECTIVE now defaults to
+        # 'sumrate', so centralized was minimising phase error while federated
+        # maximised sum rate. The FL-vs-centralized comparison then measured the
+        # choice of loss, not the choice of training scheme -- exactly what the
+        # note on circular_loss warns against. It showed up as centralized
+        # scoring 0.99 on a phase-error accuracy metric against federated's
+        # 0.78, while the two reached the same SNR to within 0.2 dB.
+        from src.objectives import build_objective
+
+        objective, needs_channels = build_objective(self.config)
+        if hasattr(objective, 'to'):
+            objective = objective.to(self.device)
+
+        if needs_channels:
+            from src.dataset_utils import ChannelDatasetView
+            sources = [ChannelDatasetView(d) for d in tile_datasets]
+        else:
+            sources = list(tile_datasets)
+
         # Pool all datasets
-        combined_dataset = ConcatDataset(tile_datasets)
+        combined_dataset = ConcatDataset(sources)
         dataloader = DataLoader(
             combined_dataset,
             batch_size=batch_size,
             shuffle=True,
             drop_last=False
         )
-        
+
         # Setup optimizer and loss
         optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
         
@@ -111,16 +133,33 @@ class CentralizedRIS:
             epoch_loss = 0.0
             num_batches = 0
             
-            for batch_idx, (features, targets) in enumerate(dataloader):
+            for batch in dataloader:
+                if needs_channels:
+                    features, targets, h_direct, h_cascade = batch
+                    h_direct = h_direct.to(self.device)
+                    h_cascade = h_cascade.to(self.device)
+                else:
+                    features, targets = batch
+                    h_direct = h_cascade = None
+
                 features = features.to(self.device)
                 targets = targets.to(self.device)
-                
+
                 # Forward pass on the circular (cos, sin) representation,
-                # matching the federated clients exactly.
+                # matching the federated clients exactly (see RISClient.train_local_model).
                 optimizer.zero_grad()
                 components = self.model.forward_components(features)
-                loss = circular_loss(components, targets)
-                
+                if needs_channels:
+                    # atan2 keeps the gradient smooth across the 2*pi wrap.
+                    predictions = torch.atan2(components[..., 1], components[..., 0])
+                    # Fold in the known per-sample global MRC offset so training
+                    # scores the phases the hardware would actually apply.
+                    phase_offset = torch.atan2(h_direct[:, 0, 1], h_direct[:, 0, 0])
+                    applied = predictions + phase_offset.unsqueeze(1)
+                    loss = objective(applied, h_direct, h_cascade)
+                else:
+                    loss = circular_loss(components, targets)
+
                 # Backward pass
                 loss.backward()
                 optimizer.step()

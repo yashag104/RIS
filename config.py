@@ -104,9 +104,8 @@ class Config:
     NUM_PATHS = 5  # Number of NLoS multipath components
     
     # CSI Estimation Error
-    # Normalized CSI estimation error eps = sigma_e^2 / E[|h|^2]; 0 = perfect CSI.
-    # Relative, not absolute -- at |h| ~ 1e-10 an absolute variance of 0.01 is
-    # not estimation error, it is erasure. See src.channel_model.apply_csi_error.
+    # Error power as a FRACTION of mean channel power (0 = perfect CSI).
+    # See src.channel_model.apply_csi_error for why it cannot be absolute.
     CSI_ERROR_VARIANCE = 0.0
     
     # Phase Noise (hardware imperfection)
@@ -213,6 +212,12 @@ class Config:
     TRAIN_SAMPLES = 2000  # Training samples per tile (scaled up from 500)
     TEST_SAMPLES = 2000  # Test samples (held-out region)
     NON_IID_ALPHA = 0.5  # Dirichlet parameter for non-IID data (lower = more non-IID)
+    # Whether tiles actually receive heterogeneous local data. Under
+    # SHARED_SCENE_TILES every tile is illuminated by the same drawn scene, so
+    # their training distributions are identical unless this is switched on.
+    # Default False keeps the suite IID; experiment 5 enables it explicitly so
+    # its sweep is the only place the partitioning is active.
+    NON_IID_ENABLED = False
 
     # ============ Communication Parameters ============
     PACKET_SIZE_BYTES = 4  # Size of float32 in bytes (local computation)

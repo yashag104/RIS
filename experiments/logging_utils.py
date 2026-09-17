@@ -34,7 +34,14 @@ def configure_experiment_logging(
             if getattr(h, "_ris_log_path", None) == str(log_path)
         ]
         if not existing_file_handlers:
-            file_handler = logging.FileHandler(log_path)
+            # Without an explicit encoding this opens in the platform default,
+            # which on Windows is cp1252. Experiment 5 logs a Greek alpha and
+            # experiment 1 a degree sign, so every one of those records raised
+            # UnicodeEncodeError inside the handler. Logging swallows that and
+            # drops the record, which is why experiment 5 ran while producing a
+            # completely blank stretch of log -- the exact blindness that made
+            # an earlier failure impossible to diagnose.
+            file_handler = logging.FileHandler(log_path, encoding="utf-8")
             file_handler.setFormatter(formatter)
             file_handler._ris_log_path = str(log_path)
             logger.addHandler(file_handler)

@@ -125,7 +125,9 @@ def plot_mobility_analysis(results, save_path):
     names = [r['mobility_name'] for r in results]
     speeds = [r['mobility_speed'] for r in results]
     terr = [r['tracking_error'] for r in results]
-    adapt = [r['adaptation_time'] for r in results]
+    # Coherence time replaces the old 'adaptation_time', which was the closed
+    # form 5 + 2*speed and had never been measured.
+    coh = [r.get('coherence_time_ms', float('nan')) for r in results]
     snr = [r['final_snr'] for r in results]
 
     fig, ((a1, a2), (a3, a4)) = plt.subplots(2, 2, figsize=(7.16, 5.0))
@@ -134,9 +136,14 @@ def plot_mobility_analysis(results, save_path):
     a1.set_xlabel('Speed (m/s)'); a1.set_ylabel('Tracking Error')
     a1.set_title('(a) Tracking Error', fontsize=9, loc='left')
 
-    a2.plot(speeds, adapt, marker=MARKERS[1], color=C[4], linewidth=1.5, markersize=5, zorder=3)
-    a2.set_xlabel('Speed (m/s)'); a2.set_ylabel('Adaptation (rounds)')
-    a2.set_title('(b) Adaptation Time', fontsize=9, loc='left')
+    # Static (speed 0) has infinite coherence time; drop it rather than plot inf.
+    finite = [(sp, c) for sp, c in zip(speeds, coh) if np.isfinite(c)]
+    if finite:
+        a2.plot([sp for sp, _ in finite], [c for _, c in finite],
+                marker=MARKERS[1], color=C[4], linewidth=1.5, markersize=5, zorder=3)
+        a2.set_yscale('log')
+    a2.set_xlabel('Speed (m/s)'); a2.set_ylabel('Coherence time (ms)')
+    a2.set_title('(b) Channel Coherence Time', fontsize=9, loc='left')
 
     a3.plot(speeds, snr, marker=MARKERS[2], color=C[0], linewidth=1.5, markersize=5, zorder=3)
     a3.set_xlabel('Speed (m/s)'); a3.set_ylabel('SNR (dB)')

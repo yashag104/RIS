@@ -5,6 +5,7 @@
 
 import numpy as np
 
+from src.dataset_utils import create_non_iid_datasets, create_test_dataset
 from utils.metrics import *
 from utils.plotting import *
 
@@ -159,8 +160,11 @@ class FederatedExperimentsMixin:
             result['mobility_name'] = config['name']
             results.append(result)
 
-            self.logger.info(f"  Tracking Error: {result['tracking_error']:.3f} m")
-            self.logger.info(f"  Adaptation Time: {result['adaptation_time']:.2f} rounds")
+            # tracking_error is 1 - J0(2*pi*f_d*dt): a correlation deficit,
+            # dimensionless. It was logged with a metres unit.
+            self.logger.info(f"  Tracking Error: {result['tracking_error']:.3f} (1 - correlation)")
+            self.logger.info(f"  Doppler: {result['doppler_hz']:.1f} Hz")
+            self.logger.info(f"  Coherence Time: {result['coherence_time_ms']:.2f} ms")
 
         self._save_experiment_results('user_mobility', results)
         self._plot_mobility_analysis(results)
@@ -184,7 +188,11 @@ class FederatedExperimentsMixin:
         # last swept alpha (1.0) leaks into experiments 6-20, silently making
         # their data far more IID than the configured default.
         original_alpha = self.config.NON_IID_ALPHA
+        original_enabled = getattr(self.config, 'NON_IID_ENABLED', False)
         try:
+            # This is the only experiment that actually partitions data across
+            # tiles; everything else runs the shared IID scene.
+            self.config.NON_IID_ENABLED = True
             for alpha in alpha_values:
                 self.logger.info(f"\n>>> Testing with α = {alpha} (lower = more non-IID)...")
 
@@ -194,14 +202,30 @@ class FederatedExperimentsMixin:
                 # Run training
                 result = self._run_single_fl_experiment()
                 result['alpha'] = alpha
-                fairness_index = 0.5 + (alpha * 0.4)
-                result['fairness_index'] = fairness_index
+                # Record the partitioning state per row. The suite-level
+                # provenance block is written after the finally clause below has
+                # already restored NON_IID_ENABLED, so it would report False for
+                # the one experiment that actually turns partitioning on.
+                result['non_iid_enabled'] = True
+                # fairness_index is measured in _run_single_fl_experiment as
+                # Jain's index over per-client accuracy of the global model.
+                # It used to be assigned here as `0.5 + alpha * 0.4`, a closed
+                # form that produced a perfectly linear "measurement" which
+                # never touched the data.
+                if 'fairness_index' not in result:
+                    raise RuntimeError(
+                        "fairness_index missing: fewer than two test regions had "
+                        "enough held-out samples to score, so fairness could not "
+                        "be measured. Increase TEST_SAMPLES or reduce NUM_TILES. "
+                        "Refusing to report a heterogeneity result without it."
+                    )
                 results.append(result)
 
-                self.logger.info(f"  Fairness Index: {result['fairness_index']:.3f}")
+                self.logger.info(f"  Fairness Index (Jain): {result['fairness_index']:.3f}")
                 self.logger.info(f"  Convergence: {result['convergence_round']} rounds")
         finally:
             self.config.NON_IID_ALPHA = original_alpha
+            self.config.NON_IID_ENABLED = original_enabled
 
         self._save_experiment_results('non_iid_heterogeneity', results)
         self._plot_noniid_analysis(results)
@@ -258,28 +282,33 @@ class FederatedExperimentsMixin:
         tile_configs = [2, 4, 8, 12, 16]
         results = []
 
-        for num_tiles in tile_configs:
-            self.logger.info(f"\n>>> Testing with {num_tiles} tiles...")
+        # The restore must sit in a finally block, not merely at the end of the
+        # loop body: the runner catches per-experiment failures and continues to
+        # the next one, so an exception mid-sweep would leave NUM_TILES at the
+        # last swept value for every experiment that follows. Same hazard that
+        # experiments 1 and 5 had.
+        original_tiles = self.config.NUM_TILES
+        try:
+            for num_tiles in tile_configs:
+                self.logger.info(f"\n>>> Testing with {num_tiles} tiles...")
 
-            # Update config
-            original_tiles = self.config.NUM_TILES
-            self.config.NUM_TILES = num_tiles
+                # Update config
+                self.config.NUM_TILES = num_tiles
 
-            # Run training
-            result = self._run_single_fl_experiment()
-            result['num_tiles'] = num_tiles
+                # Run training
+                result = self._run_single_fl_experiment()
+                result['num_tiles'] = num_tiles
 
-            # Calculate NoC metrics
-            noc_metrics = self._calculate_noc_metrics(result)
-            result.update(noc_metrics)
+                # Calculate NoC metrics
+                noc_metrics = self._calculate_noc_metrics(result)
+                result.update(noc_metrics)
 
-            results.append(result)
+                results.append(result)
 
-            # Restore
+                self.logger.info(f"  Power: {result['total_power_mw']:.2f} mW")
+                self.logger.info(f"  Latency: {result['avg_latency_us']:.2f} us")
+        finally:
             self.config.NUM_TILES = original_tiles
-
-            self.logger.info(f"  Power: {result['total_power_mw']:.2f} mW")
-            self.logger.info(f"  Latency: {result['avg_latency_us']:.2f} us")
 
         self._save_experiment_results('noc_traffic_power', results)
         self._plot_noc_analysis(results)
@@ -299,15 +328,23 @@ class FederatedExperimentsMixin:
         methods = ['federated', 'centralized', 'local_only']
         results = []
 
+        # One dataset for all three arms. Each runner used to build its own,
+        # so the three bars described three different draws of the channel --
+        # which is how local_only came out above both the federated arm and the
+        # genie-aided bound.
+        shared_train, _tile_positions = create_non_iid_datasets(self.config, self.config.NUM_TILES)
+        shared_test = create_test_dataset(self.config)
+        shared = (shared_train, shared_test)
+
         for method in methods:
             self.logger.info(f"\n>>> Testing {method} approach...")
 
             if method == 'federated':
-                result = self._run_single_fl_experiment()
+                result = self._run_single_fl_experiment(datasets=shared)
             elif method == 'centralized':
-                result = self._run_centralized_experiment()
+                result = self._run_centralized_experiment(datasets=shared)
             else:  # local_only
-                result = self._run_local_only_experiment()
+                result = self._run_local_only_experiment(datasets=shared)
 
             result['method'] = method
             results.append(result)
