@@ -1,0 +1,1044 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Reflecting Surface Notebook</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,600;0,800;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ground:#eceff3;
+  --surface:#ffffff;
+  --surface-2:#f4f6f9;
+  --ink:#151a20;
+  --ink-2:#414b56;
+  --ink-3:#6b7783;
+  --rule:#d4dae1;
+  --rule-2:#e6eaef;
+  --accent:#0d6b76;
+  --accent-soft:#e0f0f1;
+  --signal:#b25415;
+  --signal-soft:#f9e9dc;
+  --good:#2c6a4a;
+  --good-soft:#dff0e6;
+  --bad:#9c2f2f;
+  --bad-soft:#f7e2e2;
+  --shadow:0 1px 2px rgba(20,30,40,.06),0 8px 24px rgba(20,30,40,.05);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#0d1116;
+    --surface:#151b22;
+    --surface-2:#1b222a;
+    --ink:#dde4ea;
+    --ink-2:#a9b4c0;
+    --ink-3:#7c8896;
+    --rule:#2a333d;
+    --rule-2:#212932;
+    --accent:#4dbecb;
+    --accent-soft:#14323a;
+    --signal:#dd8e4c;
+    --signal-soft:#332314;
+    --good:#5cba8a;
+    --good-soft:#15291f;
+    --bad:#e07a7a;
+    --bad-soft:#2e1a1a;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.28);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0d1116;
+  --surface:#151b22;
+  --surface-2:#1b222a;
+  --ink:#dde4ea;
+  --ink-2:#a9b4c0;
+  --ink-3:#7c8896;
+  --rule:#2a333d;
+  --rule-2:#212932;
+  --accent:#4dbecb;
+  --accent-soft:#14323a;
+  --signal:#dd8e4c;
+  --signal-soft:#332314;
+  --good:#5cba8a;
+  --good-soft:#15291f;
+  --bad:#e07a7a;
+  --bad-soft:#2e1a1a;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.28);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--ground);color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,sans-serif;
+  font-size:16px;line-height:1.65;
+}
+img{max-width:100%}
+a{color:var(--accent)}
+.wrap{max-width:860px;margin:0 auto;padding-inline:20px;padding-block:0}
+
+/* ---------- masthead ---------- */
+.masthead{
+  border-bottom:1px solid var(--rule);background:var(--surface);
+}
+.masthead .wrap{padding-block:56px 40px}
+.kicker{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--accent);margin:0 0 18px;
+}
+h1{
+  font-family:Spectral,Georgia,serif;font-weight:800;
+  font-size:clamp(2.1rem,6vw,3.2rem);line-height:1.08;margin:0 0 18px;
+  text-wrap:balance;letter-spacing:-.015em;
+}
+.standfirst{
+  font-family:Spectral,Georgia,serif;font-size:clamp(1.05rem,2.4vw,1.25rem);
+  line-height:1.55;color:var(--ink-2);margin:0;max-width:62ch;
+}
+.meta-row{
+  display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:28px;
+  font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--ink-3);
+}
+.meta-row b{color:var(--ink-2);font-weight:500}
+
+/* ---------- nav ---------- */
+nav.toc{
+  position:sticky;top:env(safe-area-inset-top,0px);z-index:20;
+  background:color-mix(in srgb,var(--surface) 92%,transparent);
+  backdrop-filter:saturate(1.4) blur(10px);
+  border-bottom:1px solid var(--rule);
+}
+nav.toc .wrap{padding-block:0;display:flex;gap:0;overflow-x:auto;scrollbar-width:thin}
+nav.toc a{
+  flex:0 0 auto;padding:13px 13px;text-decoration:none;color:var(--ink-3);
+  font-family:"IBM Plex Mono",monospace;font-size:11.5px;letter-spacing:.04em;
+  border-bottom:2px solid transparent;white-space:nowrap;
+}
+nav.toc a:hover{color:var(--ink)}
+nav.toc a .n{color:var(--accent);font-weight:600}
+
+/* ---------- sections ---------- */
+section{padding-block:52px;border-bottom:1px solid var(--rule-2)}
+section:last-of-type{border-bottom:0}
+.lec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:6px}
+.lec-num{
+  font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:600;
+  color:var(--accent);letter-spacing:.08em;flex:0 0 auto;
+}
+h2{
+  font-family:Spectral,Georgia,serif;font-weight:700;
+  font-size:clamp(1.55rem,4vw,2.05rem);line-height:1.18;margin:0;
+  text-wrap:balance;letter-spacing:-.01em;
+}
+.lec-sub{color:var(--ink-3);font-size:14.5px;margin:0 0 30px;max-width:64ch}
+h3{
+  font-family:"IBM Plex Sans",sans-serif;font-weight:600;font-size:1.02rem;
+  margin:34px 0 10px;color:var(--ink);letter-spacing:-.005em;
+}
+h4{
+  font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:11.5px;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);
+  margin:26px 0 9px;
+}
+p{margin:0 0 15px;max-width:66ch}
+ul,ol{margin:0 0 15px;padding-left:20px;max-width:66ch}
+li{margin-bottom:7px}
+strong{font-weight:600}
+code{
+  font-family:"IBM Plex Mono",monospace;font-size:.87em;
+  background:var(--surface-2);padding:1px 5px;border-radius:3px;
+  border:1px solid var(--rule-2);
+}
+
+/* ---------- equations ---------- */
+.eq{
+  background:var(--surface);border:1px solid var(--rule);
+  border-left:3px solid var(--accent);
+  border-radius:4px;padding:18px 20px;margin:18px 0;
+  overflow-x:auto;
+}
+.eq .m{
+  font-family:"IBM Plex Mono",monospace;font-size:14.5px;line-height:2;
+  display:block;white-space:nowrap;color:var(--ink);
+}
+.eq .m .big{font-size:1.25em;vertical-align:-.12em}
+.eq .tag{
+  font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--ink-3);
+  letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:9px;
+}
+.eq .where{
+  font-size:13px;color:var(--ink-2);margin:12px 0 0;max-width:none;
+  padding-top:11px;border-top:1px dashed var(--rule);white-space:normal;
+}
+.eq .where b{font-family:"IBM Plex Mono",monospace;font-weight:500;color:var(--ink)}
+
+/* ---------- callouts ---------- */
+.note{
+  border-radius:4px;padding:16px 18px;margin:20px 0;font-size:14.5px;
+  border:1px solid var(--rule);background:var(--surface);
+}
+.note p{margin-bottom:9px;max-width:none}
+.note p:last-child{margin-bottom:0}
+.note .lab{
+  font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.13em;
+  text-transform:uppercase;display:block;margin-bottom:7px;font-weight:600;
+}
+.note.key{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 30%,transparent)}
+.note.key .lab{color:var(--accent)}
+.note.warn{background:var(--signal-soft);border-color:color-mix(in srgb,var(--signal) 32%,transparent)}
+.note.warn .lab{color:var(--signal)}
+.note.dead{background:var(--bad-soft);border-color:color-mix(in srgb,var(--bad) 30%,transparent)}
+.note.dead .lab{color:var(--bad)}
+
+/* ---------- status chips ---------- */
+.chip{
+  display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:10px;
+  letter-spacing:.1em;text-transform:uppercase;font-weight:600;
+  padding:2.5px 8px;border-radius:3px;vertical-align:2px;white-space:nowrap;
+}
+.chip.ok{background:var(--good-soft);color:var(--good);border:1px solid color-mix(in srgb,var(--good) 35%,transparent)}
+.chip.no{background:var(--bad-soft);color:var(--bad);border:1px solid color-mix(in srgb,var(--bad) 35%,transparent)}
+.chip.open{background:var(--signal-soft);color:var(--signal);border:1px solid color-mix(in srgb,var(--signal) 35%,transparent)}
+
+/* ---------- tables ---------- */
+.tw{overflow-x:auto;margin:20px 0;border:1px solid var(--rule);border-radius:4px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:460px}
+caption{
+  text-align:left;padding:14px 16px 12px;font-size:12.5px;color:var(--ink-2);
+  border-bottom:1px solid var(--rule);background:var(--surface-2);
+}
+caption b{color:var(--ink);font-weight:600}
+th,td{padding:8px 14px;text-align:right;border-bottom:1px solid var(--rule-2)}
+th:first-child,td:first-child{text-align:left}
+thead th{
+  font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--ink-3);font-weight:500;
+  border-bottom:1px solid var(--rule);
+}
+tbody tr:last-child td{border-bottom:0}
+td{font-variant-numeric:tabular-nums}
+tr.hi td{background:var(--accent-soft)}
+tr.dim td{color:var(--ink-3)}
+tr.best td{font-weight:600}
+.u{color:var(--ink-3);font-size:.9em}
+
+/* ---------- figure ---------- */
+figure{margin:24px 0;padding:0}
+figure svg{display:block;width:100%;height:auto;max-width:100%}
+figcaption{font-size:12.5px;color:var(--ink-3);margin-top:10px;max-width:64ch}
+
+/* ---------- ledger ---------- */
+.ledger{display:grid;gap:10px;margin:22px 0}
+.ledger .row{
+  display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:start;
+  background:var(--surface);border:1px solid var(--rule);border-radius:4px;padding:13px 15px;
+}
+.ledger .row .txt{font-size:14px}
+.ledger .row .txt b{display:block;margin-bottom:2px}
+.ledger .row .txt span{color:var(--ink-2);font-size:13.5px}
+
+/* ---------- steps ---------- */
+.steps{counter-reset:s;display:grid;gap:12px;margin:22px 0;padding:0;list-style:none}
+.steps li{
+  counter-increment:s;position:relative;padding:14px 16px 14px 52px;
+  background:var(--surface);border:1px solid var(--rule);border-radius:4px;
+  margin:0;font-size:14.5px;max-width:none;
+}
+.steps li::before{
+  content:"P" counter(s);position:absolute;left:15px;top:14px;
+  font-family:"IBM Plex Mono",monospace;font-size:11.5px;font-weight:600;
+  color:var(--accent);
+}
+.steps li b{display:block;margin-bottom:3px}
+.steps li .cmd{
+  display:block;margin-top:9px;font-family:"IBM Plex Mono",monospace;
+  font-size:12px;background:var(--surface-2);border:1px solid var(--rule-2);
+  border-radius:3px;padding:9px 11px;overflow-x:auto;white-space:pre;color:var(--ink-2);
+}
+
+footer{padding-block:44px 64px;color:var(--ink-3);font-size:13px}
+footer .wrap{padding-block:0}
+hr.sep{border:0;border-top:1px solid var(--rule);margin:34px 0}
+.theme-btn{
+  position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:30;
+  background:var(--surface);border:1px solid var(--rule);color:var(--ink-2);
+  border-radius:20px;padding:8px 14px;cursor:pointer;box-shadow:var(--shadow);
+  font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.06em;
+}
+.theme-btn:hover{color:var(--ink)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media (max-width:560px){
+  section{padding-block:40px}
+  .eq{padding:14px 15px}
+  .masthead .wrap{padding-block:40px 30px}
+}
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="kicker">Project notebook · 28 GHz reconfigurable surfaces</p>
+    <h1>What a reflecting surface can and cannot be taught</h1>
+    <p class="standfirst">A ten-part walkthrough of the RIS project: the physics it rests on, the equations actually implemented in this repository, every experiment run, every number measured, and the honest account of which original claims survived contact with a corrected simulator.</p>
+    <div class="meta-row">
+      <span><b>Aperture</b> 32&times;32 elements, 0.1714 m</span>
+      <span><b>Carrier</b> 28 GHz</span>
+      <span><b>Seeds</b> 42/123/456/789/1024</span>
+      <span><b>Tests</b> 75 passing</span>
+      <span><b>HEAD</b> 4c8c445</span>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a href="#l0"><span class="n">00</span> &nbsp;Origin</a>
+    <a href="#l1"><span class="n">01</span> &nbsp;Physics</a>
+    <a href="#l2"><span class="n">02</span> &nbsp;Separability</a>
+    <a href="#l3"><span class="n">03</span> &nbsp;Geometry</a>
+    <a href="#l4"><span class="n">04</span> &nbsp;Acquisition</a>
+    <a href="#l5"><span class="n">05</span> &nbsp;Estimators</a>
+    <a href="#l6"><span class="n">06</span> &nbsp;Learning</a>
+    <a href="#l7"><span class="n">07</span> &nbsp;Results</a>
+    <a href="#l8"><span class="n">08</span> &nbsp;Interconnect</a>
+    <a href="#l9"><span class="n">09</span> &nbsp;Novelty</a>
+    <a href="#l10"><span class="n">10</span> &nbsp;Next</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+<!-- ============================ L0 ============================ -->
+<section id="l0">
+  <div class="lec-head"><span class="lec-num">LECTURE 00</span></div>
+  <h2>Why this project started, and what it turned into</h2>
+  <p class="lec-sub">Every research project has a premise. This one's premise was wrong in an interesting way, and the interesting part is why.</p>
+
+  <h3>The original idea</h3>
+  <p>A reconfigurable intelligent surface (RIS) is a flat panel of many small reflecting elements. Each element can shift the phase of the wave that bounces off it. Set all the phases correctly and the reflections add up in step at the receiver; set them randomly and they cancel. A 1024-element surface has 1024 knobs to turn, and they must be re-turned every time the channel changes &mdash; on the order of every millisecond.</p>
+
+  <p>The original reasoning went like this:</p>
+  <ol>
+    <li>To set the knobs you need channel state information (CSI) &mdash; you need to know what the wave is doing at each element.</li>
+    <li>Collecting all that CSI at one central controller is expensive and does not scale.</li>
+    <li>Large surfaces are built from <em>tiles</em>, each with its own local controller.</li>
+    <li>Therefore: treat each tile as a federated-learning client. Train one shared neural phase predictor across the tiles, exchange only model updates over an on-chip network, and never move raw CSI.</li>
+  </ol>
+
+  <p>That was <strong>Fed-RIS</strong>. It has the shape of a good idea. Steps 1&ndash;3 are true. Step 4 is where it fails, and finding out exactly why is what this project became.</p>
+
+  <h3>What actually happened</h3>
+  <div class="ledger">
+    <div class="row"><span class="chip no">Withdrawn</span><div class="txt"><b>The simulated surface was not a surface</b><span>16 tiles were scattered on a 6.67 m circle around a room. The paper described a 0.1714 m panel. A 39&times; discrepancy.</span></div></div>
+    <div class="row"><span class="chip no">Withdrawn</span><div class="txt"><b>The optimization problem needed no federation</b><span>For one transmitter and one receiver, the optimal phase of each element depends only on that element. There is nothing to pool.</span></div></div>
+    <div class="row"><span class="chip no">Withdrawn</span><div class="txt"><b>A passive surface cannot measure its own channel</b><span>Passive elements have no receiver. The premise that each tile "estimates its own CSI" was physically impossible.</span></div></div>
+    <div class="row"><span class="chip ok">Kept</span><div class="txt"><b>The acquisition problem is real and hard</b><span>The receiver can only report a few probe responses. Recovering 1025 unknowns from 16 numbers is genuinely under-determined. That became the research question.</span></div></div>
+    <div class="row"><span class="chip ok">Kept</span><div class="txt"><b>The benchmark itself</b><span>A controlled, five-seed, equal-observation comparison with acquisition costs charged honestly. This is now the contribution.</span></div></div>
+  </div>
+
+  <div class="note key">
+    <span class="lab">The through-line</span>
+    <p>Federated learning exists to share information between <em>coupled</em> sub-problems. If the sub-problems are independent, federation has nothing to do. Lecture 02 proves the independence. Lecture 04 finds where coupling genuinely reappears &mdash; and that is where the real project lives.</p>
+  </div>
+</section>
+
+<!-- ============================ L1 ============================ -->
+<section id="l1">
+  <div class="lec-head"><span class="lec-num">LECTURE 01</span></div>
+  <h2>The physics, from one element to a thousand</h2>
+  <p class="lec-sub">Everything in this project is a consequence of one equation. This lecture builds it from scratch and then shows the exact code that implements it.</p>
+
+  <h3>One element</h3>
+  <p>A wave leaves the base station (BS), hits element <em>n</em> of the surface, and continues to the user. Two hops. Call the first hop's complex gain <b>h</b><sub>n</sub> and the second <b>g</b><sub>n</sub>. The element itself multiplies by a unit-magnitude phase shift <em>e</em><sup>&nbsp;j&theta;<sub>n</sub></sup> &mdash; it cannot amplify, only rotate.</p>
+
+  <div class="eq">
+    <span class="tag">Cascaded coefficient</span>
+    <span class="m">c<sub>n</sub> = g<sub>n</sub> &middot; h<sub>n</sub></span>
+    <p class="where">One complex number per element, combining both hops. In this project <b>|c| &asymp; 10<sup>&minus;10</sup></b> &mdash; mmWave two-hop path loss is brutal, and this tiny scale causes real numerical problems later.</p>
+  </div>
+
+  <h3>The whole surface</h3>
+  <p>The receiver does not see elements separately. It sees one summed wave: the blocked direct path plus every reflection, all superposed.</p>
+
+  <div class="eq">
+    <span class="tag">Governing equation &mdash; everything follows from this</span>
+    <span class="m">h<sub>eff</sub>(<strong>&theta;</strong>) = h<sub>d</sub> + <span class="big">&Sigma;</span><sub>t=1..T</sub> <span class="big">&Sigma;</span><sub>n=1..N<sub>t</sub></sub> c<sub>t,n</sub> e<sup>&nbsp;j&theta;<sub>t,n</sub></sup></span>
+    <span class="m">&gamma;(<strong>&theta;</strong>) = &rho; &middot; |h<sub>eff</sub>(<strong>&theta;</strong>)|<sup>2</sup>, &nbsp;&nbsp; &rho; = P<sub>t</sub> / &sigma;<sup>2</sup></span>
+    <p class="where"><b>h<sub>d</sub></b> direct BS&rarr;user path (blocked by 30 dB) &middot; <b>T</b>=16 tiles &middot; <b>N<sub>t</sub></b>=64 elements each &middot; <b>&gamma;</b> received SNR &middot; <b>&rho;</b> transmit-to-noise ratio <em>before</em> propagation, 120 dB at P<sub>t</sub>=30 dBm and &sigma;<sup>2</sup>=&minus;90 dBm.</p>
+  </div>
+
+  <div class="note warn">
+    <span class="lab">A naming trap worth avoiding</span>
+    <p>&rho; is not an SNR anyone measures. It is transmit power over noise power with no path loss in it, which is why it reaches 120 dB. Received SNR &gamma; is what the receiver experiences &mdash; around 13&ndash;28 dB here. The original paper plotted against &rho; on an 88&ndash;142 dB axis, which reads as nonsense to a wireless reader. The corrected work plots P<sub>t</sub> in dBm.</p>
+  </div>
+
+  <h3>Why the gain grows as N&sup2;</h3>
+  <p>Suppose the direct path is fully blocked and every element has the same magnitude |c|. Align all phases so the terms add in step. Then the amplitudes add linearly:</p>
+
+  <div class="eq">
+    <span class="tag">Coherent array gain</span>
+    <span class="m">|h<sub>eff</sub>| = N|c| &nbsp;&nbsp;&rArr;&nbsp;&nbsp; &gamma; = &rho; N<sup>2</sup>|c|<sup>2</sup></span>
+    <span class="m">doubling N &rarr; +6.02 dB &nbsp;&nbsp;&middot;&nbsp;&nbsp; 64 &rarr; 1024 elements &rarr; 20 log<sub>10</sub>(16) = 24.08 dB</span>
+    <p class="where">Power grows as N&sup2;, not N, because the surface is <em>coherent</em>: it aligns phases, it does not merely collect more energy. This N&sup2; law is the single most important sanity check in the project &mdash; Lecture 03 uses it to catch a major bug.</p>
+  </div>
+
+  <h3>The propagation model as implemented</h3>
+  <p>These are the actual formulas in <code>src/surface_channel.py</code>. Each is a modelling choice with a consequence.</p>
+
+  <div class="eq">
+    <span class="tag">Close-in path loss, reference distance 1 m</span>
+    <span class="m">PL(d) = (&lambda; / 4&pi;)<sup>2</sup> &middot; d<sup>&minus;&alpha;</sup></span>
+    <p class="where">Free-space at 1 m, then decaying with exponent <b>&alpha;</b>. Here &alpha;=2.5 on each reflecting hop, &alpha;=3.5 on the direct link, plus 30 dB of extra blockage loss on the direct path.</p>
+  </div>
+
+  <div class="eq">
+    <span class="tag">Line-of-sight component &mdash; spherical, not planar</span>
+    <span class="m">h<sup>LoS</sup><sub>n</sub> = &radic;PL(d<sub>n</sub>) &middot; e<sup>&nbsp;&minus;j k d<sub>n</sub></sup>, &nbsp;&nbsp; k = 2&pi;/&lambda;</span>
+    <p class="where">d<sub>n</sub> is the <em>exact</em> distance to element n, computed per element. This matters: the Fraunhofer distance of this aperture is 2D<sup>2</sup>/&lambda; &asymp; 11 m, and users sit inside a 10 m room. A flat-wavefront approximation would be wrong at these ranges.</p>
+  </div>
+
+  <div class="eq">
+    <span class="tag">Non-line-of-sight &mdash; 5 plane waves shared across the aperture</span>
+    <span class="m">h<sup>NLoS</sup>(<strong>r</strong>) = <span class="big">&Sigma;</span><sub>p=1..5</sub> g<sub>p</sub> &middot; e<sup>&nbsp;j k (<strong>d</strong><sub>p</sub> &middot; <strong>r</strong>)</sup>, &nbsp;&nbsp; g<sub>p</sub> ~ CN(0, e<sup>&minus;p</sup>)</span>
+    <p class="where"><strong>d</strong><sub>p</sub> are random unit directions in the half-space in front of the panel; <strong>r</strong> is element position relative to the aperture centre. Because every element is evaluated against the <em>same</em> five scatterers, spatial correlation emerges from real geometry rather than being imposed by a correlation matrix.</p>
+  </div>
+
+  <div class="eq">
+    <span class="tag">Rician mixing and element aperture gain</span>
+    <span class="m">h = &radic;(K/(K+1)) &middot; h<sup>LoS</sup> &nbsp;+&nbsp; &radic;(1/(K+1)) &middot; h<sup>NLoS</sup>, &nbsp;&nbsp; K = 10 dB</span>
+    <span class="m">G<sub>e</sub> = 4&pi;A<sub>e</sub>/&lambda;<sup>2</sup> = 4&pi;(&lambda;/2)<sup>2</sup>/&lambda;<sup>2</sup> = &pi; &nbsp;(per hop)</span>
+    <p class="where">K=10 dB means the deterministic LoS component carries ~91% of the power. The cascade is then <b>c = G<sub>e</sub><sup>2</sup> &middot; h<sub>BS&rarr;n</sub> &middot; h<sub>n&rarr;user</sub></b>, applying the aperture factor once per hop.</p>
+  </div>
+
+  <div class="note">
+    <span class="lab">Why the old model was replaced</span>
+    <p>The legacy generator multiplied the <em>entire</em> channel &mdash; LoS included &mdash; by a Cholesky factor of a correlation matrix. That scrambles the deterministic spherical wavefront, which is precisely the structure a phase-aligning surface depends on. The rewrite generates the field over the whole aperture first, then slices it into tiles, so tiles see the same scatterers by construction and their contributions add coherently.</p>
+  </div>
+</section>
+
+<!-- ============================ L2 ============================ -->
+<section id="l2">
+  <div class="lec-head"><span class="lec-num">LECTURE 02</span></div>
+  <h2>Separability: the result that reshaped the project</h2>
+  <p class="lec-sub">This is the most important lecture. It is three lines of mathematics that invalidate the original thesis, and understanding it properly is what lets you see where the real problem is.</p>
+
+  <h3>The optimization problem</h3>
+  <div class="eq">
+    <span class="tag">What we want</span>
+    <span class="m">max<sub><strong>&theta;</strong> &isin; [0,2&pi;)<sup>N</sup></sub> &nbsp; log<sub>2</sub>(1 + &rho;|h<sub>eff</sub>(<strong>&theta;</strong>)|<sup>2</sup>)</span>
+    <p class="where">log is monotone in its argument, so maximizing rate is identical to maximizing |h<sub>eff</sub>|<sup>2</sup>, which is identical to maximizing |h<sub>eff</sub>|. One thousand and twenty-four coupled variables &mdash; apparently.</p>
+  </div>
+
+  <h3>The three lines</h3>
+  <p>Apply the triangle inequality to the sum. For any complex numbers, the magnitude of a sum is at most the sum of magnitudes:</p>
+
+  <div class="eq">
+    <span class="tag">Upper bound</span>
+    <span class="m">|h<sub>eff</sub>| = |h<sub>d</sub> + <span class="big">&Sigma;</span> c<sub>n</sub> e<sup>&nbsp;j&theta;<sub>n</sub></sup>| &nbsp;&le;&nbsp; |h<sub>d</sub>| + <span class="big">&Sigma;</span> |c<sub>n</sub> e<sup>&nbsp;j&theta;<sub>n</sub></sup>| = |h<sub>d</sub>| + <span class="big">&Sigma;</span> |c<sub>n</sub>|</span>
+    <p class="where">Note <b>|c<sub>n</sub>e<sup>j&theta;</sup>| = |c<sub>n</sub>|</b>: the phase shifter cannot change magnitude, so the bound does not depend on <strong>&theta;</strong> at all.</p>
+  </div>
+
+  <p>Equality in the triangle inequality holds exactly when every term points in the same direction in the complex plane. Choose the direction of <em>h</em><sub>d</sub>:</p>
+
+  <div class="eq">
+    <span class="tag">The optimum &mdash; achieved, not approached</span>
+    <span class="m">&theta;<sup>&#9733;</sup><sub>n</sub> = &ang;h<sub>d</sub> &minus; &ang;c<sub>n</sub></span>
+    <span class="m">&rArr; &nbsp; |h<sub>eff</sub>| = |h<sub>d</sub>| + <span class="big">&Sigma;</span>|c<sub>n</sub>| &nbsp; (the bound is attained)</span>
+    <p class="where">This is maximal-ratio combining (MRC). It is closed form, it costs one <code>atan2</code> per element, and it is <em>exactly</em> optimal &mdash; not a relaxation, not an approximation.</p>
+  </div>
+
+  <div class="note key">
+    <span class="lab">The consequence</span>
+    <p>Look at what &theta;<sup>&#9733;</sup><sub>n</sub> depends on: <strong>c<sub>n</sub> and nothing else</strong>, plus one global scalar &ang;h<sub>d</sub> shared by everyone. Element 900's optimal phase does not depend on element 12's channel. There is no coupling between elements, therefore no coupling between tiles, therefore <strong>nothing for a federated algorithm to share</strong>.</p>
+    <p>Each tile can compute the exact global optimum using only its own 64 coefficients. No training. No model exchange. No rounds. No network.</p>
+  </div>
+
+  <h3>The FFT analogy &mdash; and where it breaks</h3>
+  <p>It is worth contrasting this with a decomposition that <em>does</em> buy you something, because the difference is the whole point.</p>
+
+  <p>In a radix-2 decimation-in-time FFT, you split an N-point DFT by parity of the input index:</p>
+
+  <div class="eq">
+    <span class="tag">Radix-2 DIT decomposition</span>
+    <span class="m">X[k] = <span class="big">&Sigma;</span><sub>n even</sub> x[n]W<sub>N</sub><sup>nk</sup> &nbsp;+&nbsp; W<sub>N</sub><sup>k</sup> <span class="big">&Sigma;</span><sub>n odd</sub> x[n]W<sub>N</sub><sup>nk</sup> &nbsp;=&nbsp; E[k] + W<sub>N</sub><sup>k</sup>O[k]</span>
+    <span class="m">W<sub>N</sub> = e<sup>&minus;j2&pi;/N</sup>, &nbsp;&nbsp; O(N<sup>2</sup>) &rarr; O(N log N)</span>
+    <p class="where">The twiddle factor <b>W<sub>N</sub><sup>nk</sup></b> factorizes, so the problem splits into two half-size transforms. But the outputs are still <em>coupled</em>: you must recombine E[k] and O[k] through the butterfly <b>X[k]=E+W<sup>k</sup>O</b>, <b>X[k+N/2]=E&minus;W<sup>k</sup>O</b>. The recombination stage is mandatory &mdash; it is where the coupling lives.</p>
+  </div>
+
+  <p>The FFT is a clever factorization of <em>genuine</em> coupling: every output depends on every input, and the algorithm reorganizes that dependency into log N cheap stages. The saving is computational; the answer is unchanged.</p>
+
+  <p>The SISO RIS problem has no such structure to exploit, because <strong>there is no coupling to begin with</strong>. There is no butterfly stage, because there is nothing to recombine. The decomposition is not a clever algorithm; it is the trivial observation that N independent scalar problems are N independent scalar problems.</p>
+
+  <div class="note dead">
+    <span class="lab">What this kills</span>
+    <p>Federation transfers information between clients whose sub-problems interact. Here they do not interact. So "federating the tiles of one surface" is not a hard problem solved well &mdash; it is a non-problem, and any learned approximation can at best tie the closed form while costing training, traffic, and accuracy.</p>
+    <p>The measurements confirm it exactly. In the supplied-CSI experiment, local MRC and the perfect-CSI oracle agree to <strong>0.00 dB</strong> (both &minus;92.33 &plusmn; 0.31), and both match iterative gradient ascent to within 0.02 dB.</p>
+  </div>
+
+  <h3>Where coupling genuinely reappears</h3>
+  <p>Two escapes exist, and only one of them is cheap:</p>
+  <ul>
+    <li><strong>Multiple users.</strong> With interference, raising user A's signal can lower user B's. The objective stops being separable and joint design becomes real. This is a substantial redesign.</li>
+    <li><strong>Incomplete observation.</strong> If you cannot measure c<sub>n</sub> directly &mdash; only a few mixtures of all the c's at once &mdash; then your <em>estimate</em> of any one coefficient depends on all the measurements jointly. The optimization is still separable; the <em>inference</em> is not.</li>
+  </ul>
+  <p>The project took the second route. That is Lecture 04.</p>
+</section>
+
+<!-- ============================ L3 ============================ -->
+<section id="l3">
+  <div class="lec-head"><span class="lec-num">LECTURE 03</span></div>
+  <h2>The geometry bug, and how the N&sup2; law exposed it</h2>
+  <p class="lec-sub">A worked example of using physics as a unit test. The bug was invisible in the code and glaring in the results, once you knew what to look for.</p>
+
+  <h3>The symptom</h3>
+  <p>In the original results, activating more elements stopped helping. Between 512 and 1024 elements the oracle gained only 1.3 dB where theory predicts 6 dB. The paper explained this as a physical "deployment effect" &mdash; peripheral tiles seeing weaker channels &mdash; and presented it as a finding about tile placement.</p>
+
+  <h3>The diagnosis</h3>
+  <p>Back out the per-element cascaded amplitude from the reported SNRs. If the surface is uniform, every element should contribute about equally:</p>
+
+  <div class="tw">
+    <table>
+      <caption><b>Legacy model</b> &mdash; per-element |c| inferred from the published scaling table</caption>
+      <thead><tr><th>Element block</th><th>Mean |c| per element</th><th>Relative power</th></tr></thead>
+      <tbody>
+        <tr><td>1&ndash;64 (tile 1)</td><td>1.22 &times; 10<sup>&minus;3</sup></td><td class="u">&minus;21.4 dB</td></tr>
+        <tr><td>129&ndash;256</td><td>1.21 &times; 10<sup>&minus;2</sup></td><td class="u">&minus;1.4 dB</td></tr>
+        <tr class="hi"><td>257&ndash;512</td><td>1.42 &times; 10<sup>&minus;2</sup></td><td class="u">0.0 dB (ref)</td></tr>
+        <tr><td>513&ndash;768</td><td>2.53 &times; 10<sup>&minus;3</sup></td><td class="u">&minus;15.0 dB</td></tr>
+        <tr><td>769&ndash;1024</td><td>2.13 &times; 10<sup>&minus;3</sup></td><td class="u">&minus;16.5 dB</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>A <strong>21 dB spread</strong> in per-element channel power. On a panel 17 cm across, at ranges of several metres, that is physically impossible &mdash; every element is essentially the same distance from everything. The only way to get a 21 dB spread is if the elements are not on one panel.</p>
+
+  <p>They were not. <code>tile_positions_for()</code> placed the 16 tiles on a circle of radius 10/3 m around the room centre:</p>
+
+  <div class="eq">
+    <span class="tag">The legacy tile layout</span>
+    <span class="m">x<sub>i</sub> = 5 + (10/3)&middot;cos(2&pi;i/16), &nbsp; y<sub>i</sub> = 5 + (10/3)&middot;sin(2&pi;i/16), &nbsp; z<sub>i</sub> = 1.5</span>
+    <span class="m">pairwise separation: 1.30 m &hellip; 6.67 m &nbsp;&nbsp;vs&nbsp;&nbsp; true panel diameter 0.1714 m</span>
+    <p class="where">A 39&times; discrepancy between the simulated object and the described object. The "surface" was sixteen separate panels scattered around a room, each with its own independent scatterers.</p>
+  </div>
+
+  <h3>The second error, layered on top</h3>
+  <p>The "ideal N&sup2; law" reference curve was anchored at the N=64 point, which was <em>direct-path dominated</em> &mdash; 64 elements added only 0.45 dB over no surface at all. Extrapolating <code>+20log10(N/64)</code> from a point where the surface contributes almost nothing produces a reference that no design could ever meet. The apparent 10 dB shortfall of even the oracle was an artifact of the reference, not of any phase design.</p>
+
+  <h3>The fix and the verification</h3>
+  <p><code>src/surface_channel.py</code> generates one contiguous 32&times;32 uniform planar array at &lambda;/2 pitch, computes the full field, then slices it into tiles. The N&sup2; reference is re-anchored on <em>reflected-only</em> power with the direct path excluded.</p>
+
+  <div class="tw">
+    <table>
+      <caption><b>Corrected model</b> &mdash; reflected-only received SNR vs element count, seed 42</caption>
+      <thead><tr><th>Scheme</th><th>64</th><th>256</th><th>512</th><th>1024</th><th>64&rarr;1024</th></tr></thead>
+      <tbody>
+        <tr><td>Random phases</td><td>&minus;14.85</td><td>&minus;9.21</td><td>&minus;5.50</td><td>&minus;2.55</td><td class="u">&mdash;</td></tr>
+        <tr class="hi best"><td>Oracle MRC</td><td>3.09</td><td>15.03</td><td>21.05</td><td>27.08</td><td>23.99 dB</td></tr>
+        <tr><td>Local MRC</td><td>3.09</td><td>15.03</td><td>21.05</td><td>27.08</td><td>23.99 dB</td></tr>
+        <tr class="dim"><td><em>N&sup2; prediction</em></td><td>3.09</td><td>15.13</td><td>21.15</td><td>27.17</td><td>24.08 dB</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note key">
+    <span class="lab">Verified</span>
+    <p>Measured 23.99 dB against a theoretical 24.08 dB &mdash; a 0.09 dB discrepancy over a 16&times; increase in aperture. The saturation is gone. Tile-average channel power now spreads by <strong>0.06&ndash;0.18 dB</strong> across the surface, down from 21.4 dB.</p>
+    <p>Note also that local MRC and the oracle are identical at every aperture size. That is Lecture 02's separability showing up as a measurement.</p>
+  </div>
+
+  <div class="note">
+    <span class="lab">The transferable lesson</span>
+    <p>The N&sup2; law is a closed-form consequence of coherent addition. Any simulator that violates it is broken, and the size of the violation tells you how. This is why the corrected repository pins physical laws in <code>test_tier01.py</code> &mdash; aperture contiguity, spherical LoS phases, the reflected-only anchor &mdash; rather than trusting the outputs to look reasonable.</p>
+  </div>
+</section>
+
+<!-- ============================ L4 ============================ -->
+<section id="l4">
+  <div class="lec-head"><span class="lec-num">LECTURE 04</span></div>
+  <h2>Acquisition: the problem that is actually hard</h2>
+  <p class="lec-sub">A passive surface cannot measure anything. Once you take that seriously, a genuine inference problem appears &mdash; and this is where the project found its real question.</p>
+
+  <h3>The physical constraint</h3>
+  <p>A reflecting element is a patch of metal with a tunable impedance. It has no low-noise amplifier, no mixer, no analogue-to-digital converter &mdash; because adding 1024 receive chains would make it an antenna array, not a cheap passive surface. The entire commercial argument for RIS is that the elements are nearly free.</p>
+
+  <p>So the original claim that "each tile estimates its own CSI slice from pilots" was not merely unproven; it was impossible for the hardware described.</p>
+
+  <h3>What can actually be measured</h3>
+  <p>The <em>receiver</em> has a receive chain. So the surface cycles through <em>M</em> known probing configurations while the transmitter sends a pilot, and the receiver reports one complex number per configuration.</p>
+
+  <div class="eq">
+    <span class="tag">Observation model &mdash; the whole basis of the experiment</span>
+    <span class="m">y<sub>m</sub> = h<sub>d</sub> + <span class="big">&Sigma;</span><sub>n=1..N</sub> c<sub>n</sub> e<sup>&nbsp;j&phi;<sub>m,n</sub></sup> + w<sub>m</sub>, &nbsp;&nbsp; w<sub>m</sub> ~ CN(0, 1/&rho;)</span>
+    <p class="where">&phi;<sub>m,n</sub> is the known probe codebook (fixed, seeded 2024, random uniform &mdash; every probe illuminates every element, so each measurement carries information about the whole channel).</p>
+  </div>
+
+  <p>Stack it and the structure becomes obvious:</p>
+
+  <div class="eq">
+    <span class="tag">Linear inverse problem</span>
+    <span class="m"><strong>y</strong> = <strong>A x</strong> + <strong>w</strong>, &nbsp;&nbsp; <strong>x</strong> = [h<sub>d</sub>, c<sub>1</sub>, &hellip;, c<sub>N</sub>]<sup>T</sup> &isin; &#8450;<sup>N+1</sup></span>
+    <span class="m"><strong>A</strong><sub>m,:</sub> = [1, e<sup>&nbsp;j&phi;<sub>m,1</sub></sup>, &hellip;, e<sup>&nbsp;j&phi;<sub>m,N</sub></sup>] &nbsp;&isin; &#8450;<sup>M&times;(N+1)</sup></span>
+    <p class="where">The leading column of ones accounts for the direct path, which is present in every probe regardless of configuration.</p>
+  </div>
+
+  <div class="note key">
+    <span class="lab">Where the difficulty lives</span>
+    <p>N+1 = <strong>1025</strong> complex unknowns. The experiments use M = <strong>16</strong> and M = <strong>64</strong> measurements.</p>
+    <p>When M &lt; N+1, <strong>A</strong> has a nontrivial nullspace: infinitely many channel vectors explain the same measurements exactly. No estimator can resolve them without extra assumptions. This is not a noise problem &mdash; it is a <em>rank</em> problem, and it persists at infinite SNR.</p>
+    <p>This is the legitimate opening for a learned prior. A model trained across many scenes might learn which channel vectors are physically plausible and pick sensibly within the nullspace. <strong>That is the project's real research question</strong>, and unlike the original one, it is well posed.</p>
+  </div>
+
+  <h3>Training labels are not free either</h3>
+  <p>A learner needs targets. Where do they come from? Not from simulator truth &mdash; that would be cheating. The corrected design acquires them the same way anything else would: with a full orthogonal DFT probe sequence of N+1 = 1025 probes per training scene.</p>
+
+  <div class="eq">
+    <span class="tag">Training-data acquisition cost, charged explicitly</span>
+    <span class="m">pilot symbols = (S + V) &middot; (M + N + 1)</span>
+    <span class="m">= (600 + 200) &middot; (16 + 1025) = 832,800 symbols per tile-set</span>
+    <p class="where"><b>S</b>=600 training scenes, <b>V</b>=200 validation scenes. Labels are <em>noisy</em> least-squares estimates at the training SNR, with per-coefficient variance 1/[&rho;(N+1)] &mdash; not ground truth.</p>
+  </div>
+
+  <h3>Charging for pilots in the metric</h3>
+  <p>Spending symbols on probing means not spending them on data. A scheme that uses 1025 probes out of a 2048-symbol coherence block has only half the block left. The headline metric accounts for this:</p>
+
+  <div class="eq">
+    <span class="tag">Pilot-adjusted net spectral efficiency</span>
+    <span class="m">R<sub>net</sub> = max{0, 1 &minus; M<sub>used</sub>/L} &middot; &#120124;[log<sub>2</sub>(1 + &gamma;)], &nbsp;&nbsp; L = 2048</span>
+    <p class="where">This is what makes the comparison fair: full-probe LS achieves a far better channel estimate but pays 50% overhead for it, so it does not automatically win. Feedback latency, feedback errors and training amortization are <em>not</em> included &mdash; stated explicitly as a limitation.</p>
+  </div>
+</section>
+
+<!-- ============================ L5 ============================ -->
+<section id="l5">
+  <div class="lec-head"><span class="lec-num">LECTURE 05</span></div>
+  <h2>The estimators, and why each one is in the comparison</h2>
+  <p class="lec-sub">A negative result is only as strong as the baselines it loses to. Each of these exists to close off a specific "but did you try&hellip;" objection.</p>
+
+  <h3>Best observed probe</h3>
+  <p>Look at the M reported responses, find the largest, and simply re-apply that configuration. No channel model, no estimation, no training.</p>
+  <div class="eq">
+    <span class="tag">Selection rule</span>
+    <span class="m"><strong>&theta;</strong> = <strong>&phi;</strong><sub>m&#9733;</sub>, &nbsp;&nbsp; m&#9733; = arg max<sub>m</sub> |y<sub>m</sub>|</span>
+    <p class="where">The classical low-overhead baseline. Feedback cost: one integer index. It is the floor any sophisticated method must clear &mdash; and, as it turns out, a floor the neural models do not clear.</p>
+  </div>
+
+  <h3>LMMSE followed by MRC</h3>
+  <p>The strongest <em>linear</em> estimator at the same pilot budget. It learns the channel's second-order statistics from the same training scenes the neural models see, pooled centrally.</p>
+  <div class="eq">
+    <span class="tag">Linear minimum mean-square-error estimate</span>
+    <span class="m"><strong>x&#770;</strong> = <strong>&mu;</strong> + <strong>R A</strong><sup>H</sup>(<strong>A R A</strong><sup>H</sup> + &rho;<sup>&minus;1</sup><strong>I</strong>)<sup>&minus;1</sup>(<strong>y</strong> &minus; <strong>A&mu;</strong>)</span>
+    <span class="m"><strong>R</strong> = &#120124;[(<strong>x</strong>&minus;<strong>&mu;</strong>)(<strong>x</strong>&minus;<strong>&mu;</strong>)<sup>H</sup>] &nbsp;estimated from S training scenes, with diagonal loading</span>
+    <p class="where">Then apply MRC to <strong>x&#770;</strong>. This is the key control: it is <em>exactly</em> the "use a learned prior to resolve the nullspace" strategy, executed optimally within the linear class. If a neural network cannot beat it, the network is not adding anything a covariance matrix does not already capture.</p>
+  </div>
+
+  <div class="note warn">
+    <span class="lab">An implementation detail that matters</span>
+    <p>With samples stored as rows, the covariance must be <code>xc.T @ xc.conj()</code>, not <code>xc.conj().T @ xc</code>. The latter conjugates <strong>R</strong> and reverses every spatial phase &mdash; producing a beam pointed the wrong way. A sign error of this kind is invisible in the code and catastrophic in the results, which is why <code>test_tier01.py</code> pins the covariance orientation.</p>
+  </div>
+
+  <h3>Local linear estimator followed by MRC</h3>
+  <p>The decisive baseline for the federation question. Each tile independently fits a ridge regression from the shared receiver feedback to <em>its own</em> channel coefficients:</p>
+  <div class="eq">
+    <span class="tag">Per-tile ridge regression &mdash; no federation, no rounds</span>
+    <span class="m"><strong>W</strong><sub>t</sub> = (<strong>Y</strong><sup>H</sup><strong>Y</strong>/S + &delta;<strong>I</strong>)<sup>&minus;1</sup> (<strong>Y</strong><sup>H</sup><strong>X</strong><sub>t</sub>/S), &nbsp;&nbsp; &delta; = 10<sup>&minus;3</sup>&middot;tr(<strong>Y</strong><sup>H</sup><strong>Y</strong>/S)/M</span>
+    <p class="where">Tile t needs only the M-dimensional feedback and its own (N<sub>t</sub>+1) labels. No other tile's data, no model exchange, no aggregation rounds. If federation is worth anything, it must beat <em>this</em>.</p>
+  </div>
+
+  <h3>Full-probe least squares</h3>
+  <p>The high-acquisition-cost control: N+1 orthogonal DFT probes give a well-conditioned system and per-coefficient error variance 1/[&rho;(N+1)]. Excellent channel estimate, 50% pilot overhead. Included to show what buying your way out of the rank deficiency actually costs.</p>
+
+  <h3>Perfect-CSI oracle</h3>
+  <p>Unattainable by construction &mdash; it reads the true channel. Present as a ceiling, and explicitly excluded from the deployable comparison because its acquisition cost is zero only because it cheats.</p>
+</section>
+
+<!-- ============================ L6 ============================ -->
+<section id="l6">
+  <div class="lec-head"><span class="lec-num">LECTURE 06</span></div>
+  <h2>The learning setup, and the discipline around it</h2>
+  <p class="lec-sub">Most of the engineering effort here went not into the model but into making sure the comparison could not flatter it.</p>
+
+  <h3>What the network sees</h3>
+  <p>Inputs are the M complex probe responses plus normalized tile coordinates &mdash; nothing else. Specifically <em>not</em>: receiver position, per-element test CSI, or the true direct-path phase. The responses are rotated by &minus;&ang;y<sub>1</sub> and RMS-normalized, which removes a common channel rotation the optimal phases are invariant to. Output phases are absolute; no oracle offset is added afterwards. <code>test_tier01.py</code> pins all of this.</p>
+
+  <h3>The objective</h3>
+  <p>Not mean-squared error against MRC labels. Two phase vectors with identical MSE can deliver wildly different SNR, because what matters is whether the summed paths are coherent. So the loss is the achieved rate, normalized by the best rate achievable on that batch:</p>
+
+  <div class="eq">
+    <span class="tag">Genie-normalized rate loss &mdash; exactly as implemented</span>
+    <span class="m">&#8466; = mean [ 1 &minus; log(1 + &rho;|h<sub>d</sub> + <span class="big">&Sigma;</span> c<sub>n</sub>e<sup>&nbsp;j&theta;<sub>n</sub></sup>|<sup>2</sup>) / log(1 + &rho;(|h<sub>d</sub>| + <span class="big">&Sigma;</span>|c<sub>n</sub>|)<sup>2</sup>) ]</span>
+    <span class="m">&theta;<sub>n</sub> = atan2(v&#770;<sub>n</sub>, u&#770;<sub>n</sub>) &nbsp;&nbsp;from a (cos, sin) output pair</span>
+    <p class="where">The denominator is the MRC bound from Lecture 02 &mdash; the loss is "fraction of achievable rate you are leaving on the table", so it sits in [0,1] regardless of absolute path loss.</p>
+  </div>
+
+  <p>Two design choices worth understanding:</p>
+  <ul>
+    <li><strong>Why normalize?</strong> At these path losses &rho;|h<sub>eff</sub>|<sup>2</sup> &lt;&lt; 1 early in training. An unnormalized rate sits near zero with vanishing gradients. Dividing by the genie rate keeps the loss O(1).</li>
+    <li><strong>Why a (cos, sin) head?</strong> Regressing an angle directly has a discontinuity at 0/2&pi;: two phases that are physically 1&deg; apart can be 359&deg; apart numerically. Predicting a point on the unit circle and recovering the angle with <code>atan2</code> removes the wrap-around entirely.</li>
+  </ul>
+
+  <h3>Federated averaging</h3>
+  <div class="eq">
+    <span class="tag">FedAvg</span>
+    <span class="m"><strong>w</strong><sup>r+1</sup> = <span class="big">&Sigma;</span><sub>t=1..T</sub> (n<sub>t</sub>/n) &middot; <strong>w</strong><sub>t</sub><sup>r</sup></span>
+    <p class="where">Each tile starts from the global weights, runs local steps, and the results are averaged by sample count. Rounds run 27&ndash;123 with validation-based early stopping (patience 15, min-delta 10<sup>&minus;4</sup>, minimum 20 rounds, cap extended 100&rarr;300 when exhausted).</p>
+  </div>
+
+  <h3>The control that makes it a fair fight</h3>
+  <p>The original comparison was confounded: the centralized model ran ~16&times; more optimizer steps than each federated client, and the paper described the difference as being only about data locality. The corrected harness records and matches the budgets explicitly:</p>
+
+  <div class="tw">
+    <table>
+      <caption>Optimizer-step accounting, recorded in every result file</caption>
+      <thead><tr><th>Arm</th><th>Steps per client</th><th>Total steps</th></tr></thead>
+      <tbody>
+        <tr><td>FedAvg</td><td>270</td><td>4,320</td></tr>
+        <tr><td>Centralized, client-step budget</td><td>270</td><td class="u">270</td></tr>
+        <tr><td>Centralized, total-step budget</td><td class="u">&mdash;</td><td>4,320</td></tr>
+        <tr><td>Local models (no federation)</td><td>270</td><td class="u">270 each</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Both centralized budgets are run, so neither "you gave centralized more compute" nor "you crippled centralized" is available as an objection. One residual asymmetry is disclosed rather than hidden: FedAvg resets Adam state at each broadcast, while centralized and local training retain it.</p>
+
+  <h3>Experimental protocol</h3>
+  <p>600 training / 200 validation / 600 test scenes per seed. Five independent seeds (42, 123, 456, 789, 1024). Every controller scored on the same true held-out channels within a seed. Confidence intervals are Student-<em>t</em> over seeds; paired differences use matched seeds. Validation selects checkpoints without ever consulting test scores.</p>
+</section>
+
+<!-- ============================ L7 ============================ -->
+<section id="l7">
+  <div class="lec-head"><span class="lec-num">LECTURE 07</span></div>
+  <h2>Every result, and what each one means</h2>
+  <p class="lec-sub">These are the numbers going into the paper. All are regenerated from the corrected simulator with five-seed intervals and hash-manifested inputs.</p>
+
+  <h3>Experiment 1 &mdash; Supplied-CSI diagnostic</h3>
+  <p><em>Question:</em> given channel estimates handed to it, does the closed form work and is it really local? <em>Why it matters:</em> it establishes the separability result as a measurement rather than an argument.</p>
+
+  <div class="tw">
+    <table>
+      <caption><b>Supplied-CSI</b> &mdash; channel power gain (dB), 5 seeds, 95% Student-<em>t</em> intervals. <span class="u">Source: results/tier01_report/tables.tex</span></caption>
+      <thead><tr><th>Scheme</th><th>Gain (dB)</th><th>Note</th></tr></thead>
+      <tbody>
+        <tr class="dim"><td>No RIS (blocked)</td><td>&minus;106.61 &plusmn; 0.81</td><td class="u">reference floor</td></tr>
+        <tr class="dim"><td>Random phases</td><td>&minus;106.50 &plusmn; 0.80</td><td class="u">surface present, useless</td></tr>
+        <tr class="hi best"><td>Local noisy-CSI MRC</td><td>&minus;92.33 &plusmn; 0.31</td><td class="u">closed form, tile-local</td></tr>
+        <tr><td>Projected-gradient control</td><td>&minus;92.35 &plusmn; 0.31</td><td class="u">iterative, converges to same</td></tr>
+        <tr><td>Surrogate control</td><td>&minus;92.36 &plusmn; 0.31</td><td class="u">iterative, converges to same</td></tr>
+        <tr class="best"><td>Perfect-CSI bound</td><td>&minus;92.33 &plusmn; 0.31</td><td class="u">oracle</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p><strong>Reading:</strong> local MRC equals the oracle to two decimal places. The two iterative solvers spend many iterations arriving at the same answer the closed form gives immediately. The surface itself is worth 14.3 dB; the choice of algorithm is worth 0.00 dB. <span class="chip ok">Separability confirmed</span></p>
+
+  <h3>Experiment 2 &mdash; Estimation-error robustness</h3>
+  <p><em>Question:</em> how does each scheme degrade as supplied estimates get noisier? <em>Why it matters:</em> the original paper claimed the federated model was uniquely robust. It was not &mdash; it simply started worse and so had less to lose.</p>
+
+  <div class="tw">
+    <table>
+      <caption><b>Mean received SNR (dB) vs normalized CSI error &epsilon;</b>, seed 42</caption>
+      <thead><tr><th>Scheme</th><th>&epsilon;=0</th><th>0.01</th><th>0.1</th><th>0.3</th><th>1.0</th></tr></thead>
+      <tbody>
+        <tr class="hi"><td>Local MRC</td><td>27.70</td><td>27.65</td><td>27.29</td><td>26.76</td><td>25.74</td></tr>
+        <tr><td>Projected gradient</td><td>27.68</td><td>27.63</td><td>27.28</td><td>26.76</td><td>25.74</td></tr>
+        <tr class="best"><td>Oracle (perfect CSI)</td><td>27.70</td><td>27.70</td><td>27.70</td><td>27.70</td><td>27.70</td></tr>
+        <tr class="dim"><td>No RIS</td><td>13.37</td><td>13.37</td><td>13.37</td><td>13.37</td><td>13.37</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p><strong>Reading:</strong> graceful degradation &mdash; only 1.96 dB lost when error power equals signal power. The corrected work reports absolute SNR and fraction-of-oracle-power rather than percentage drops, precisely so that "degraded less because it was already worse" cannot masquerade as robustness. <span class="chip no">Original robustness claim withdrawn</span></p>
+
+  <h3>Experiment 3 &mdash; The passive pilot experiment (headline)</h3>
+  <p><em>Question:</em> with only M probe responses, does a learned prior beat classical estimation, and does federating that prior help? <em>Why it matters:</em> this is the paper's central claim.</p>
+
+  <div class="tw">
+    <table>
+      <caption><b>M = 16 probes</b>, P<sub>t</sub> = 30 dBm, 5 seeds. Net rate is pilot-adjusted. <span class="u">Source: results/pilot_limited/summary.json</span></caption>
+      <thead><tr><th>Scheme</th><th>SNR (dB)</th><th>Net rate</th><th>Frac. oracle</th><th>Gap to local linear</th></tr></thead>
+      <tbody>
+        <tr class="dim"><td>Perfect-CSI oracle</td><td>27.67</td><td>8.388</td><td>1.0000</td><td class="u">not deployable</td></tr>
+        <tr class="dim"><td>Full-probe LS + MRC <span class="u">(1025 probes)</span></td><td>25.18</td><td>3.277</td><td>0.3155</td><td class="u">+0.256</td></tr>
+        <tr class="hi best"><td>LMMSE + MRC</td><td>14.62</td><td>3.251</td><td>0.0581</td><td>+0.230</td></tr>
+        <tr class="best"><td>Local linear + MRC</td><td>14.36</td><td>3.022</td><td>0.0559</td><td>0.000</td></tr>
+        <tr><td>Best observed probe</td><td>13.77</td><td>2.649</td><td>0.0492</td><td>&minus;0.373</td></tr>
+        <tr><td>Local models (no federation)</td><td>13.66</td><td>2.462</td><td>0.0482</td><td>&minus;0.560</td></tr>
+        <tr><td>Centralized (total-step budget)</td><td>13.82</td><td>2.403</td><td>0.0497</td><td>&minus;0.618</td></tr>
+        <tr><td>Centralized (client-step budget)</td><td>13.76</td><td>2.371</td><td>0.0492</td><td>&minus;0.651</td></tr>
+        <tr><td><strong>FedAvg</strong> (validation selected)</td><td>13.69</td><td>2.351</td><td>0.0485</td><td>&minus;0.671</td></tr>
+        <tr><td>FedAvg, 5 rounds</td><td>13.58</td><td>2.300</td><td>0.0476</td><td>&minus;0.722</td></tr>
+        <tr><td>FedAvg, 1 round</td><td>13.51</td><td>2.219</td><td>0.0466</td><td>&minus;0.803</td></tr>
+        <tr class="dim"><td>No RIS</td><td>13.39</td><td>2.060</td><td>0.0454</td><td>&minus;0.961</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="tw">
+    <table>
+      <caption><b>M = 64 probes</b> &mdash; four times the observations, same conclusion</caption>
+      <thead><tr><th>Scheme</th><th>SNR (dB)</th><th>Net rate</th><th>Gap to local linear</th></tr></thead>
+      <tbody>
+        <tr class="hi best"><td>LMMSE + MRC</td><td>16.34</td><td>3.984</td><td>+0.418</td></tr>
+        <tr class="best"><td>Local linear + MRC</td><td>15.56</td><td>3.566</td><td>0.000</td></tr>
+        <tr><td>Best observed probe</td><td>13.91</td><td>2.727</td><td>&minus;0.839</td></tr>
+        <tr><td>Local models (no federation)</td><td>13.75</td><td>2.527</td><td>&minus;1.039</td></tr>
+        <tr><td>Centralized (total-step budget)</td><td>14.01</td><td>2.406</td><td>&minus;1.154</td></tr>
+        <tr><td><strong>FedAvg</strong></td><td>13.78</td><td>2.324</td><td>&minus;1.243</td></tr>
+        <tr class="dim"><td>No RIS</td><td>13.39</td><td>2.060</td><td>&minus;1.506</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note dead">
+    <span class="lab">The headline finding &mdash; a negative result</span>
+    <p>FedAvg loses to <em>every</em> control, including ones that require no training at all. It is beaten by best-probe selection (which costs one integer of feedback), by an independently fitted per-tile ridge regression, and by centralized training at both matched budgets. It barely clears no-RIS.</p>
+    <p>Worse for the federation thesis specifically: <strong>local models beat FedAvg</strong> at both budgets (2.462 vs 2.351 at M=16; 2.527 vs 2.324 at M=64). Averaging across tiles actively hurts. And going from 16 to 64 probes <em>widens</em> the gap from &minus;0.671 to &minus;1.243 &mdash; more information helps the classical estimators and does not help the network.</p>
+  </div>
+
+  <h3>Experiment 4 &mdash; Architecture diagnostic</h3>
+  <p><em>Question:</em> was the failure specific to the MLP? <em>Why it matters:</em> it closes the most obvious escape route from the negative result.</p>
+
+  <div class="tw">
+    <table>
+      <caption><b>Four architectures</b>, identical data/budget: M=16, 500 pooled Adam updates, 5 seeds. <span class="u">Source: results/tier2_report/tables.tex</span></caption>
+      <thead><tr><th>Model</th><th>Parameters</th><th>SNR (dB)</th><th>Net rate</th><th>Paired gap to MLP</th></tr></thead>
+      <tbody>
+        <tr><td>MLP (width 128 &times; 2)</td><td>37,632</td><td>13.732</td><td>2.364</td><td>0.000</td></tr>
+        <tr><td>GAT (compact)</td><td>62,850</td><td>14.111</td><td>2.208</td><td>&minus;0.156 &plusmn; 0.054</td></tr>
+        <tr><td>CNN + squeeze-excite</td><td>29,730</td><td>14.044</td><td>2.431</td><td>+0.067 &plusmn; 0.075</td></tr>
+        <tr><td>Transformer</td><td>294,530</td><td>13.772</td><td>2.294</td><td>&minus;0.070 &plusmn; 0.104</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p><strong>Reading:</strong> all four land between 2.21 and 2.43 bit/s/Hz &mdash; every one of them below best-probe's 2.649 and well below local linear's 3.022. A ten-fold parameter range changes essentially nothing. The failure is not architectural. <span class="chip ok">Escape route closed</span></p>
+
+  <div class="note warn">
+    <span class="lab">The honest caveat &mdash; and the remaining risk</span>
+    <p>All four models shared one harness, one objective, one budget. A bug in the <em>shared</em> pipeline would also produce exactly this pattern. Validation loss moves only 0.5520&rarr;0.5361 over 90 rounds &mdash; about 3% relative. Until a positive control shows the pipeline can learn when the information <em>is</em> sufficient, "federation does not help" and "the learner never learned" remain indistinguishable. This is the single most important open item; see Lecture 10.</p>
+  </div>
+
+  <h3>Experiment 5 &mdash; Interconnect sensitivity</h3>
+  <p>Covered in Lecture 08. In summary: with a parameter server, every topology costs 5.645 ms because the bottleneck is the server's own port, not the network diameter.</p>
+
+  <h3>Experiment 6 &mdash; Communication accounting</h3>
+  <div class="tw">
+    <table>
+      <caption>Endpoint payload accounting, M=16, seed 42. <span class="u">Source: results/tier01_report/accounting_audit.json</span></caption>
+      <thead><tr><th>Quantity</th><th>Bytes</th></tr></thead>
+      <tbody>
+        <tr><td>Common receiver feedback (train + validation)</td><td>6,662,400</td></tr>
+        <tr class="hi"><td>Additional upload for centralized training</td><td>0</td></tr>
+        <tr><td>Data delivery to tiles for distributed training</td><td>8,294,400</td></tr>
+        <tr class="best"><td>Federated model exchange</td><td>346,816,512</td></tr>
+        <tr><td>Local models / local MRC model exchange</td><td>0</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p><strong>Reading:</strong> the crucial entry is the zero. In a passive architecture the controller <em>already receives</em> the receiver feedback, so centralized training needs no extra upload at all. Federation's model exchange is 26&ndash;150&times; the size of the entire pooled training set, and it buys negative performance. The original paper's "federation preserves privacy and saves traffic" argument has no surviving leg. <span class="chip no">Communication argument withdrawn</span></p>
+</section>
+
+<!-- ============================ L8 ============================ -->
+<section id="l8">
+  <div class="lec-head"><span class="lec-num">LECTURE 08</span></div>
+  <h2>The interconnect model, and the discipline of not over-claiming</h2>
+  <p class="lec-sub">This part of the project was rebuilt twice. It is a good case study in the difference between a calculation and a measurement.</p>
+
+  <h3>What was wrong originally</h3>
+  <ul>
+    <li>Links were modelled at <strong>10 Gb/s</strong> &mdash; an off-chip SerDes figure, roughly 20&times; too slow for an on-chip network. Every latency was inflated accordingly, which is what made the headline speedups look impressive.</li>
+    <li>Energy used hardcoded constants (0.98 pJ/flit/router, 0.37 pJ/flit/link) with no technology node behind them.</li>
+    <li>The text attributed latency reductions to network <em>diameter</em>, but the model computes bottleneck serialization &mdash; five of six topologies returned identical latency despite diameters of 4 and 8.</li>
+    <li>The topology labelled "Butterfly" was actually an XOR hypercube.</li>
+  </ul>
+
+  <h3>The corrected estimator</h3>
+  <div class="eq">
+    <span class="tag">Per-phase latency</span>
+    <span class="m">t&#770;<sub>q</sub> = max{ max<sub>e</sub> L<sub>e,q</sub>/B, &nbsp; max<sub>v</sub> I<sub>v,q</sub>/B<sub>ep</sub>, &nbsp; max<sub>v</sub> E<sub>v,q</sub>/B<sub>ep</sub> } &nbsp;+&nbsp; H<sub>q</sub>(c<sub>link</sub> + c<sub>router</sub>)/f</span>
+    <p class="where"><b>L<sub>e,q</sub></b> directed-link load &middot; <b>I, E</b> endpoint injection/ejection loads &middot; <b>B</b> link rate &middot; <b>H<sub>q</sub></b> longest route &middot; <b>f</b> clock. Serialization and traversal are reported separately. Transfers round up to whole 16-byte flits. Sequential phases add.</p>
+  </div>
+
+  <p>Link rate is now 128 bits/cycle at 1 GHz (128 Gb/s), with a 2 GHz variant. These are declared <em>assumptions</em>, not synthesis results. Energy is reported as null, because no calibrated circuit exists to support a number.</p>
+
+  <div class="tw">
+    <table>
+      <caption>16 endpoints, 150,528-byte FP32 model, 20 rounds. <span class="u">PS = parameter server, RingAR = ring all-reduce</span></caption>
+      <thead><tr><th>Topology</th><th>Diameter</th><th>PS @128 Gb/s</th><th>RingAR @128</th><th>RingAR @256</th></tr></thead>
+      <tbody>
+        <tr><td>Mesh</td><td>6</td><td>5.6455 ms</td><td>0.7164 ms</td><td>0.3582 ms</td></tr>
+        <tr><td>Torus</td><td>4</td><td>5.6453 ms</td><td>0.7092 ms</td><td>0.3546 ms</td></tr>
+        <tr><td>Folded torus</td><td>4</td><td>5.6453 ms</td><td>0.7092 ms</td><td>0.3546 ms</td></tr>
+        <tr><td>Tree</td><td>7</td><td>5.6453 ms</td><td>1.4238 ms</td><td>0.7119 ms</td></tr>
+        <tr class="hi best"><td>Butterfly (true radix-2)</td><td>6</td><td>5.6455 ms</td><td>0.3636 ms</td><td>0.1818 ms</td></tr>
+        <tr><td>Hypercube</td><td>4</td><td>5.6453 ms</td><td>1.4184 ms</td><td>0.7092 ms</td></tr>
+        <tr class="best"><td>Ring</td><td>8</td><td>5.6458 ms</td><td>0.3546 ms</td><td>0.1773 ms</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note key">
+    <span class="lab">The finding, stated correctly</span>
+    <p>Under a parameter server, all seven topologies cost <strong>5.645 ms</strong> to four decimal places, because the bottleneck is the server's own endpoint port &mdash; the network is irrelevant. Diameter does not predict latency: Ring (diameter 8) is the <em>fastest</em> ring-all-reduce and Hypercube (diameter 4) is nearly the slowest.</p>
+    <p>The protocol matters, the topology mostly does not. That is the opposite of the original paper's claim, and it falls out of the corrected accounting rather than being asserted.</p>
+  </div>
+
+  <div class="note warn">
+    <span class="lab">What is explicitly not claimed</span>
+    <p>No RTL, no synthesis, no area, no technology node, no cycle-accurate validation, no Noxim cross-check. Buffers, credit stalls, arbitration, packet headers and physical wire delay are all absent. These are conditional estimates under stated assumptions &mdash; not bounds, not traces, not measured training durations. And a 17 cm RF aperture is <em>not</em> asserted to be one silicon die.</p>
+  </div>
+</section>
+
+<!-- ============================ L9 ============================ -->
+<section id="l9">
+  <div class="lec-head"><span class="lec-num">LECTURE 09</span></div>
+  <h2>Novelty, built from the ground up</h2>
+  <p class="lec-sub">You said previous explanations of novelty were unclear. So this starts from what a novelty claim <em>is</em>, then applies the test to every claim this project has made.</p>
+
+  <h3>What makes something novel, operationally</h3>
+  <p>A reviewer is not asking "is this new to you?" They are asking three questions, in order:</p>
+  <ol>
+    <li><strong>Is it different from prior work?</strong> Not "has anyone written this exact sentence" but "does it require the field to know something it did not know."</li>
+    <li><strong>Is the difference load-bearing?</strong> If removing your contribution leaves the results unchanged, the difference is decorative.</li>
+    <li><strong>Is it demonstrated?</strong> A claim you did not measure is a hypothesis, not a contribution.</li>
+  </ol>
+  <p>A claim must pass all three. The original paper's claims each failed a different one, which is instructive.</p>
+
+  <h3>The original five claims, audited</h3>
+
+  <div class="ledger">
+    <div class="row"><span class="chip no">Fails #2</span><div class="txt"><b>C1 &mdash; "First to federate phase optimization across tiles of one surface"</b><span>Different from prior work, yes. But the problem is separable (Lecture 02), so removing federation entirely <em>improves</em> the result. The difference is not load-bearing &mdash; it is a cost with no corresponding benefit.</span></div></div>
+    <div class="row"><span class="chip open">Fails #1</span><div class="txt"><b>C2 &mdash; "Link-quality training objective instead of MSE-to-labels"</b><span>Genuinely sensible engineering and it survives in the code. But rate-based losses for beamforming are established practice; this is competent implementation, not a contribution.</span></div></div>
+    <div class="row"><span class="chip no">Fails #3</span><div class="txt"><b>C3 &mdash; "Hardware-faithful CSI-local inference"</b><span>Demonstrated for quantization and jitter. But the core premise &mdash; that a passive tile can measure its own CSI &mdash; is physically false (Lecture 04). The claim rested on something that cannot happen.</span></div></div>
+    <div class="row"><span class="chip no">Fails #2 and #3</span><div class="txt"><b>C4 &mdash; "Interconnect-aware cost model"</b><span>Built on a 10 Gb/s link rate off by 20&times;, unsourced energy constants, a mislabelled topology, and a stated mechanism the code did not implement. It also required the surface to be a die, contradicting the corrected geometry.</span></div></div>
+    <div class="row"><span class="chip ok">Passes</span><div class="txt"><b>C5 &mdash; "Unified link-level benchmark"</b><span>The only original claim that survives &mdash; and, after correction, the only one that grew.</span></div></div>
+  </div>
+
+  <h3>What is actually novel now</h3>
+  <p>Three things. Each is stated so you can see which of the three tests it passes and how.</p>
+
+  <h4>N1 &mdash; A negative result on federating a passive RIS</h4>
+  <p><strong>Different:</strong> the RIS-plus-federated-learning literature reports positive results. No one has published a controlled demonstration that federation is the wrong tool for this class of problem.<br>
+  <strong>Load-bearing:</strong> it changes what a practitioner should build. The right answer is a closed form or a per-tile ridge regression, not a distributed training system.<br>
+  <strong>Demonstrated:</strong> five seeds, two pilot budgets, four architectures, matched optimizer budgets, paired confidence intervals, and every control including training-free ones.</p>
+  <p>The strength here is not that federation lost. It is <em>who</em> it lost to: a scheme that reports one integer, and a per-tile regression fitted independently with no communication at all.</p>
+
+  <h4>N2 &mdash; The separability argument as a design boundary</h4>
+  <p><strong>Different:</strong> MRC optimality for single-user RIS is textbook. What is not standard is using it as a <em>screening test</em>: before proposing any distributed or learned method, check whether the objective decomposes. If it does, the method cannot help.<br>
+  <strong>Load-bearing:</strong> it explains the negative result mechanistically rather than empirically, and it predicts where the boundary moves &mdash; multi-user interference, or under-determined observation.<br>
+  <strong>Demonstrated:</strong> local MRC equals the oracle to 0.00 dB at every aperture size and every error level.</p>
+
+  <h4>N3 &mdash; An acquisition-honest benchmark</h4>
+  <p><strong>Different:</strong> most RIS learning papers assume CSI appears from somewhere. This one charges every pilot symbol: probing, training labels at 1025 DFT probes per scene, feedback, and model transfer &mdash; each accounted separately.<br>
+  <strong>Load-bearing:</strong> it reverses conclusions. Full-probe LS has the best channel estimate but a 50% pilot cost, so it does not dominate on net rate. Without pilot accounting you would recommend the wrong scheme.<br>
+  <strong>Demonstrated:</strong> the pilot-adjusted rate metric, the acquisition audit, and hash-manifested provenance on every table.</p>
+
+  <div class="note key">
+    <span class="lab">The honest one-paragraph version</span>
+    <p>This is not a paper about a method that works. It is a paper about a method that <em>should</em> work by analogy to other fields, does not, and about why not &mdash; with the mechanism identified (separability), the boundary mapped (where coupling reappears), and the accounting done properly enough that the negative result is trustworthy. That is a real contribution, and it is a different one from the paper that was originally written.</p>
+  </div>
+
+  <div class="note warn">
+    <span class="lab">The one thing that could still sink it</span>
+    <p>A negative result must rule out incompetence as the explanation. Right now the learner's validation loss barely moves, and no experiment yet shows the pipeline can learn <em>anything</em>. Until it does, a reviewer can read the entire result as "your training was broken." One experiment fixes this. It is P2 below.</p>
+  </div>
+</section>
+
+<!-- ============================ L10 ============================ -->
+<section id="l10">
+  <div class="lec-head"><span class="lec-num">LECTURE 10</span></div>
+  <h2>What is left to do</h2>
+  <p class="lec-sub">Current state: Tier 0, 1 and 2 corrections complete and verified; 75 tests passing; all results regenerated with five-seed intervals and hash manifests; everything committed and pushed at 4c8c445.</p>
+
+  <ol class="steps">
+    <li><b>Positive control &mdash; the decisive experiment</b>
+      Run the pilot pipeline at a budget where the information <em>is</em> sufficient, and check whether the learner approaches local MRC. If it does, the negative result is safe and you have a figure proving the pipeline works. If it does not, training is broken and the conclusion is not yet supported. Judge on <code>fraction_of_oracle_power</code>, not net rate &mdash; 1025 probes out of 2048 symbols halves net rate for reasons unrelated to learning.
+      <span class="cmd">.venv/bin/python run_pilot_limited.py --pilot-counts 1025 \
+  --seeds 42 123 456 --rounds 100 --threads 1 \
+  --output results/pilot_positive_control</span>
+    </li>
+    <li><b>Corrected-geometry GAT &mdash; the last open Tier 1 item</b>
+      The supplied-CSI table still has no neural rows, and the original 315,906-parameter GAT was never retrained under corrected geometry. The path works (exercised in quick mode, produces all eleven schemes); it has simply never been run at full five-seed scale. Expensive on CPU.
+      <span class="cmd">.venv/bin/python run_link_level.py --model GNN --rounds 100 --threads 1</span>
+    </li>
+    <li><b>Fix the reproducibility mismatch in the README</b>
+      The documented command runs <code>--rounds 300</code> by default, but the stored results used <code>--rounds 100</code> with selective 300-round extensions. Anyone following the README gets a different experiment and cannot match the tables. Either pin the flag or make 300 canonical and regenerate.
+    </li>
+    <li><b>Quarantine the legacy paths</b>
+      <code>main.py</code>, <code>experiments/base.py</code> and <code>experiments/federated.py</code> still import the circular-panel generator and remain runnable via <code>run_all_experiments.py</code>. <code>results/link_level/</code>, <code>results/advanced_experiments/</code> and <code>results/figures/</code> have no in-directory marker. A <code>SUPERSEDED.md</code> in each would make it impossible to pick up the wrong artifact later.
+    </li>
+    <li><b>Lint hygiene</b>
+      90 ruff findings, all in legacy files plus <code>config.py</code>; the new modules are clean. Add <code>results/</code> to the ruff exclude &mdash; it currently lints <code>results/pilot_architecture/execution_source/run_pilot_ablation.py</code>, which is an execution-time provenance snapshot that must not be modified.
+    </li>
+  </ol>
+
+  <hr class="sep">
+
+  <h3>Reproducing everything from scratch</h3>
+  <p>Order matters. <code>run_all_experiments.py</code> is the <em>legacy</em> driver and must not be used &mdash; it regenerates superseded circular-panel artifacts.</p>
+  <div class="eq">
+    <span class="tag">Correct sequence</span>
+    <span class="m">1. run_link_level.py --skip-training --output results/link_level_tier2</span>
+    <span class="m">2. run_pilot_limited.py --rounds 100</span>
+    <span class="m">3. run_pilot_limited.py --seeds &lt;exhausted&gt; --pilot-counts 64 --rounds 300 --output results/pilot_limited_extended</span>
+    <span class="m">4. run_pilot_ablation.py &nbsp;&middot;&nbsp; run_noc_study.py</span>
+    <span class="m">5. make_summary_tables.py --link-dir results/link_level_tier2 &nbsp;&middot;&nbsp; make_tier2_report.py</span>
+    <span class="m">6. pytest -q test_tier01.py test_tier2.py test_noc.py test_link_metrics.py</span>
+    <p class="where">Step 3 depends on step 2's output: only cases whose <b>stopping_reason</b> is <code>budget_exhausted</code> get extended. Clear <code>results/pilot_limited_extended/</code> first &mdash; a stale extension makes <code>make_summary_tables.py</code> raise <em>"Extended case does not reproduce the first budget"</em> rather than silently disagreeing.</p>
+  </div>
+
+  <h3>Where things live</h3>
+  <div class="tw">
+    <table>
+      <caption>Repository map for the corrected work</caption>
+      <thead><tr><th>Path</th><th>Role</th></tr></thead>
+      <tbody>
+        <tr><td><code>src/surface_channel.py</code></td><td>Contiguous-aperture channel generation (Lecture 01, 03)</td></tr>
+        <tr><td><code>src/pilot_probing.py</code></td><td>Probe codebook, LMMSE, local regressor, full LS (Lecture 04, 05)</td></tr>
+        <tr><td><code>src/controlled_training.py</code></td><td>Rate loss, FedAvg, matched-budget controls (Lecture 06)</td></tr>
+        <tr><td><code>run_pilot_limited.py</code></td><td>Headline passive experiment</td></tr>
+        <tr><td><code>run_pilot_ablation.py</code></td><td>Architecture diagnostic</td></tr>
+        <tr><td><code>run_noc_study.py</code></td><td>Interconnect sensitivity (Lecture 08)</td></tr>
+        <tr><td><code>test_tier01.py</code>, <code>test_tier2.py</code></td><td>Physics and protocol invariants</td></tr>
+        <tr><td><code>docs/TIER01_CORRECTIONS.md</code></td><td>Audit of review items 1&ndash;9</td></tr>
+        <tr><td><code>docs/TIER2_CORRECTIONS.md</code></td><td>Audit of review items 10&ndash;16</td></tr>
+        <tr><td><code>docs/archive/</code></td><td>Pre-correction manuscript and PDFs</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <hr class="sep">
+    <p>Generated from the repository at commit <code>4c8c445</code>. Every number on this page is traceable to a JSON artifact under <code>results/</code> with a SHA-256 input manifest. Claims marked <span class="chip no">Withdrawn</span> are recorded as withdrawn in the audit documents rather than quietly removed.</p>
+  </div>
+</footer>
+
+<button class="theme-btn" id="themeBtn" type="button">theme</button>
+<script>
+(function(){
+  var b=document.getElementById('themeBtn');
+  var root=document.documentElement;
+  try{var s=localStorage.getItem('ris-course-theme'); if(s)root.setAttribute('data-theme',s);}catch(e){}
+  b.addEventListener('click',function(){
+    var cur=root.getAttribute('data-theme');
+    var sysDark=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var next=cur?(cur==='dark'?'light':'dark'):(sysDark?'light':'dark');
+    root.setAttribute('data-theme',next);
+    try{localStorage.setItem('ris-course-theme',next);}catch(e){}
+  });
+})();
+</script>
+</body>
+</html>
