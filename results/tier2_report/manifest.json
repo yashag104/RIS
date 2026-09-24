@@ -1,45 +1,45 @@
 {
   "inputs": [
     {
-      "path": "results/pilot_architecture/summary.json",
-      "sha256": "f85c6b2215d90588af3eefec252ecc334eaaaf52a875f90f8626cdb55a07f5e6"
+      "path": "results\\pilot_architecture\\summary.json",
+      "sha256": "03945c9e91d7b368a42752c559dfee724f65c5b0ee6863bc61d17798959ab144"
     },
     {
-      "path": "results/pilot_architecture/execution_manifest.json",
-      "sha256": "4334daa75e1cd45dc61f640aea61e7773cfd34758563f45b27c71b805505faf0"
+      "path": "results\\pilot_architecture\\execution_manifest.json",
+      "sha256": "3f1856cc95447252f583db412b6311dfb53532acadd9400f4ba99623af7a67cd"
     },
     {
-      "path": "results/pilot_architecture/seed_42.json",
-      "sha256": "06838a3489b834e9ae591fd273dadcfe64de35a9f49a0cea5ff6b7699a6cde8b"
+      "path": "results\\pilot_architecture\\seed_42.json",
+      "sha256": "20c43a89fe607e9ffff9823461981aa16b554ed73526c365026526058a70b5b0"
     },
     {
-      "path": "results/pilot_architecture/seed_123.json",
-      "sha256": "69cbf5c702c9af52484bb5c8a674314df9d91ed47a745077b7ee5280440128d4"
+      "path": "results\\pilot_architecture\\seed_123.json",
+      "sha256": "b22e7c5c13a7cc3122ec0184b30734c1125a26c3ca9d26ce70397a96e856de92"
     },
     {
-      "path": "results/pilot_architecture/seed_456.json",
-      "sha256": "859edc8284a9e579d98f4fef00e00e61deeefd28f1059f536b62afccda1a2a5f"
+      "path": "results\\pilot_architecture\\seed_456.json",
+      "sha256": "473d393c0caf6fa92567f450cab5be11846090f9efc0214c5f990eae41ad1712"
     },
     {
-      "path": "results/pilot_architecture/seed_789.json",
-      "sha256": "3ab668e61a13dfcfa22b6219ae6c0c8143ec7623e520c2bdf6ac9839abf23fda"
+      "path": "results\\pilot_architecture\\seed_789.json",
+      "sha256": "5d0658c9451d78296026b6edd74698e10b0ca0163a6124b7e8cafb1395b1e8f6"
     },
     {
-      "path": "results/pilot_architecture/seed_1024.json",
-      "sha256": "37b7c5fb41f5e83b3be2984d12c2132b3642161b4d3a65181500e3d8fcb36747"
+      "path": "results\\pilot_architecture\\seed_1024.json",
+      "sha256": "a94adf5c76f624d614c04cfe84bc5907a875e8bd37621df0057c522dc52b29ef"
     },
     {
-      "path": "results/noc_corrected/results.json",
-      "sha256": "30e1724015e197e2706b13075531d5c87122a48caf48034655597c8ea017d5c2"
+      "path": "results\\noc_corrected\\results.json",
+      "sha256": "8506334db56a37e158e922cce7c6cba1f95c68cd8ca0d1a54224c79b6b38a8c1"
     }
   ],
   "legacy_log_used": false,
   "supplied_csi_gat_retrained": false,
   "architecture_execution_runner": {
-    "path": "results/pilot_architecture/execution_source/run_pilot_ablation.py",
-    "sha256": "a2bee360cc55dd66b82914fb9e520bed60bbce9135785ad7697833f28cd6d4e5"
+    "path": "results\\pilot_architecture\\execution_source\\run_pilot_ablation.py",
+    "sha256": "d4cb06208ba276e5b741d3d1accf3e5531c548d0f1f9dd69181e8351575e1e17"
   },
-  "exporter_sha256": "88926e0fa93230d3b1a732a5aeb98a680dbeba8ec319b5dde577f122fa8ba436",
-  "run_pilot_ablation.py_sha256": "cad00a93b48fd668fbfd194935cfa7670a180f3f29c41970fb885c29653d6ee1",
-  "run_noc_study.py_sha256": "9ef54dc443b129dbec89e825adf3f6745c19cfeb917ee91bbaa0804eb98fa264"
+  "exporter_sha256": "83bfd6d24852cddfe6efcdd1d08c945a735a62dbc1a9c363be6d6d2bb508aa52",
+  "run_pilot_ablation.py_sha256": "d4cb06208ba276e5b741d3d1accf3e5531c548d0f1f9dd69181e8351575e1e17",
+  "run_noc_study.py_sha256": "dc81fb207c13891564439c347837ed3dd3530978c8be7f72bcaba49233cfa2dc"
 }

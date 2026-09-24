@@ -6,10 +6,10 @@ Validation-selected checkpoints. Budget-limited, unequal FLOPs/parameter counts;
 
 | Pilot model | Parameters | Received SNR (dB), 95% CI | Net SE (bit/s/Hz), 95% CI | Paired net-SE gap vs MLP |
 |---|---:|---:|---:|---:|
-| MLP | 37632 | 13.732 Â± 0.776 | 2.364 Â± 0.072 | 0.000 Â± 0.000 |
-| GAT (compact) | 62850 | 14.111 Â± 0.609 | 2.208 Â± 0.100 | -0.156 Â± 0.054 |
-| CNN + SE | 29730 | 14.044 Â± 0.666 | 2.431 Â± 0.139 | 0.067 Â± 0.075 |
-| Transformer | 294530 | 13.772 Â± 0.469 | 2.294 Â± 0.148 | -0.070 Â± 0.104 |
+| MLP | 37632 | 13.719 ± 0.775 | 2.351 ± 0.057 | 0.000 ± 0.000 |
+| GAT (compact) | 62850 | 13.994 ± 0.662 | 2.206 ± 0.078 | -0.145 ± 0.031 |
+| CNN + SE | 29730 | 13.997 ± 0.664 | 2.421 ± 0.102 | 0.070 ± 0.063 |
+| Transformer | 294530 | 13.924 ± 0.546 | 2.295 ± 0.081 | -0.056 ± 0.050 |
 
 Intervals are marginal/exploratory, not simultaneous multiple-comparison intervals. No universal architecture ranking is inferred.
 
@@ -27,7 +27,7 @@ No cycle accuracy, Noxim validation, physical layout, energy, area, or technolog
 | Hypercube | 4 | 5.645280 | 1.418400 | 0.709200 |
 | Ring | 8 | 5.645760 | 0.354600 | 0.177300 |
 
-PS serialization alone is 5.644800 ms for every topology at 128 Gb/s; traversal adds 0.000480â€“0.000960 ms.
+PS serialization alone is 5.644800 ms for every topology at 128 Gb/s; traversal adds 0.000480–0.000960 ms.
 A smaller diameter does not remove the endpoint payload. Ring placement/routing changes physical link contention.
 Torus and folded torus coincide without a physical wire-layout model. Butterfly has 80 auxiliary stage vertices; it is not the former mislabeled 16-node hypercube.
 The complete JSON also replays every retained pilot run's measured model size and FL round count, and includes recursive-doubling and fixed-budget gossip. Gossip is not exact global averaging.

@@ -1,8 +1,8 @@
 {
   "schema": "execution-runner-v1",
   "runner": {
-    "path": "results/pilot_architecture/execution_source/run_pilot_ablation.py",
-    "sha256": "a2bee360cc55dd66b82914fb9e520bed60bbce9135785ad7697833f28cd6d4e5"
+    "path": "results\\pilot_architecture\\execution_source\\run_pilot_ablation.py",
+    "sha256": "d4cb06208ba276e5b741d3d1accf3e5531c548d0f1f9dd69181e8351575e1e17"
   },
-  "capture_note": "Runner was unchanged from launch through this capture during the final seed. The shared provenance helper included dependency hashes but not this new entry point; this separate execution manifest supplies its source."
+  "capture_note": "Captured before the first study case."
 }

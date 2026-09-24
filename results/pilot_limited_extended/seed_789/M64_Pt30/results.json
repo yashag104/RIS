@@ -5,14 +5,11 @@
       "quick": false,
       "skip_training": false,
       "seeds": [
-        42,
         123,
-        456,
         789,
         1024
       ],
       "pilot_counts": [
-        16,
         64
       ],
       "tx_powers_dbm": [
@@ -21,7 +18,7 @@
       "train_samples": 600,
       "validation_samples": 200,
       "test_samples": 600,
-      "rounds": 100,
+      "rounds": 300,
       "min_rounds": 20,
       "patience": 15,
       "min_delta": 0.0001,
@@ -29,7 +26,7 @@
       "codebook_seed": 2024,
       "coherence_symbols": 2048,
       "threads": 1,
-      "output": null
+      "output": "results/pilot_limited_extended"
     },
     "geometry": {
       "tile_rows": 4,
@@ -131,15 +128,15 @@
     "codebook_sha256": "331ca8b6eb60a5590362899c4bcac03cdf9e71fcafadbb59c4ddd3b9a5a42dbc"
   },
   "training": {
-    "fl_rounds": 100,
-    "max_rounds": 100,
+    "fl_rounds": 116,
+    "max_rounds": 300,
     "local_epochs": 1,
     "steps_per_round_per_client": 10,
-    "fl_steps_per_client": 1000,
-    "fl_total_optimizer_steps": 16000,
-    "centralized_optimizer_steps": 16000,
-    "centralized_client_budget_steps": 1000,
-    "local_only_steps_per_client": 1000,
+    "fl_steps_per_client": 1160,
+    "fl_total_optimizer_steps": 18560,
+    "centralized_optimizer_steps": 18560,
+    "centralized_client_budget_steps": 1160,
+    "local_only_steps_per_client": 1160,
     "batch_size": 64,
     "learning_rate": 0.001,
     "optimizer": "Adam",
@@ -147,8 +144,8 @@
     "fl_optimizer_state": "reset each round",
     "central_and_local_optimizer_state": "persistent",
     "objective": "local genie-normalized rate; not whole-aperture gradient",
-    "best_round": 98,
-    "stopping_reason": "budget_exhausted",
+    "best_round": 101,
+    "stopping_reason": "validation_plateau",
     "convergence_claim": false,
     "validation_patience": 15,
     "validation_min_delta": 0.0001,
@@ -252,7 +249,23 @@
       0.39080869778990746,
       0.3858511414378881,
       0.3861736912280321,
-      0.3838774628937245
+      0.3838774628937245,
+      0.38609484061598776,
+      0.38736871983855964,
+      0.38744805473834276,
+      0.38708296455442903,
+      0.38202768955379723,
+      0.38263265900313853,
+      0.3866953501477837,
+      0.38189149033278225,
+      0.3801644338294864,
+      0.3831332126632333,
+      0.38146535139530896,
+      0.3799401506781578,
+      0.3802581138908864,
+      0.38182894662022593,
+      0.3791112778708339,
+      0.37854446023702626
     ],
     "validation_losses": [
       0.530896406918764,
@@ -354,7 +367,23 @@
       0.521084952056408,
       0.5207039865106344,
       0.5208315382897855,
-      0.5210322364419699
+      0.5210322364419699,
+      0.5201402394473552,
+      0.5215351793169976,
+      0.5213169432431459,
+      0.5217422138899565,
+      0.5213117705285549,
+      0.520879173874855,
+      0.5209459640085697,
+      0.521298743635416,
+      0.5210970584303141,
+      0.5206797267496586,
+      0.5209994508326053,
+      0.5213807915896178,
+      0.5209442849457264,
+      0.5207952588796616,
+      0.5212150436639786,
+      0.5207821464538575
     ],
     "centralized_validation_history": [
       {
@@ -382,8 +411,8 @@
         "validation_loss": 0.5228189366310836
       },
       {
-        "steps": 1000,
-        "validation_loss": 0.5223122232407331
+        "steps": 1120,
+        "validation_loss": 0.5230604039877653
       },
       {
         "steps": 1160,
@@ -758,21 +787,85 @@
         "validation_loss": 0.519220309779048
       },
       {
-        "steps": 16000,
-        "validation_loss": 0.5202565364539623
+        "steps": 16040,
+        "validation_loss": 0.5200488916784525
+      },
+      {
+        "steps": 16200,
+        "validation_loss": 0.5205009463429451
+      },
+      {
+        "steps": 16360,
+        "validation_loss": 0.5191345848888158
+      },
+      {
+        "steps": 16520,
+        "validation_loss": 0.5194169848412276
+      },
+      {
+        "steps": 16680,
+        "validation_loss": 0.519906297326088
+      },
+      {
+        "steps": 16840,
+        "validation_loss": 0.5181378265470267
+      },
+      {
+        "steps": 17000,
+        "validation_loss": 0.5194771782308817
+      },
+      {
+        "steps": 17160,
+        "validation_loss": 0.5190479397028684
+      },
+      {
+        "steps": 17320,
+        "validation_loss": 0.5196024645864964
+      },
+      {
+        "steps": 17480,
+        "validation_loss": 0.5199981628358363
+      },
+      {
+        "steps": 17640,
+        "validation_loss": 0.5204505097866059
+      },
+      {
+        "steps": 17800,
+        "validation_loss": 0.5196416242420674
+      },
+      {
+        "steps": 17960,
+        "validation_loss": 0.5210189478844405
+      },
+      {
+        "steps": 18120,
+        "validation_loss": 0.5194903136044741
+      },
+      {
+        "steps": 18280,
+        "validation_loss": 0.5196987921744585
+      },
+      {
+        "steps": 18440,
+        "validation_loss": 0.5195870956033468
+      },
+      {
+        "steps": 18560,
+        "validation_loss": 0.5197246337682009
       }
     ],
     "centralized_selected_steps": {
-      "centralized_client_budget": 1000,
+      "centralized_client_budget": 1160,
       "centralized_dl": 5480
     },
     "local_selected_steps": [
       870,
       620,
-      150,
+      1160,
       70,
       990,
-      980,
+      1100,
       150,
       690,
       600,
@@ -787,10 +880,10 @@
     "local_validation_losses": [
       0.518809232711792,
       0.520723659992218,
-      0.5197456359863282,
+      0.5190683317184448,
       0.5206819295883178,
       0.5131039094924926,
-      0.5221503305435181,
+      0.5207342720031738,
       0.515055866241455,
       0.5215122866630554,
       0.5192649745941162,
@@ -808,10 +901,10 @@
     "num_tiles": 16,
     "communication_dtype": "float32",
     "payload_bytes_per_model": 199680,
-    "fl_total_communication_bytes": 638976000,
+    "fl_total_communication_bytes": 741212160,
     "raw_csi_upload_bytes": 4992000,
-    "traffic_ratio_fl_to_raw_csi": 128.0,
-    "crossover_samples_per_tile_analytic_only": 76800.0,
+    "traffic_ratio_fl_to_raw_csi": 148.48,
+    "crossover_samples_per_tile_analytic_only": 89088.0,
     "local_mrc_training_bytes": 0,
     "local_only_training_bytes": 0,
     "training_byte_fields_scope": "model exchange; excludes channel acquisition and data delivery",
@@ -819,9 +912,9 @@
       "1": 6389760,
       "5": 31948800
     },
-    "fl_wall_clock_s": 85.44555459998082,
-    "centralized_wall_clock_s": 102.07960980001371,
-    "local_only_wall_clock_s": 101.44061439996585
+    "fl_wall_clock_s": 33.19553199992515,
+    "centralized_wall_clock_s": 32.799365999992006,
+    "local_only_wall_clock_s": 33.59974550001789
   },
   "accounting": {
     "coherence_symbols": 2048,
@@ -942,27 +1035,27 @@
       "deployable": true
     },
     "fed_ris": {
-      "mean_received_snr_db": 12.736435249870578,
-      "spectral_efficiency": 2.431369452778748,
-      "net_spectral_efficiency": 2.355389157379412,
-      "ber_qpsk": 0.08663980244750653,
-      "outage_2bps_hz": 0.4766666666666667,
-      "fraction_of_oracle_power": 0.04682556662910744,
+      "mean_received_snr_db": 12.740265107539365,
+      "spectral_efficiency": 2.4374286394692315,
+      "net_spectral_efficiency": 2.361258994485818,
+      "ber_qpsk": 0.08770422360784547,
+      "outage_2bps_hz": 0.4716666666666667,
+      "fraction_of_oracle_power": 0.04708353087736717,
       "pilots_per_block": 64,
-      "snr_gap_to_local_linear_mrc_db": -1.8762954039123105,
-      "net_rate_gap_to_local_linear_mrc": -1.072306571464427,
+      "snr_gap_to_local_linear_mrc_db": -1.8724655462435233,
+      "net_rate_gap_to_local_linear_mrc": -1.066436734358021,
       "deployable": true
     },
     "centralized_client_budget": {
-      "mean_received_snr_db": 12.691129079962957,
-      "spectral_efficiency": 2.4199989135597297,
-      "net_spectral_efficiency": 2.3443739475109884,
-      "ber_qpsk": 0.08474817465399588,
-      "outage_2bps_hz": 0.5016666666666667,
-      "fraction_of_oracle_power": 0.0465074621949922,
+      "mean_received_snr_db": 12.707118616508449,
+      "spectral_efficiency": 2.402084828897501,
+      "net_spectral_efficiency": 2.3270196779944543,
+      "ber_qpsk": 0.08883813605930219,
+      "outage_2bps_hz": 0.49,
+      "fraction_of_oracle_power": 0.04698165440000984,
       "pilots_per_block": 64,
-      "snr_gap_to_local_linear_mrc_db": -1.921601573819931,
-      "net_rate_gap_to_local_linear_mrc": -1.0833217813328506,
+      "snr_gap_to_local_linear_mrc_db": -1.9056120372744392,
+      "net_rate_gap_to_local_linear_mrc": -1.1006760508493847,
       "deployable": true
     },
     "centralized_dl": {
@@ -978,15 +1071,15 @@
       "deployable": true
     },
     "local_only": {
-      "mean_received_snr_db": 12.788607395940213,
-      "spectral_efficiency": 2.6095061154084163,
-      "net_spectral_efficiency": 2.527959049301903,
-      "ber_qpsk": 0.06512249494024158,
-      "outage_2bps_hz": 0.3933333333333333,
-      "fraction_of_oracle_power": 0.04740061989027963,
+      "mean_received_snr_db": 12.788726686715373,
+      "spectral_efficiency": 2.6101440022953013,
+      "net_spectral_efficiency": 2.528577002223573,
+      "ber_qpsk": 0.06479193976365369,
+      "outage_2bps_hz": 0.39666666666666667,
+      "fraction_of_oracle_power": 0.04745637873136977,
       "pilots_per_block": 64,
-      "snr_gap_to_local_linear_mrc_db": -1.8241232578426754,
-      "net_rate_gap_to_local_linear_mrc": -0.8997366795419359,
+      "snr_gap_to_local_linear_mrc_db": -1.8240039670675152,
+      "net_rate_gap_to_local_linear_mrc": -0.8991187266202658,
       "deployable": true
     }
   }

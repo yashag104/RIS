@@ -18,20 +18,28 @@ import torch
 
 from models.ris_net import create_model
 from run_link_level import provenance, seed_everything, seed_statistics, write_json
-from run_pilot_limited import prepare_case, predict, score
+from run_pilot_limited import predict, prepare_case, score
 from src.controlled_training import tensor_data, train_steps, validation_loss
 from src.pilot_probing import pilot_features
 
-PROFILES = dict(HIDDEN_DIM=128, NUM_LAYERS=2, DROPOUT=0.0,
-                PIXEL_GRID_ROWS=8, PIXEL_GRID_COLS=8,
-                GNN_HIDDEN_DIM=128, GNN_NUM_LAYERS=2, GNN_NUM_HEADS=4,
-                CNN_HIDDEN_CHANNELS=32, CNN_SE_REDUCTION=16,
-                TRANSFORMER_D_MODEL=128, TRANSFORMER_NUM_HEADS=4,
-                TRANSFORMER_NUM_LAYERS=2, TRANSFORMER_FF_DIM=256)
+PROFILES = {"HIDDEN_DIM": 128, "NUM_LAYERS": 2, "DROPOUT": 0.0,
+                "PIXEL_GRID_ROWS": 8, "PIXEL_GRID_COLS": 8,
+                "GNN_HIDDEN_DIM": 128, "GNN_NUM_LAYERS": 2, "GNN_NUM_HEADS": 4,
+                "CNN_HIDDEN_CHANNELS": 32, "CNN_SE_REDUCTION": 16,
+                "TRANSFORMER_D_MODEL": 128, "TRANSFORMER_NUM_HEADS": 4,
+                "TRANSFORMER_NUM_LAYERS": 2, "TRANSFORMER_FF_DIM": 256}
 
 
 def run(args):
     out = Path(args.output)
+    snapshot = out / "execution_source" / Path(__file__).name
+    snapshot.parent.mkdir(parents=True, exist_ok=True)
+    data = Path(__file__).read_bytes()
+    snapshot.write_bytes(data)
+    write_json(out / "execution_manifest.json", {
+        "schema": "execution-runner-v1",
+        "runner": {"path": str(snapshot), "sha256": hashlib.sha256(data).hexdigest()},
+        "capture_note": "Captured before the first study case."})
     results = []
     for seed in args.seeds:
         p = prepare_case(args, seed, args.probes, args.tx_power_dbm)
@@ -64,24 +72,24 @@ def run(args):
                 loss, opt = train_steps(model, pooled, count, 64, 1e-3, rng, p["rho"],
                                         absolute_phases=True, optimizer=opt)
                 val = validation_loss(model, vd, p["rho"], absolute_phases=True)
-                history.append(dict(step=start+count, train_loss=loss, validation_loss=val))
+                history.append({"step": start+count, "train_loss": loss, "validation_loss": val})
                 if val < best:
                     best, selected, weights = val, start+count, copy.deepcopy(model.state_dict())
                 print(f"seed={seed} {arch} step={start+count} val={val:.6f}", flush=True)
             model.load_state_dict(weights)
             metrics = score(p["channels"][2], predict(model, features, "cpu"), p["rho"],
                             args.probes, args.coherence_symbols)
-            case["architectures"][arch] = dict(parameters=model.count_parameters(),
-                optimizer_steps=args.steps, selected_step=selected, history=history, scores=metrics)
+            case["architectures"][arch] = {"parameters": model.count_parameters(),
+                "optimizer_steps": args.steps, "selected_step": selected, "history": history, "scores": metrics}
             write_json(out / f"seed_{seed}.json", case)
         results.append(case)
     summary = {"schema": "pilot-architecture-v1", "seeds": args.seeds,
                "architectures": {}}
     for arch in args.architectures:
         rows = [r["architectures"][arch] for r in results]
-        summary["architectures"][arch] = dict(parameters=rows[0]["parameters"],
-            optimizer_steps=args.steps, scores={metric: seed_statistics([r["scores"][metric] for r in rows])
-            for metric in ("mean_received_snr_db", "net_spectral_efficiency", "ber_qpsk")})
+        summary["architectures"][arch] = {"parameters": rows[0]["parameters"],
+            "optimizer_steps": args.steps, "scores": {metric: seed_statistics([r["scores"][metric] for r in rows])
+            for metric in ("mean_received_snr_db", "net_spectral_efficiency", "ber_qpsk")}}
         for metric in ("mean_received_snr_db", "net_spectral_efficiency"):
             summary["architectures"][arch]["paired_"+metric+"_vs_mlp"] = seed_statistics([
                 r["architectures"][arch]["scores"][metric] -

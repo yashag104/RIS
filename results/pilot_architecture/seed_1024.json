@@ -73,45 +73,46 @@
       0.17142857142857143
     ],
     "source_sha256": {
-      "run_link_level.py": "63a0a0a2f47a15fa245fc38d42d0a3515404c39793061d6a20de0c460fe2a674",
-      "run_pilot_limited.py": "441299edd46438480738844798a4424c816ab9549e9c2496a3d0251342931628",
-      "config.py": "6847624811c9200ee2583db415b73dfe7ac5a945a7bfb74d90fd82cfe038ee4a",
-      "src/__init__.py": "fef3d4e3932696e4e15e66b40f4cd77e5c497e24a5bbbebb148691eb6a2891cc",
-      "src/channel_model.py": "be6481a32be76d2d2c0f0bff85a9b69b60ca497393eda00d5669532fe47aa76e",
-      "src/client.py": "f613646bc0ac9cc51aa881dc7f248bcf465509bdb72b051ad4c3b0a2f48ac4b2",
-      "src/controlled_training.py": "8547915caef62ad66a042a6e7a17dbf08b0d96f1de5372cababefa84fe9b17e3",
-      "src/dataset_utils.py": "65471706365d4bf38325d95b1170e4d5a4c6859b1a79b219a6b5a4288089d01e",
-      "src/link_metrics.py": "b2247192f63ce0136444402400f1fb17c87c363737c04bdd22c8a33b357bef0f",
-      "src/noc_simulator.py": "31c793c89ad2c29479ae3a84df7ff0a75c3becff4b1c9bb1285939a115428abf",
-      "src/objectives.py": "89742c03982a3294f370a2ccd1bac96d43b37d4241e87104161a576792c72bfa",
-      "src/pilot_probing.py": "09fab33c5de5ced70cb0229d243486a4f41a5ba19bc8609c5769626147447e88",
-      "src/server.py": "afcb0b16197e5276c8dcb0032fb190608812b0caf4203e4692bd9463223f2dc7",
-      "src/surface_channel.py": "74136f1a10b769407a9491d706975acb52cdecb7e3fdf990245ecc363e1ab8cb",
-      "src/system_eval.py": "ef48389f787d05d871fadef4b465298ab203c7dfdf226afbfcb2ae366a51d5cd",
-      "models/__init__.py": "da79847220202540dd0c5bcef7ec260e47391c9f58f23c99da5fc3c18b56bce9",
-      "models/ris_net.py": "f9dafcbd9bae4b5747156d4593da36c20bdeb5378b853d8e8120b5724eb87672",
-      "baselines/__init__.py": "1bae15f90b3a8e388af7c89729250da3bb01b1af4729d9a841a3b69de081de1d",
-      "baselines/admm_optimizer.py": "dc6c1eb4ac7d97a7fe42a3df8f0800b21395253650efe113212c74a5a64bc6b8",
-      "baselines/alternating_optimization.py": "26cbd4f2519dc1502e336d32d2e80c30eae90e312f05cd9813a19bd69da621cd",
-      "baselines/centralized_learning.py": "a597d139f0f381c40fed678c4e9c9a7ce9712c4fa899769f1b533a6d357c6b69",
-      "baselines/drl_agent.py": "b1b09cdd4d518376acf235a64ff166ca1752e32b6316023953e079716ec207db",
-      "baselines/random_search.py": "1c2a0adfc81238e0d94ecc31625cf8081810c8d05885df4098873ce1ce1eb5bb",
-      "baselines/sca_optimizer.py": "fd975b9ffd8ca6b3a1febe1146f932580ce6627721bc606dc758093c98ad2a6c",
-      "baselines/sdr_optimizer.py": "9564151f5593844d10e88a322b8ab5a294da46c240ebb1faaf82494884f5856b",
-      "experiments/__init__.py": "5b0b8075fb31c4dc27d17a00c79f04209f07d1e88c2e1a0f07248e01fc6bfa60",
-      "experiments/__main__.py": "b68da449090b7d8d145f63b38a01b7fdf4b9c4f9ca9ba9f90ef87a8265959963",
-      "experiments/base.py": "893eb1576f56cc462a076c1b5b39af772542ed9ee14ba797e3934170247773d3",
-      "experiments/baselines_multiuser.py": "181a358ade1733b708fb190198a67fc1dfe5d7c2d6fec2af8407ebc45ab04c2e",
-      "experiments/cli.py": "323e8d1ab8246dffb5c921cc41b13ccf8170474a5f7ec5ba3b4b473dc9987e70",
-      "experiments/federated.py": "2af243e9d127a5ad1475483ed528dec133178359222452db87a0669c89ac131b",
-      "experiments/journal.py": "d2a8eba83c3ee6bc6dc523615e6d6fcf4f07f6e8fc655591f73c95989c16db3e",
-      "experiments/link_level.py": "23f7d78cba4d33c0394e79c702a75074b26dae4ed373492b4e21f31aa4f6182b",
-      "experiments/logging_utils.py": "4eec085b7514f41241732830a341253835d8964cd9c153da02496fbcb77a5916",
-      "experiments/suite.py": "2b639935e54fe85414915f77d796b186765cce235cac987f7e48cbebe4d42444"
+      "run_link_level.py": "fe32d85b26c523cebdfa3aaff49518045b36c026ad8f864fac138331dcc7f8ac",
+      "run_pilot_limited.py": "cefa4a591c0f5daa1cb8e5c95eb0f88f7911072c932a2d360ba4ff5043cafe3e",
+      "run_pilot_ablation.py": "d4cb06208ba276e5b741d3d1accf3e5531c548d0f1f9dd69181e8351575e1e17",
+      "config.py": "3507feec6c91048ff809117e93d749c9af64b62eb0299b627d7930d8187942c1",
+      "src\\__init__.py": "a051d959535d9bd681e5d9f7c2242512b71a7343adefee6edbf7f5e7f3e44256",
+      "src\\channel_model.py": "a87880e97fa86b641ba6cd6053e416a9c8140fdda28b650b110eaa2f6947458e",
+      "src\\client.py": "d1ea3b1885baf92d352b86879e0d4c6b31dff21d07a9d8f7fe410a3db2f74db8",
+      "src\\controlled_training.py": "07ea85ef04fe409eaf6b706cd64d7db2df3e7391c6a6b0b77777aa5bb5decd3b",
+      "src\\dataset_utils.py": "606fb4ff336ef426f69b0abcc86c1d8a4a966d6c98279188da421ca077c2ec9e",
+      "src\\link_metrics.py": "bc07f73db67a96f2e71d698d1c5fcf776e2a94d36f3fe5be68b6ed045996de64",
+      "src\\noc_simulator.py": "7484d841cac1578442d277d8277006f394479c27a3a246abee9bcc26566a7af5",
+      "src\\objectives.py": "6c36b4ec5fb1937bc3a15c24ecd709125c4e44b568b6133c9b983df9233a8de9",
+      "src\\pilot_probing.py": "45d42dcd6111a500f0a029c198efbc8a7888af5a71d1d9b575d9e7a4bbfc0054",
+      "src\\server.py": "d893c8daa1479d820023190950f4f8db19449517c089351351f3493a5eed12fe",
+      "src\\surface_channel.py": "1f14105175695205d00b0430babf20d6df65ef5191335740860b4eac33e8828f",
+      "src\\system_eval.py": "aa06e3a35aeb2841d2a61331972037e7c9f354dfb5a7cc732f6b3e5a28c51973",
+      "models\\__init__.py": "6f1fc9a083051e84cf6dcc58ceb2e68ab5ec1152fe34ede7f48afc52c66c3c4b",
+      "models\\ris_net.py": "f9dafcbd9bae4b5747156d4593da36c20bdeb5378b853d8e8120b5724eb87672",
+      "baselines\\__init__.py": "1bae15f90b3a8e388af7c89729250da3bb01b1af4729d9a841a3b69de081de1d",
+      "baselines\\admm_optimizer.py": "00227f2502c13d1df2a14ba51349331f587b1f3bfd06b90bd22086a383ada723",
+      "baselines\\alternating_optimization.py": "f52856f7138e507e07daf084c05c035c296bdff742b64934fdf6f4c83baef832",
+      "baselines\\centralized_learning.py": "a597d139f0f381c40fed678c4e9c9a7ce9712c4fa899769f1b533a6d357c6b69",
+      "baselines\\drl_agent.py": "b1b09cdd4d518376acf235a64ff166ca1752e32b6316023953e079716ec207db",
+      "baselines\\random_search.py": "1c2a0adfc81238e0d94ecc31625cf8081810c8d05885df4098873ce1ce1eb5bb",
+      "baselines\\sca_optimizer.py": "707d82b2bdd5f0a9ad6483f0ee33b7a4eae2d7ce8941dc762caa95bf93f64d9b",
+      "baselines\\sdr_optimizer.py": "9564151f5593844d10e88a322b8ab5a294da46c240ebb1faaf82494884f5856b",
+      "experiments\\__init__.py": "3876579a463f3430ed6901b115fdbf22f30c1886e648a398f7599c7fba88a448",
+      "experiments\\__main__.py": "3ba13c40d5ce797e993e31cb3c8d276bfded6e352738ecf30623d34b3e4f8488",
+      "experiments\\base.py": "45268f202eb2f103cf187e46bc8555efc4da8e935c61b2c365e0f278934516fb",
+      "experiments\\baselines_multiuser.py": "cec9598902b725ba8db124f395e2fa740ebd5bbb53152be56a40c3d99efb0ea8",
+      "experiments\\cli.py": "ba375f6c29fca26dfa49383dae52352a4cd3a9a7401663829a4b7be26557534f",
+      "experiments\\federated.py": "141b78c9fdf4f79407b52e7ade3f4f9d6fc7f995c52a971439d8aa27fccd4842",
+      "experiments\\journal.py": "579cdf6f5f350509668d1d84008cdd5096dd571abc74fb81e04c16f77d838dfc",
+      "experiments\\link_level.py": "43fa1dc479cafdf4d64bf893aa2815eae826872cb4e8aaf9a5795335c89d4ab7",
+      "experiments\\logging_utils.py": "62f7cbe26531b0580f020ff62022b5ad9b4a39d838544116f643f9acfbe91de5",
+      "experiments\\suite.py": "9ce06d880fd5bd970454784daff69d4991eaae0a341d69eecf5b242470124d23"
     },
-    "git_commit": "9dca49781296c10acde946f446042f513bac0416",
-    "numpy": "2.5.2",
-    "torch": "2.13.0+cpu",
+    "git_commit": "4d7b65f9025ecd989c838506ef1db9db793a05d5",
+    "numpy": "2.2.6",
+    "torch": "2.11.0+cu128",
     "observation_model": "passive receiver feedback",
     "seed": 1024,
     "sample_counts_train_validation_test": [
@@ -120,7 +121,7 @@
       600
     ],
     "codebook_sha256": "898e7f62e5c36372a262c76cbe78903677b57315dcabf487e2e3a9dfd0f4bc47",
-    "training_features_sha256": "e7c42553a1b6434f7c00f4209c0ce30e425ddd46c3ae1df9927ff51f07e8f45e",
+    "training_features_sha256": "628537de2f1fe75f0b3db565fe292b13e439e01363d36fd5ce5683eebcefe08d",
     "architecture_profile": {
       "HIDDEN_DIM": 128,
       "NUM_LAYERS": 2,
@@ -150,82 +151,82 @@
     "MLP": {
       "parameters": 37632,
       "optimizer_steps": 500,
-      "selected_step": 200,
+      "selected_step": 100,
       "history": [
         {
           "step": 100,
-          "train_loss": 0.5366697770357132,
-          "validation_loss": 0.5299911209195852
+          "train_loss": 0.5366428288817405,
+          "validation_loss": 0.5305885022878647
         },
         {
           "step": 200,
-          "train_loss": 0.5277568843960762,
-          "validation_loss": 0.5289760737121105
+          "train_loss": 0.5290787127614022,
+          "validation_loss": 0.5319409615546465
         },
         {
           "step": 300,
-          "train_loss": 0.5155709183216095,
-          "validation_loss": 0.5316247570514678
+          "train_loss": 0.5151156601309776,
+          "validation_loss": 0.5323768573254346
         },
         {
           "step": 400,
-          "train_loss": 0.4990374544262886,
-          "validation_loss": 0.5327203543484211
+          "train_loss": 0.4971133089065552,
+          "validation_loss": 0.5334667240083217
         },
         {
           "step": 500,
-          "train_loss": 0.4980383160710335,
-          "validation_loss": 0.5324585964530706
+          "train_loss": 0.49505808323621747,
+          "validation_loss": 0.5329469931125641
         }
       ],
       "scores": {
-        "mean_received_snr_db": 13.848627978717811,
-        "spectral_efficiency": 2.4650617575683893,
-        "net_spectral_efficiency": 2.4458034625873863,
-        "ber_qpsk": 0.08918134032187054,
-        "outage_2bps_hz": 0.505,
-        "fraction_of_oracle_power": 0.05160107635017109,
+        "mean_received_snr_db": 13.814701867491362,
+        "spectral_efficiency": 2.417156107471175,
+        "net_spectral_efficiency": 2.3982720753815565,
+        "ber_qpsk": 0.09306619889165695,
+        "outage_2bps_hz": 0.52,
+        "fraction_of_oracle_power": 0.0513828330205911,
         "pilots_per_block": 16
       }
     },
     "GNN": {
       "parameters": 62850,
       "optimizer_steps": 500,
-      "selected_step": 400,
+      "selected_step": 200,
       "history": [
         {
           "step": 100,
-          "train_loss": 0.5414058491587639,
-          "validation_loss": 0.5351058611273766
+          "train_loss": 0.5414058619737625,
+          "validation_loss": 0.5351057283580303
         },
         {
           "step": 200,
-          "train_loss": 0.5499617004394531,
-          "validation_loss": 0.5349520733952522
+          "train_loss": 0.5505343279242516,
+          "validation_loss": 0.5343625786900521
         },
         {
           "step": 300,
-          "train_loss": 0.546482410132885,
-          "validation_loss": 0.5346457044780255
+          "train_loss": 0.5449820017814636,
+          "validation_loss": 0.5359646427631378
         },
         {
           "step": 400,
-          "train_loss": 0.536866331398487,
-          "validation_loss": 0.5334901838004589
+          "train_loss": 0.5392375299334526,
+          "validation_loss": 0.5356745378673077
         },
         {
           "step": 500,
-          "train_loss": 0.550111331641674,
-          "validation_loss": 0.5354524073004723
+          "train_loss": 0.5479611042141914,
+          "validation_loss": 0.5354656912386417
         }
       ],
       "scores": {
-        "mean_received_snr_db": 14.121294532630062,
-        "spectral_efficiency": 2.3043545662688363,
-        "net_spectral_efficiency": 2.286351796219861,
-        "ber_qpsk": 0.1077182872728194,
-        "outage_2bps_hz": 0.585,
-        "fraction_of_oracle_power": 0.057924304298540695,
+        "mean_received_snr_db": 13.807335760516414,
+        "spectral_efficiency": 2.2834161121757703,
+        "net_spectral_efficiency": 2.2655769237993972,
+        "ber_qpsk": 0.10873629537580133,
+        "outage_2bps_hz": 0.5816666666666667,
+        "fraction_of_oracle_power": 0.05329962722791644,
         "pilots_per_block": 16
       }
     },
@@ -236,78 +237,78 @@
       "history": [
         {
           "step": 100,
-          "train_loss": 0.5386622056365014,
-          "validation_loss": 0.5371920533478259
+          "train_loss": 0.5362293067574501,
+          "validation_loss": 0.5339029985666275
         },
         {
           "step": 200,
-          "train_loss": 0.5403363162279129,
-          "validation_loss": 0.5343194529414177
+          "train_loss": 0.539719246327877,
+          "validation_loss": 0.5317331638932228
         },
         {
           "step": 300,
-          "train_loss": 0.5275861844420433,
-          "validation_loss": 0.5305510967969894
+          "train_loss": 0.5297503569722175,
+          "validation_loss": 0.529526851028204
         },
         {
           "step": 400,
-          "train_loss": 0.5141501173377037,
-          "validation_loss": 0.5290152055025101
+          "train_loss": 0.5161985075473785,
+          "validation_loss": 0.5218842285871506
         },
         {
           "step": 500,
-          "train_loss": 0.5203440198302269,
-          "validation_loss": 0.5305994513630867
+          "train_loss": 0.5198432233929634,
+          "validation_loss": 0.5246349722892045
         }
       ],
       "scores": {
-        "mean_received_snr_db": 14.046349077029417,
-        "spectral_efficiency": 2.5751166340017115,
-        "net_spectral_efficiency": 2.5549985352985733,
-        "ber_qpsk": 0.08474247975808279,
-        "outage_2bps_hz": 0.4716666666666667,
-        "fraction_of_oracle_power": 0.0571884078130239,
+        "mean_received_snr_db": 14.248188871944247,
+        "spectral_efficiency": 2.555132291014087,
+        "net_spectral_efficiency": 2.5351703199905393,
+        "ber_qpsk": 0.08946863696307393,
+        "outage_2bps_hz": 0.4816666666666667,
+        "fraction_of_oracle_power": 0.05818806904402727,
         "pilots_per_block": 16
       }
     },
     "Transformer": {
       "parameters": 294530,
       "optimizer_steps": 500,
-      "selected_step": 400,
+      "selected_step": 200,
       "history": [
         {
           "step": 100,
-          "train_loss": 0.5406110951304436,
-          "validation_loss": 0.5353974541276694
+          "train_loss": 0.5416956523060799,
+          "validation_loss": 0.535255556255579
         },
         {
           "step": 200,
-          "train_loss": 0.5504651433229446,
-          "validation_loss": 0.534980030655861
+          "train_loss": 0.5490709608793258,
+          "validation_loss": 0.5342080971598625
         },
         {
           "step": 300,
-          "train_loss": 0.5469496548175812,
-          "validation_loss": 0.5350630223751067
+          "train_loss": 0.5446333566308021,
+          "validation_loss": 0.5348415672779083
         },
         {
           "step": 400,
-          "train_loss": 0.5382297861576081,
-          "validation_loss": 0.534317909181118
+          "train_loss": 0.5403100377321244,
+          "validation_loss": 0.5347624371945858
         },
         {
           "step": 500,
-          "train_loss": 0.5486859598755837,
-          "validation_loss": 0.5351870012283325
+          "train_loss": 0.5490879386663436,
+          "validation_loss": 0.5348478637635707
         }
       ],
       "scores": {
-        "mean_received_snr_db": 13.954998261233722,
-        "spectral_efficiency": 2.4196023730139617,
-        "net_spectral_efficiency": 2.40069922947479,
-        "ber_qpsk": 0.09700616016305579,
-        "outage_2bps_hz": 0.525,
-        "fraction_of_oracle_power": 0.0547547339860762,
+        "mean_received_snr_db": 13.912270207479438,
+        "spectral_efficiency": 2.325761509276819,
+        "net_spectral_efficiency": 2.3075914974855936,
+        "ber_qpsk": 0.10574548576086447,
+        "outage_2bps_hz": 0.57,
+        "fraction_of_oracle_power": 0.05465702599156046,
         "pilots_per_block": 16
       }
     }

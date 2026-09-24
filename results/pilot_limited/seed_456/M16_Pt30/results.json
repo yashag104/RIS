@@ -72,45 +72,46 @@
       0.17142857142857143
     ],
     "source_sha256": {
-      "run_link_level.py": "5d6d8d96134ab97686ae1ff5d2f6a8618b3973f68162568ba26bd4dcb21b7f64",
-      "run_pilot_limited.py": "565ce106c940ce7c7cda6f4d47e6d9513d6cd0bded189f83723e7eb8bda17288",
-      "config.py": "6847624811c9200ee2583db415b73dfe7ac5a945a7bfb74d90fd82cfe038ee4a",
-      "src/__init__.py": "fef3d4e3932696e4e15e66b40f4cd77e5c497e24a5bbbebb148691eb6a2891cc",
-      "src/channel_model.py": "be6481a32be76d2d2c0f0bff85a9b69b60ca497393eda00d5669532fe47aa76e",
-      "src/client.py": "f613646bc0ac9cc51aa881dc7f248bcf465509bdb72b051ad4c3b0a2f48ac4b2",
-      "src/controlled_training.py": "6a5cdef69c9abd90527fa584564db58203caaeebcfe85456735372afb203ed58",
-      "src/dataset_utils.py": "65471706365d4bf38325d95b1170e4d5a4c6859b1a79b219a6b5a4288089d01e",
-      "src/link_metrics.py": "b2247192f63ce0136444402400f1fb17c87c363737c04bdd22c8a33b357bef0f",
-      "src/noc_simulator.py": "31c793c89ad2c29479ae3a84df7ff0a75c3becff4b1c9bb1285939a115428abf",
-      "src/objectives.py": "89742c03982a3294f370a2ccd1bac96d43b37d4241e87104161a576792c72bfa",
-      "src/pilot_probing.py": "09fab33c5de5ced70cb0229d243486a4f41a5ba19bc8609c5769626147447e88",
-      "src/server.py": "afcb0b16197e5276c8dcb0032fb190608812b0caf4203e4692bd9463223f2dc7",
-      "src/surface_channel.py": "0dae6337c6cfb2114ed465e520fd3510d46e02225035a2c282aa9853ba4720db",
-      "src/system_eval.py": "ef48389f787d05d871fadef4b465298ab203c7dfdf226afbfcb2ae366a51d5cd",
-      "models/__init__.py": "da79847220202540dd0c5bcef7ec260e47391c9f58f23c99da5fc3c18b56bce9",
-      "models/ris_net.py": "f9dafcbd9bae4b5747156d4593da36c20bdeb5378b853d8e8120b5724eb87672",
-      "baselines/__init__.py": "1bae15f90b3a8e388af7c89729250da3bb01b1af4729d9a841a3b69de081de1d",
-      "baselines/admm_optimizer.py": "dc6c1eb4ac7d97a7fe42a3df8f0800b21395253650efe113212c74a5a64bc6b8",
-      "baselines/alternating_optimization.py": "26cbd4f2519dc1502e336d32d2e80c30eae90e312f05cd9813a19bd69da621cd",
-      "baselines/centralized_learning.py": "a597d139f0f381c40fed678c4e9c9a7ce9712c4fa899769f1b533a6d357c6b69",
-      "baselines/drl_agent.py": "b1b09cdd4d518376acf235a64ff166ca1752e32b6316023953e079716ec207db",
-      "baselines/random_search.py": "1c2a0adfc81238e0d94ecc31625cf8081810c8d05885df4098873ce1ce1eb5bb",
-      "baselines/sca_optimizer.py": "fd975b9ffd8ca6b3a1febe1146f932580ce6627721bc606dc758093c98ad2a6c",
-      "baselines/sdr_optimizer.py": "9564151f5593844d10e88a322b8ab5a294da46c240ebb1faaf82494884f5856b",
-      "experiments/__init__.py": "5b0b8075fb31c4dc27d17a00c79f04209f07d1e88c2e1a0f07248e01fc6bfa60",
-      "experiments/__main__.py": "b68da449090b7d8d145f63b38a01b7fdf4b9c4f9ca9ba9f90ef87a8265959963",
-      "experiments/base.py": "893eb1576f56cc462a076c1b5b39af772542ed9ee14ba797e3934170247773d3",
-      "experiments/baselines_multiuser.py": "181a358ade1733b708fb190198a67fc1dfe5d7c2d6fec2af8407ebc45ab04c2e",
-      "experiments/cli.py": "323e8d1ab8246dffb5c921cc41b13ccf8170474a5f7ec5ba3b4b473dc9987e70",
-      "experiments/federated.py": "2af243e9d127a5ad1475483ed528dec133178359222452db87a0669c89ac131b",
-      "experiments/journal.py": "d2a8eba83c3ee6bc6dc523615e6d6fcf4f07f6e8fc655591f73c95989c16db3e",
-      "experiments/link_level.py": "9f6a602f80ce0f9736245bb7184261f13d04f360216f266e73d49cef428f219e",
-      "experiments/logging_utils.py": "4eec085b7514f41241732830a341253835d8964cd9c153da02496fbcb77a5916",
-      "experiments/suite.py": "2b639935e54fe85414915f77d796b186765cce235cac987f7e48cbebe4d42444"
+      "run_link_level.py": "fe32d85b26c523cebdfa3aaff49518045b36c026ad8f864fac138331dcc7f8ac",
+      "run_pilot_limited.py": "cefa4a591c0f5daa1cb8e5c95eb0f88f7911072c932a2d360ba4ff5043cafe3e",
+      "run_pilot_ablation.py": "d4cb06208ba276e5b741d3d1accf3e5531c548d0f1f9dd69181e8351575e1e17",
+      "config.py": "3507feec6c91048ff809117e93d749c9af64b62eb0299b627d7930d8187942c1",
+      "src\\__init__.py": "a051d959535d9bd681e5d9f7c2242512b71a7343adefee6edbf7f5e7f3e44256",
+      "src\\channel_model.py": "a87880e97fa86b641ba6cd6053e416a9c8140fdda28b650b110eaa2f6947458e",
+      "src\\client.py": "d1ea3b1885baf92d352b86879e0d4c6b31dff21d07a9d8f7fe410a3db2f74db8",
+      "src\\controlled_training.py": "07ea85ef04fe409eaf6b706cd64d7db2df3e7391c6a6b0b77777aa5bb5decd3b",
+      "src\\dataset_utils.py": "606fb4ff336ef426f69b0abcc86c1d8a4a966d6c98279188da421ca077c2ec9e",
+      "src\\link_metrics.py": "bc07f73db67a96f2e71d698d1c5fcf776e2a94d36f3fe5be68b6ed045996de64",
+      "src\\noc_simulator.py": "7484d841cac1578442d277d8277006f394479c27a3a246abee9bcc26566a7af5",
+      "src\\objectives.py": "6c36b4ec5fb1937bc3a15c24ecd709125c4e44b568b6133c9b983df9233a8de9",
+      "src\\pilot_probing.py": "45d42dcd6111a500f0a029c198efbc8a7888af5a71d1d9b575d9e7a4bbfc0054",
+      "src\\server.py": "d893c8daa1479d820023190950f4f8db19449517c089351351f3493a5eed12fe",
+      "src\\surface_channel.py": "1f14105175695205d00b0430babf20d6df65ef5191335740860b4eac33e8828f",
+      "src\\system_eval.py": "aa06e3a35aeb2841d2a61331972037e7c9f354dfb5a7cc732f6b3e5a28c51973",
+      "models\\__init__.py": "6f1fc9a083051e84cf6dcc58ceb2e68ab5ec1152fe34ede7f48afc52c66c3c4b",
+      "models\\ris_net.py": "f9dafcbd9bae4b5747156d4593da36c20bdeb5378b853d8e8120b5724eb87672",
+      "baselines\\__init__.py": "1bae15f90b3a8e388af7c89729250da3bb01b1af4729d9a841a3b69de081de1d",
+      "baselines\\admm_optimizer.py": "00227f2502c13d1df2a14ba51349331f587b1f3bfd06b90bd22086a383ada723",
+      "baselines\\alternating_optimization.py": "f52856f7138e507e07daf084c05c035c296bdff742b64934fdf6f4c83baef832",
+      "baselines\\centralized_learning.py": "a597d139f0f381c40fed678c4e9c9a7ce9712c4fa899769f1b533a6d357c6b69",
+      "baselines\\drl_agent.py": "b1b09cdd4d518376acf235a64ff166ca1752e32b6316023953e079716ec207db",
+      "baselines\\random_search.py": "1c2a0adfc81238e0d94ecc31625cf8081810c8d05885df4098873ce1ce1eb5bb",
+      "baselines\\sca_optimizer.py": "707d82b2bdd5f0a9ad6483f0ee33b7a4eae2d7ce8941dc762caa95bf93f64d9b",
+      "baselines\\sdr_optimizer.py": "9564151f5593844d10e88a322b8ab5a294da46c240ebb1faaf82494884f5856b",
+      "experiments\\__init__.py": "3876579a463f3430ed6901b115fdbf22f30c1886e648a398f7599c7fba88a448",
+      "experiments\\__main__.py": "3ba13c40d5ce797e993e31cb3c8d276bfded6e352738ecf30623d34b3e4f8488",
+      "experiments\\base.py": "45268f202eb2f103cf187e46bc8555efc4da8e935c61b2c365e0f278934516fb",
+      "experiments\\baselines_multiuser.py": "cec9598902b725ba8db124f395e2fa740ebd5bbb53152be56a40c3d99efb0ea8",
+      "experiments\\cli.py": "ba375f6c29fca26dfa49383dae52352a4cd3a9a7401663829a4b7be26557534f",
+      "experiments\\federated.py": "141b78c9fdf4f79407b52e7ade3f4f9d6fc7f995c52a971439d8aa27fccd4842",
+      "experiments\\journal.py": "579cdf6f5f350509668d1d84008cdd5096dd571abc74fb81e04c16f77d838dfc",
+      "experiments\\link_level.py": "43fa1dc479cafdf4d64bf893aa2815eae826872cb4e8aaf9a5795335c89d4ab7",
+      "experiments\\logging_utils.py": "62f7cbe26531b0580f020ff62022b5ad9b4a39d838544116f643f9acfbe91de5",
+      "experiments\\suite.py": "9ce06d880fd5bd970454784daff69d4991eaae0a341d69eecf5b242470124d23"
     },
-    "git_commit": "9dca49781296c10acde946f446042f513bac0416",
-    "numpy": "2.5.2",
-    "torch": "2.13.0+cpu",
+    "git_commit": "4d7b65f9025ecd989c838506ef1db9db793a05d5",
+    "numpy": "2.2.6",
+    "torch": "2.11.0+cu128",
     "observation_model": "passive receiver feedback",
     "seed": 456,
     "num_probes": 16,
@@ -127,57 +128,18 @@
       200,
       600
     ],
-    "codebook_sha256": "898e7f62e5c36372a262c76cbe78903677b57315dcabf487e2e3a9dfd0f4bc47",
-    "disk_source_sha256_at_case_start": {
-      "run_link_level.py": "f2c7f1602e2b98a8063eb2c34cd32363a202578acc73c5b52e75e9d0335a948b",
-      "run_pilot_limited.py": "deb51692ff94bf82f065941ae0946873e97ee9cd263431f279b1a984c5e30d32",
-      "config.py": "6847624811c9200ee2583db415b73dfe7ac5a945a7bfb74d90fd82cfe038ee4a",
-      "src/__init__.py": "fef3d4e3932696e4e15e66b40f4cd77e5c497e24a5bbbebb148691eb6a2891cc",
-      "src/channel_model.py": "be6481a32be76d2d2c0f0bff85a9b69b60ca497393eda00d5669532fe47aa76e",
-      "src/client.py": "f613646bc0ac9cc51aa881dc7f248bcf465509bdb72b051ad4c3b0a2f48ac4b2",
-      "src/controlled_training.py": "6a5cdef69c9abd90527fa584564db58203caaeebcfe85456735372afb203ed58",
-      "src/dataset_utils.py": "65471706365d4bf38325d95b1170e4d5a4c6859b1a79b219a6b5a4288089d01e",
-      "src/link_metrics.py": "b2247192f63ce0136444402400f1fb17c87c363737c04bdd22c8a33b357bef0f",
-      "src/noc_simulator.py": "31c793c89ad2c29479ae3a84df7ff0a75c3becff4b1c9bb1285939a115428abf",
-      "src/objectives.py": "89742c03982a3294f370a2ccd1bac96d43b37d4241e87104161a576792c72bfa",
-      "src/pilot_probing.py": "09fab33c5de5ced70cb0229d243486a4f41a5ba19bc8609c5769626147447e88",
-      "src/server.py": "afcb0b16197e5276c8dcb0032fb190608812b0caf4203e4692bd9463223f2dc7",
-      "src/surface_channel.py": "0dae6337c6cfb2114ed465e520fd3510d46e02225035a2c282aa9853ba4720db",
-      "src/system_eval.py": "ef48389f787d05d871fadef4b465298ab203c7dfdf226afbfcb2ae366a51d5cd",
-      "models/__init__.py": "da79847220202540dd0c5bcef7ec260e47391c9f58f23c99da5fc3c18b56bce9",
-      "models/ris_net.py": "f9dafcbd9bae4b5747156d4593da36c20bdeb5378b853d8e8120b5724eb87672",
-      "baselines/__init__.py": "1bae15f90b3a8e388af7c89729250da3bb01b1af4729d9a841a3b69de081de1d",
-      "baselines/admm_optimizer.py": "dc6c1eb4ac7d97a7fe42a3df8f0800b21395253650efe113212c74a5a64bc6b8",
-      "baselines/alternating_optimization.py": "26cbd4f2519dc1502e336d32d2e80c30eae90e312f05cd9813a19bd69da621cd",
-      "baselines/centralized_learning.py": "a597d139f0f381c40fed678c4e9c9a7ce9712c4fa899769f1b533a6d357c6b69",
-      "baselines/drl_agent.py": "b1b09cdd4d518376acf235a64ff166ca1752e32b6316023953e079716ec207db",
-      "baselines/random_search.py": "1c2a0adfc81238e0d94ecc31625cf8081810c8d05885df4098873ce1ce1eb5bb",
-      "baselines/sca_optimizer.py": "fd975b9ffd8ca6b3a1febe1146f932580ce6627721bc606dc758093c98ad2a6c",
-      "baselines/sdr_optimizer.py": "9564151f5593844d10e88a322b8ab5a294da46c240ebb1faaf82494884f5856b",
-      "experiments/__init__.py": "5b0b8075fb31c4dc27d17a00c79f04209f07d1e88c2e1a0f07248e01fc6bfa60",
-      "experiments/__main__.py": "b68da449090b7d8d145f63b38a01b7fdf4b9c4f9ca9ba9f90ef87a8265959963",
-      "experiments/base.py": "893eb1576f56cc462a076c1b5b39af772542ed9ee14ba797e3934170247773d3",
-      "experiments/baselines_multiuser.py": "181a358ade1733b708fb190198a67fc1dfe5d7c2d6fec2af8407ebc45ab04c2e",
-      "experiments/cli.py": "323e8d1ab8246dffb5c921cc41b13ccf8170474a5f7ec5ba3b4b473dc9987e70",
-      "experiments/federated.py": "2af243e9d127a5ad1475483ed528dec133178359222452db87a0669c89ac131b",
-      "experiments/journal.py": "d2a8eba83c3ee6bc6dc523615e6d6fcf4f07f6e8fc655591f73c95989c16db3e",
-      "experiments/link_level.py": "9f6a602f80ce0f9736245bb7184261f13d04f360216f266e73d49cef428f219e",
-      "experiments/logging_utils.py": "4eec085b7514f41241732830a341253835d8964cd9c153da02496fbcb77a5916",
-      "experiments/suite.py": "2b639935e54fe85414915f77d796b186765cce235cac987f7e48cbebe4d42444"
-    },
-    "source_manifest_scope": "First case in this uninterrupted Python study process; later disk edits do not replace imported modules.",
-    "source_manifest_anchor": "results/pilot_limited/seed_42/M16_Pt30/results.json"
+    "codebook_sha256": "898e7f62e5c36372a262c76cbe78903677b57315dcabf487e2e3a9dfd0f4bc47"
   },
   "training": {
-    "fl_rounds": 45,
+    "fl_rounds": 44,
     "max_rounds": 100,
     "local_epochs": 1,
     "steps_per_round_per_client": 10,
-    "fl_steps_per_client": 450,
-    "fl_total_optimizer_steps": 7200,
-    "centralized_optimizer_steps": 7200,
-    "centralized_client_budget_steps": 450,
-    "local_only_steps_per_client": 450,
+    "fl_steps_per_client": 440,
+    "fl_total_optimizer_steps": 7040,
+    "centralized_optimizer_steps": 7040,
+    "centralized_client_budget_steps": 440,
+    "local_only_steps_per_client": 440,
     "batch_size": 64,
     "learning_rate": 0.001,
     "optimizer": "Adam",
@@ -185,330 +147,324 @@
     "fl_optimizer_state": "reset each round",
     "central_and_local_optimizer_state": "persistent",
     "objective": "local genie-normalized rate; not whole-aperture gradient",
-    "best_round": 30,
+    "best_round": 29,
     "stopping_reason": "validation_plateau",
     "convergence_claim": false,
     "validation_patience": 15,
     "validation_min_delta": 0.0001,
     "fl_round_losses": [
-      0.5519137946888805,
-      0.5552255354821681,
-      0.5511356486007571,
-      0.5468162149190903,
-      0.5469858163967729,
-      0.5404361754655838,
-      0.5382205937057734,
-      0.5409725990146399,
-      0.532308099977672,
-      0.5285288847982883,
-      0.5328691938892007,
-      0.5269979938864708,
-      0.5299898691475391,
-      0.5231394393369555,
-      0.5217247910797596,
-      0.5180527199059725,
-      0.5218882607296109,
-      0.5175666691735387,
-      0.5130597455427051,
-      0.5115310072898864,
-      0.5123770589008927,
-      0.5112585123628377,
-      0.5119156399741769,
-      0.506873732432723,
-      0.5028453096747398,
-      0.5038134887814522,
-      0.4978477103635669,
-      0.4969806293025613,
-      0.5028644882142543,
-      0.4978540474548936,
-      0.4974107531830669,
-      0.49742583632469184,
-      0.492171804793179,
-      0.4895515376701951,
-      0.4911943288519979,
-      0.48873190525919197,
-      0.48702769391238687,
-      0.48718177396804097,
-      0.4837231490761042,
-      0.4792473560199142,
-      0.4812956085428596,
-      0.47974012196064,
-      0.48169223796576266,
-      0.4767142403870821,
-      0.47860402781516315
+      0.5518927004188299,
+      0.5552700538188219,
+      0.5509756650775671,
+      0.5466815240681171,
+      0.5478721659630537,
+      0.5407231872901321,
+      0.5390424517914653,
+      0.5420524038374425,
+      0.5329443080350756,
+      0.5286366242915392,
+      0.5329212544485926,
+      0.5268570689484477,
+      0.5301812376827002,
+      0.5235329149290919,
+      0.5226204792037606,
+      0.5183267809450626,
+      0.5226476868614555,
+      0.5171426262706518,
+      0.5132387932389975,
+      0.512024368904531,
+      0.5130302438512444,
+      0.5126056168228388,
+      0.5123885741457344,
+      0.5063584918156266,
+      0.5031365839764477,
+      0.504430678114295,
+      0.4979029597714544,
+      0.49702443946152924,
+      0.5034474622458219,
+      0.4989755257964134,
+      0.498534881696105,
+      0.498797276802361,
+      0.4934639774262905,
+      0.4905099833384156,
+      0.491486513055861,
+      0.4892143810167909,
+      0.488391650468111,
+      0.487908593006432,
+      0.4850234966725111,
+      0.4805681638419628,
+      0.48218778278678653,
+      0.48139684442430736,
+      0.48227264955639837,
+      0.477379316650331
     ],
     "validation_losses": [
-      0.5447100475430489,
-      0.5441174060106277,
-      0.5441526286303997,
-      0.5429661981761456,
-      0.5427921265363693,
-      0.5416252762079239,
-      0.5407765880227089,
-      0.5405619293451309,
-      0.5403460040688515,
-      0.5398507043719292,
-      0.5397460237145424,
-      0.5399537421762943,
-      0.5393625497817993,
-      0.5391242504119873,
-      0.5395315997302532,
-      0.5390357151627541,
-      0.5389839373528957,
-      0.5388215109705925,
-      0.5389182381331921,
-      0.5395539589226246,
-      0.5381423905491829,
-      0.5387205220758915,
-      0.538556408137083,
-      0.5389044806361198,
-      0.5382891148328781,
-      0.5383097752928734,
-      0.5384080372750759,
-      0.5383797362446785,
-      0.5382103770971298,
-      0.5379908606410027,
-      0.5382291153073311,
-      0.5388316512107849,
-      0.5387388989329338,
-      0.5386181436479092,
-      0.538630910217762,
-      0.5381985232234001,
-      0.5382786206901073,
-      0.5383491441607475,
-      0.5382703542709351,
-      0.5383635498583317,
-      0.5379954054951668,
-      0.5384256839752197,
-      0.5382552333176136,
-      0.53860879316926,
-      0.5390786305069923
+      0.5447279532253743,
+      0.5442590768635273,
+      0.5438721619546414,
+      0.5424591042101383,
+      0.5419508108496667,
+      0.5411854338645935,
+      0.5408343800902367,
+      0.5404332026839256,
+      0.5406818318367004,
+      0.5399271933734417,
+      0.5395562905073166,
+      0.5394244822859765,
+      0.5393600161373615,
+      0.5388938678801061,
+      0.5394304358959199,
+      0.5389309731125831,
+      0.5391911280155182,
+      0.5395093613862991,
+      0.5393508753180504,
+      0.5394086471199989,
+      0.5390135751664639,
+      0.53923458725214,
+      0.5386798425018787,
+      0.5385986150801181,
+      0.5387029100954532,
+      0.539210199266672,
+      0.5385784883797169,
+      0.5385871963202953,
+      0.5382128532230854,
+      0.5382225787639618,
+      0.5393603441119194,
+      0.5389267420768737,
+      0.5390539155900478,
+      0.5385657508671284,
+      0.5383561880886555,
+      0.5384529212117195,
+      0.538621227145195,
+      0.5384717257320881,
+      0.5386899097263813,
+      0.538727804273367,
+      0.5382799412310123,
+      0.5389096534252167,
+      0.5383514820039272,
+      0.5390022863447667
     ],
     "centralized_validation_history": [
       {
         "steps": 160,
-        "validation_loss": 0.5363889299333096
+        "validation_loss": 0.5339925076067448
       },
       {
         "steps": 320,
-        "validation_loss": 0.537335105240345
+        "validation_loss": 0.5342728750407696
       },
       {
-        "steps": 450,
-        "validation_loss": 0.5354342050850391
+        "steps": 440,
+        "validation_loss": 0.533504586815834
       },
       {
-        "steps": 610,
-        "validation_loss": 0.5354304648935795
+        "steps": 600,
+        "validation_loss": 0.5322430533170701
       },
       {
-        "steps": 770,
-        "validation_loss": 0.5365757830440998
+        "steps": 760,
+        "validation_loss": 0.5328314392268658
       },
       {
-        "steps": 930,
-        "validation_loss": 0.5367382615804672
+        "steps": 920,
+        "validation_loss": 0.5327033022046089
       },
       {
-        "steps": 1090,
-        "validation_loss": 0.5357133001089096
+        "steps": 1080,
+        "validation_loss": 0.5351716175675392
       },
       {
-        "steps": 1250,
-        "validation_loss": 0.5345768146216869
+        "steps": 1240,
+        "validation_loss": 0.5330262623727322
       },
       {
-        "steps": 1410,
-        "validation_loss": 0.5354027785360813
+        "steps": 1400,
+        "validation_loss": 0.5332234558463097
       },
       {
-        "steps": 1570,
-        "validation_loss": 0.5373230949044228
+        "steps": 1560,
+        "validation_loss": 0.5306079652905464
       },
       {
-        "steps": 1730,
-        "validation_loss": 0.5325520262122154
+        "steps": 1720,
+        "validation_loss": 0.5350083635747434
       },
       {
-        "steps": 1890,
-        "validation_loss": 0.5319661758840084
+        "steps": 1880,
+        "validation_loss": 0.5342137178778648
       },
       {
-        "steps": 2050,
-        "validation_loss": 0.5333586744964123
+        "steps": 2040,
+        "validation_loss": 0.5369333668053151
       },
       {
-        "steps": 2210,
-        "validation_loss": 0.5322402641177177
+        "steps": 2200,
+        "validation_loss": 0.5340427920222283
       },
       {
-        "steps": 2370,
-        "validation_loss": 0.5322065614163876
+        "steps": 2360,
+        "validation_loss": 0.5346051785349846
       },
       {
-        "steps": 2530,
-        "validation_loss": 0.5323695689439774
+        "steps": 2520,
+        "validation_loss": 0.5349705909192563
       },
       {
-        "steps": 2690,
-        "validation_loss": 0.5338346995413303
+        "steps": 2680,
+        "validation_loss": 0.5332871128618717
       },
       {
-        "steps": 2850,
-        "validation_loss": 0.5338026359677315
+        "steps": 2840,
+        "validation_loss": 0.5335249884426594
       },
       {
-        "steps": 3010,
-        "validation_loss": 0.5346001125872135
+        "steps": 3000,
+        "validation_loss": 0.5353607168793678
       },
       {
-        "steps": 3170,
-        "validation_loss": 0.5324584245681763
+        "steps": 3160,
+        "validation_loss": 0.5333338573575019
       },
       {
-        "steps": 3330,
-        "validation_loss": 0.533466674387455
+        "steps": 3320,
+        "validation_loss": 0.5345654934644699
       },
       {
-        "steps": 3490,
-        "validation_loss": 0.5330275967717171
+        "steps": 3480,
+        "validation_loss": 0.5339769385755062
       },
       {
-        "steps": 3650,
-        "validation_loss": 0.5326413102447987
+        "steps": 3640,
+        "validation_loss": 0.5345658911764621
       },
       {
-        "steps": 3810,
-        "validation_loss": 0.5325152277946472
+        "steps": 3800,
+        "validation_loss": 0.5337441578507423
       },
       {
-        "steps": 3970,
-        "validation_loss": 0.5317996218800545
+        "steps": 3960,
+        "validation_loss": 0.5329460345208645
       },
       {
-        "steps": 4130,
-        "validation_loss": 0.5310368202626705
+        "steps": 4120,
+        "validation_loss": 0.5341885927319527
       },
       {
-        "steps": 4290,
-        "validation_loss": 0.5337599106132984
+        "steps": 4280,
+        "validation_loss": 0.5319429221749306
       },
       {
-        "steps": 4450,
-        "validation_loss": 0.5333254113793373
+        "steps": 4440,
+        "validation_loss": 0.5324036931991578
       },
       {
-        "steps": 4610,
-        "validation_loss": 0.5317834913730621
+        "steps": 4600,
+        "validation_loss": 0.5332291775941849
       },
       {
-        "steps": 4770,
-        "validation_loss": 0.5339140482246876
+        "steps": 4760,
+        "validation_loss": 0.5337488822638987
       },
       {
-        "steps": 4930,
-        "validation_loss": 0.5325274094939232
+        "steps": 4920,
+        "validation_loss": 0.5319370219111442
       },
       {
-        "steps": 5090,
-        "validation_loss": 0.5315419808030128
+        "steps": 5080,
+        "validation_loss": 0.5337908394634724
       },
       {
-        "steps": 5250,
-        "validation_loss": 0.5319777391850948
+        "steps": 5240,
+        "validation_loss": 0.5324588368833065
       },
       {
-        "steps": 5410,
-        "validation_loss": 0.5322835110127926
+        "steps": 5400,
+        "validation_loss": 0.5320779567956925
       },
       {
-        "steps": 5570,
-        "validation_loss": 0.5305987037718296
+        "steps": 5560,
+        "validation_loss": 0.5321639139950276
       },
       {
-        "steps": 5730,
-        "validation_loss": 0.5326169840991497
+        "steps": 5720,
+        "validation_loss": 0.5327854979038238
       },
       {
-        "steps": 5890,
-        "validation_loss": 0.531501580029726
+        "steps": 5880,
+        "validation_loss": 0.5314062042534351
       },
       {
-        "steps": 6050,
-        "validation_loss": 0.5308744236826897
+        "steps": 6040,
+        "validation_loss": 0.5315162859857083
       },
       {
-        "steps": 6210,
-        "validation_loss": 0.5319750383496284
+        "steps": 6200,
+        "validation_loss": 0.5323196041584015
       },
       {
-        "steps": 6370,
-        "validation_loss": 0.5318308994174004
+        "steps": 6360,
+        "validation_loss": 0.5304506282508373
       },
       {
-        "steps": 6530,
-        "validation_loss": 0.5315937213599682
+        "steps": 6520,
+        "validation_loss": 0.5306883390247821
       },
       {
-        "steps": 6690,
-        "validation_loss": 0.5318776443600655
+        "steps": 6680,
+        "validation_loss": 0.5306024876236917
       },
       {
-        "steps": 6850,
-        "validation_loss": 0.5312909930944443
+        "steps": 6840,
+        "validation_loss": 0.53064841106534
       },
       {
-        "steps": 7010,
-        "validation_loss": 0.5299162194132805
+        "steps": 7000,
+        "validation_loss": 0.5302592675387859
       },
       {
-        "steps": 7170,
-        "validation_loss": 0.5306411124765873
-      },
-      {
-        "steps": 7200,
-        "validation_loss": 0.530399065464735
+        "steps": 7040,
+        "validation_loss": 0.5305976024270058
       }
     ],
     "centralized_selected_steps": {
-      "centralized_client_budget": 450,
-      "centralized_dl": 7010
+      "centralized_client_budget": 440,
+      "centralized_dl": 7000
     },
     "local_selected_steps": [
-      300,
-      350,
-      330,
-      380,
-      50,
-      110,
-      420,
-      410,
-      440,
-      440,
-      160,
-      450,
-      270,
+      200,
       250,
-      320,
-      240
+      70,
+      170,
+      30,
+      80,
+      150,
+      180,
+      310,
+      390,
+      260,
+      370,
+      110,
+      300,
+      20,
+      130
     ],
     "local_validation_losses": [
-      0.5333234667778015,
-      0.5341978669166565,
-      0.5289112329483032,
-      0.5326494574546814,
-      0.5362265706062317,
-      0.536079466342926,
-      0.537073016166687,
-      0.5330493450164795,
-      0.5230047106742859,
-      0.5375091433525085,
-      0.5370489358901978,
-      0.5388947129249573,
-      0.53508460521698,
-      0.5273829102516174,
-      0.5308949947357178,
-      0.5415163636207581
+      0.531699857711792,
+      0.5357663583755493,
+      0.5321122932434083,
+      0.5343908643722535,
+      0.538667483329773,
+      0.5335059642791748,
+      0.5360334014892578,
+      0.5377544260025025,
+      0.5283001160621643,
+      0.5303331851959229,
+      0.5380914258956909,
+      0.5378533267974853,
+      0.5361847186088562,
+      0.5278088808059692,
+      0.5358151459693908,
+      0.5392642140388488
     ],
     "model_type": "MLP",
     "model_parameters": 37632,
@@ -516,19 +472,20 @@
     "num_tiles": 16,
     "communication_dtype": "float32",
     "payload_bytes_per_model": 150528,
-    "fl_total_communication_bytes": 216760320,
+    "fl_total_communication_bytes": 211943424,
     "raw_csi_upload_bytes": 4992000,
-    "traffic_ratio_fl_to_raw_csi": 43.42153846153846,
-    "crossover_samples_per_tile_analytic_only": 26052.923076923078,
+    "traffic_ratio_fl_to_raw_csi": 42.45661538461538,
+    "crossover_samples_per_tile_analytic_only": 25473.96923076923,
     "local_mrc_training_bytes": 0,
     "local_only_training_bytes": 0,
+    "training_byte_fields_scope": "model exchange; excludes channel acquisition and data delivery",
     "fixed_round_training_bytes": {
       "1": 4816896,
       "5": 24084480
     },
-    "fl_wall_clock_s": 21.744371165000075,
-    "centralized_wall_clock_s": 24.34613351200005,
-    "local_only_wall_clock_s": 19.81891594999979
+    "fl_wall_clock_s": 26.814332099980675,
+    "centralized_wall_clock_s": 18.560616399976425,
+    "local_only_wall_clock_s": 16.78318890009541
   },
   "accounting": {
     "coherence_symbols": 2048,
@@ -540,8 +497,15 @@
     "phase_command_bytes_if_centralized_float32": 4096,
     "centralized_training_label_bytes": 4920000,
     "centralized_training_feedback_bytes": 76800,
+    "acquisition_location": "receiver; feedback and DFT reconstruction at controller",
+    "additional_centralized_training_upload_bytes": 0,
+    "full_label_feedback_bytes_train_and_validation": 6560000,
+    "limited_feedback_bytes_train_and_validation_to_controller": 102400,
+    "label_delivery_endpoint_bytes_train_and_validation_to_tiles": 6656000,
+    "limited_feedback_endpoint_bytes_train_and_validation_to_tiles": 1638400,
     "privacy_claim": false,
     "local_linear_training_communication_bytes": 0,
+    "zero_communication_scope": "model exchange only; data delivery is counted separately",
     "scope": "payload bytes; no topology, energy or cycle-accurate claim"
   },
   "scores": {
@@ -553,8 +517,8 @@
       "outage_2bps_hz": 0.6366666666666667,
       "fraction_of_oracle_power": 0.0427218572394984,
       "pilots_per_block": 0,
-      "snr_gap_to_local_linear_mrc_db": -1.0285619132631485,
-      "net_rate_gap_to_local_linear_mrc": -1.0547240279162444,
+      "snr_gap_to_local_linear_mrc_db": -1.028561913263145,
+      "net_rate_gap_to_local_linear_mrc": -1.0547240279162466,
       "deployable": true
     },
     "random_max": {
@@ -565,27 +529,27 @@
       "outage_2bps_hz": 0.4,
       "fraction_of_oracle_power": 0.04650153667829509,
       "pilots_per_block": 16,
-      "snr_gap_to_local_linear_mrc_db": -0.6820652067542898,
-      "net_rate_gap_to_local_linear_mrc": -0.4306774159280544,
+      "snr_gap_to_local_linear_mrc_db": -0.6820652067542863,
+      "net_rate_gap_to_local_linear_mrc": -0.43067741592805664,
       "deployable": true
     },
     "lmmse_mrc": {
       "mean_received_snr_db": 15.223723675862058,
-      "spectral_efficiency": 3.329696762350959,
-      "net_spectral_efficiency": 3.303683506395092,
-      "ber_qpsk": 0.022455925343767957,
+      "spectral_efficiency": 3.3296967623509603,
+      "net_spectral_efficiency": 3.3036835063950933,
+      "ber_qpsk": 0.02245592534376787,
       "outage_2bps_hz": 0.15,
-      "fraction_of_oracle_power": 0.056306448171028076,
+      "fraction_of_oracle_power": 0.056306448171028096,
       "pilots_per_block": 16,
-      "snr_gap_to_local_linear_mrc_db": 0.19695268793011245,
-      "net_rate_gap_to_local_linear_mrc": 0.26505253673436924,
+      "snr_gap_to_local_linear_mrc_db": 0.196952687930116,
+      "net_rate_gap_to_local_linear_mrc": 0.26505253673436835,
       "deployable": true
     },
     "local_linear_mrc": {
-      "mean_received_snr_db": 15.026770987931945,
-      "spectral_efficiency": 3.0625571977682875,
-      "net_spectral_efficiency": 3.0386309696607228,
-      "ber_qpsk": 0.03693973095351841,
+      "mean_received_snr_db": 15.026770987931942,
+      "spectral_efficiency": 3.0625571977682897,
+      "net_spectral_efficiency": 3.038630969660725,
+      "ber_qpsk": 0.036939730953518116,
       "outage_2bps_hz": 0.26,
       "fraction_of_oracle_power": 0.05446200013795938,
       "pilots_per_block": 16,
@@ -601,92 +565,92 @@
       "outage_2bps_hz": 0.0,
       "fraction_of_oracle_power": 0.3248950872032975,
       "pilots_per_block": 1025,
-      "snr_gap_to_local_linear_mrc_db": 10.444132721188142,
-      "net_rate_gap_to_local_linear_mrc": 0.2985181118892548,
+      "snr_gap_to_local_linear_mrc_db": 10.444132721188145,
+      "net_rate_gap_to_local_linear_mrc": 0.2985181118892526,
       "deployable": true
     },
     "oracle_mrc": {
-      "mean_received_snr_db": 27.911064421453517,
+      "mean_received_snr_db": 27.91106442145351,
       "spectral_efficiency": 8.467226025078105,
       "net_spectral_efficiency": 8.467226025078105,
       "ber_qpsk": 1.7188730124133062e-17,
       "outage_2bps_hz": 0.0,
       "fraction_of_oracle_power": 1.0000000066334584,
       "pilots_per_block": 0,
-      "snr_gap_to_local_linear_mrc_db": 12.884293433521572,
-      "net_rate_gap_to_local_linear_mrc": 5.428595055417382,
+      "snr_gap_to_local_linear_mrc_db": 12.884293433521568,
+      "net_rate_gap_to_local_linear_mrc": 5.4285950554173805,
       "deployable": false
     },
     "fed_1round": {
-      "mean_received_snr_db": 14.058920727059318,
-      "spectral_efficiency": 2.185952698854929,
-      "net_spectral_efficiency": 2.168874943395125,
-      "ber_qpsk": 0.10267635509323643,
-      "outage_2bps_hz": 0.5666666666666667,
-      "fraction_of_oracle_power": 0.04359685862143594,
+      "mean_received_snr_db": 14.059825720716228,
+      "spectral_efficiency": 2.185941833874818,
+      "net_spectral_efficiency": 2.168864163297671,
+      "ber_qpsk": 0.10271934065757551,
+      "outage_2bps_hz": 0.5683333333333334,
+      "fraction_of_oracle_power": 0.04359887232150339,
       "pilots_per_block": 16,
-      "snr_gap_to_local_linear_mrc_db": -0.9678502608726269,
-      "net_rate_gap_to_local_linear_mrc": -0.8697560262655979,
+      "snr_gap_to_local_linear_mrc_db": -0.9669452672157135,
+      "net_rate_gap_to_local_linear_mrc": -0.8697668063630539,
       "deployable": true
     },
     "fed_5round": {
-      "mean_received_snr_db": 14.137870294080695,
-      "spectral_efficiency": 2.2815093151127313,
-      "net_spectral_efficiency": 2.263685023588413,
-      "ber_qpsk": 0.09425530268130561,
+      "mean_received_snr_db": 14.144807762859994,
+      "spectral_efficiency": 2.2749223850792815,
+      "net_spectral_efficiency": 2.2571495539458497,
+      "ber_qpsk": 0.09594165319947086,
       "outage_2bps_hz": 0.525,
-      "fraction_of_oracle_power": 0.04489401188333422,
+      "fraction_of_oracle_power": 0.04478899849410763,
       "pilots_per_block": 16,
-      "snr_gap_to_local_linear_mrc_db": -0.8889006938512498,
-      "net_rate_gap_to_local_linear_mrc": -0.7749459460723096,
+      "snr_gap_to_local_linear_mrc_db": -0.8819632250719476,
+      "net_rate_gap_to_local_linear_mrc": -0.7814814157148753,
       "deployable": true
     },
     "fed_ris": {
-      "mean_received_snr_db": 14.238337071250779,
-      "spectral_efficiency": 2.243922854520552,
-      "net_spectral_efficiency": 2.22639220721961,
-      "ber_qpsk": 0.09935499152991432,
-      "outage_2bps_hz": 0.5583333333333333,
-      "fraction_of_oracle_power": 0.045501819403438296,
+      "mean_received_snr_db": 14.239655243734076,
+      "spectral_efficiency": 2.271164107835417,
+      "net_spectral_efficiency": 2.2534206382429525,
+      "ber_qpsk": 0.09582695943027036,
+      "outage_2bps_hz": 0.5466666666666666,
+      "fraction_of_oracle_power": 0.04561644471593035,
       "pilots_per_block": 16,
-      "snr_gap_to_local_linear_mrc_db": -0.788433916681166,
-      "net_rate_gap_to_local_linear_mrc": -0.8122387624411127,
+      "snr_gap_to_local_linear_mrc_db": -0.787115744197866,
+      "net_rate_gap_to_local_linear_mrc": -0.7852103314177725,
       "deployable": true
     },
     "centralized_client_budget": {
-      "mean_received_snr_db": 14.25312215718207,
-      "spectral_efficiency": 2.2802279426442102,
-      "net_spectral_efficiency": 2.2624136618423023,
-      "ber_qpsk": 0.09885538245074257,
-      "outage_2bps_hz": 0.54,
-      "fraction_of_oracle_power": 0.04699831370227752,
+      "mean_received_snr_db": 14.236709243508871,
+      "spectral_efficiency": 2.29309786599459,
+      "net_spectral_efficiency": 2.2751830389165075,
+      "ber_qpsk": 0.09862618525832768,
+      "outage_2bps_hz": 0.535,
+      "fraction_of_oracle_power": 0.046744844374843345,
       "pilots_per_block": 16,
-      "snr_gap_to_local_linear_mrc_db": -0.7736488307498757,
-      "net_rate_gap_to_local_linear_mrc": -0.7762173078184205,
+      "snr_gap_to_local_linear_mrc_db": -0.7900617444230704,
+      "net_rate_gap_to_local_linear_mrc": -0.7634479307442175,
       "deployable": true
     },
     "centralized_dl": {
-      "mean_received_snr_db": 14.475871973197235,
-      "spectral_efficiency": 2.399768406860548,
-      "net_spectral_efficiency": 2.3810202161819496,
-      "ber_qpsk": 0.09188344459756173,
-      "outage_2bps_hz": 0.5083333333333333,
-      "fraction_of_oracle_power": 0.048676547213800325,
+      "mean_received_snr_db": 14.404050437952293,
+      "spectral_efficiency": 2.4225382385557372,
+      "net_spectral_efficiency": 2.4036121585670207,
+      "ber_qpsk": 0.08964788585950295,
+      "outage_2bps_hz": 0.49,
+      "fraction_of_oracle_power": 0.04884420697723343,
       "pilots_per_block": 16,
-      "snr_gap_to_local_linear_mrc_db": -0.5508990147347106,
-      "net_rate_gap_to_local_linear_mrc": -0.6576107534787732,
+      "snr_gap_to_local_linear_mrc_db": -0.6227205499796487,
+      "net_rate_gap_to_local_linear_mrc": -0.6350188110937043,
       "deployable": true
     },
     "local_only": {
-      "mean_received_snr_db": 14.291662607290647,
-      "spectral_efficiency": 2.4735581909893973,
-      "net_spectral_efficiency": 2.4542335176222925,
-      "ber_qpsk": 0.07723993058053469,
-      "outage_2bps_hz": 0.45666666666666667,
-      "fraction_of_oracle_power": 0.04614799579267099,
+      "mean_received_snr_db": 14.246454555348748,
+      "spectral_efficiency": 2.4372625808838855,
+      "net_spectral_efficiency": 2.41822146697073,
+      "ber_qpsk": 0.07773379664154276,
+      "outage_2bps_hz": 0.475,
+      "fraction_of_oracle_power": 0.04523646580320283,
       "pilots_per_block": 16,
-      "snr_gap_to_local_linear_mrc_db": -0.7351083806412984,
-      "net_rate_gap_to_local_linear_mrc": -0.5843974520384303,
+      "snr_gap_to_local_linear_mrc_db": -0.7803164325831933,
+      "net_rate_gap_to_local_linear_mrc": -0.620409502689995,
       "deployable": true
     }
   }
