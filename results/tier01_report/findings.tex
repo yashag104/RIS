@@ -1,0 +1,7 @@
+The corrected aperture has a tile-average channel-power spread of 0.06--0.18\,dB across the independent seeds. Its reflected-only oracle gain from 64 to 1024 elements is 23.99--24.13\,dB, compared with $20\log_{10}(1024/64)=24.08$\,dB. The previous geometric saturation claim does not survive.
+
+For M16, Pt30, FedAvg achieves 2.351 $\pm$ 0.099 bit/s/Hz after pilot overhead. Its paired difference from the local linear estimator is -0.671 $\pm$ 0.120 bit/s/Hz. These intervals reflect seed variation under the specified model only.
+
+For M64, Pt30, FedAvg achieves 2.323 $\pm$ 0.057 bit/s/Hz after pilot overhead. Its paired difference from the local linear estimator is -1.243 $\pm$ 0.148 bit/s/Hz. These intervals reflect seed variation under the specified model only.
+
+The recorded FL runs spend 27--123 rounds; 0 reach the budget without the declared validation plateau. Model-transfer payload is 26.0--150.4 times the size of the pooled training dataset. This dataset size is a reference, not an extra transfer required by the passive centralized control: the controller already receives the acquisition feedback. Distributed training additionally requires data delivery to the tiles. No communication advantage is established for federation.

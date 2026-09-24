@@ -1,0 +1,8 @@
+{
+  "schema": "execution-runner-v1",
+  "runner": {
+    "path": "results/pilot_architecture/execution_source/run_pilot_ablation.py",
+    "sha256": "a2bee360cc55dd66b82914fb9e520bed60bbce9135785ad7697833f28cd6d4e5"
+  },
+  "capture_note": "Runner was unchanged from launch through this capture during the final seed. The shared provenance helper included dependency hashes but not this new entry point; this separate execution manifest supplies its source."
+}

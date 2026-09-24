@@ -1,19 +1,8 @@
-"""
-Alternating Optimization (AO) Baseline for RIS Phase Configuration
-Based on: Wu & Zhang, "Intelligent Reflecting Surface Enhanced Wireless Network 
-via Joint Active and Passive Beamforming," IEEE TWC 2019
+"""Projected phase-gradient ascent for a supplied-channel SISO objective.
 
-Algorithm:
-1. Initialize random phase shifts
-2. Repeat:
-   - Fix RIS phases, optimize beamformer (closed-form)
-   - Fix beamformer, optimize RIS phases (gradient ascent)
-3. Until convergence
-
-This serves as a strong baseline - achieves near-optimal performance but:
-- Requires centralized CSI collection (privacy violation)
-- High computational cost (many iterations per channel realization)
-- Not scalable to large-scale deployments
+This is not Wu and Zhang's joint active/passive MISO algorithm. There is no
+active beamformer to alternate with. The SISO optimum is local closed-form
+phase alignment; this iterative routine is only a numerical control.
 """
 
 
@@ -22,13 +11,8 @@ import numpy as np
 from utils.logger import logger
 
 
-class AlternatingOptimization:
-    """
-    Alternating Optimization for RIS phase configuration.
-    
-    This is a model-based optimization approach that iteratively optimizes
-    the RIS phase shifts and beamformer to maximize received SNR.
-    """
+class ProjectedGradientAscent:
+    """Normalized gradient ascent on received power with wrapped phases."""
     
     def __init__(
         self,
@@ -41,7 +25,7 @@ class AlternatingOptimization:
         """
         Args:
             num_elements: Number of RIS reflecting elements
-            max_iterations: Maximum AO iterations
+            max_iterations: Maximum gradient iterations
             lr_phase: Step size in radians for the normalised phase gradient
                 ascent. The gradient is unit-normalised, so this is an
                 absolute angular step, not a scale-dependent learning rate.
@@ -64,7 +48,7 @@ class AlternatingOptimization:
         initial_phases: np.ndarray = None
     ) -> tuple[np.ndarray, list[float]]:
         """
-        Optimize RIS phase shifts using alternating optimization.
+        Optimize the SISO phase vector with normalized gradient steps.
         
         Args:
             h_direct: BS-User direct channel (complex scalar or vector)
@@ -91,9 +75,7 @@ class AlternatingOptimization:
         self.lr_phase = self._lr_phase_initial
         
         for iteration in range(self.max_iterations):
-            # Step 1: Fix phases, optimize beamformer
-            # For single-antenna BS, optimal beamformer is just phase alignment
-            # (In multi-antenna case, this would be MRT or ZF beamforming)
+            # Evaluate the current SISO effective channel.
             # Effective channel: h_eff = h_direct + h_ris_user^H @ Theta @ h_bs_ris.
             # Theta is diagonal, so the triple product is a plain weighted sum;
             # materialising the N x N diagonal made this O(N^2) in time and
@@ -117,12 +99,12 @@ class AlternatingOptimization:
                     if self.lr_phase < 1e-3:
                         if self.verbose:
                             logger.info(
-                                f"AO converged at iteration {iteration}, SNR = {snr_db:.2f} dB")
+                                f"Projected gradient stopped at iteration {iteration}, SNR = {snr_db:.2f} dB")
                         break
 
             prev_snr = snr_db
             
-            # Step 2: Fix beamformer (implicit), optimize phases via gradient ascent
+            # Update the only optimization variables: element phases
             # Gradient of SNR w.r.t. phase θ_n:
             # ∂SNR/∂θ_n ∝ 2 * Re{conj(y) * j * exp(jθ_n) * conj(h_ris_user[n]) * h_bs_ris[n]}
             # where y = h_direct + Σ exp(jθ_k) * conj(h_ris_user[k]) * h_bs_ris[k]
@@ -160,7 +142,7 @@ class AlternatingOptimization:
         noise_power: float
     ) -> dict:
         """
-        Run AO on multiple channel realizations.
+        Run projected gradient on multiple channel realizations.
         
         Args:
             channel_samples: List of channel sample dicts with keys:
@@ -211,13 +193,8 @@ class AlternatingOptimization:
         """
         N = self.num_elements
         
-        # Per iteration complexity:
-        # - Beamformer optimization: O(N) for single-antenna BS
-        # - Phase gradient computation: O(N²) for naive implementation
-        # - Total per iteration: O(N²)
-        # - Expected iterations: ~50-100
-        
-        flops_per_iteration = N ** 2  # Dominant term
+        # Linear vector operations per update; this is a rough operation proxy.
+        flops_per_iteration = 10 * N
         expected_iterations = self.max_iterations * 0.5  # Assume 50% convergence
         total_flops = flops_per_iteration * expected_iterations
         
@@ -225,12 +202,12 @@ class AlternatingOptimization:
             'flops_per_iteration': flops_per_iteration,
             'expected_iterations': expected_iterations,
             'total_flops': total_flops,
-            'complexity_class': f"O(N²·I) where N={N}, I={expected_iterations}"
+            'complexity_class': f"O(N·I) where N={N}, I={expected_iterations}"
         }
 
 
 def compare_with_random_init(
-    ao: AlternatingOptimization,
+    ao: ProjectedGradientAscent,
     h_direct: np.ndarray,
     h_ris_user: np.ndarray,
     h_bs_ris: np.ndarray,
@@ -240,7 +217,7 @@ def compare_with_random_init(
     """
     Test sensitivity to random initialization.
     
-    AO can get stuck in local minima. This function runs multiple trials
+    Finite-step gradient ascent can depend on initialization. This function runs multiple trials
     with different random initializations and reports statistics.
     """
     all_results = []
@@ -270,3 +247,7 @@ def compare_with_random_init(
         'best_phases': all_results[best_idx]['phases'],
         'num_trials': num_trials
     }
+
+
+# Compatibility alias for historical scripts/result keys; no AO attribution.
+AlternatingOptimization = ProjectedGradientAscent

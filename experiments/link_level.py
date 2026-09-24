@@ -22,8 +22,8 @@ from dataclasses import dataclass
 import numpy as np
 import torch
 
-from baselines.alternating_optimization import AlternatingOptimization
-from baselines.sca_optimizer import SCAOptimizer
+from baselines.alternating_optimization import ProjectedGradientAscent
+from baselines.sca_optimizer import SISOPhaseSurrogate
 from src.channel_model import apply_phase_noise, quantize_phases
 from src.link_metrics import (
     ber_curve,
@@ -37,14 +37,20 @@ from src.link_metrics import (
 SCHEMES = [
     ("no_ris", "No RIS (blocked direct)"),
     ("random_ris", "Random RIS phases"),
-    ("ao", "Alternating Optimization"),
-    ("sca", "SCA"),
+    ("local_mrc", "Local MRC (same noisy CSI)"),
+    ("ao", "Projected-gradient control"),
+    ("sca", "Surrogate control"),
     ("centralized_dl", "Centralized DL"),
+    ("centralized_client_budget", "Centralized DL (client-step budget)"),
+    ("local_only", "Local model (no federation)"),
+    ("fed_1round", "One-round FedAvg"),
+    ("fed_5round", "Five-round FedAvg"),
     ("fed_ris", "Fed-RIS (proposed)"),
     ("genie", "Perfect-CSI MRC (bound)"),
 ]
 SCHEME_LABELS = dict(SCHEMES)
-LEARNED_SCHEMES = ("centralized_dl", "fed_ris")
+LEARNED_SCHEMES = ("centralized_dl", "fed_ris", "centralized_client_budget",
+                   "local_only", "fed_1round", "fed_5round")
 
 
 @dataclass
@@ -153,10 +159,11 @@ def design_learned(scenes: SceneSet, model, device, batch_size: int = 256) -> np
     term (see ``src.channel_model._channels_to_dataset``); it is known from CSI
     at application time and added back here.
     """
-    model = model.to(device).eval()
+    models = model if isinstance(model, list) else [model] * scenes.num_tiles
     per_tile = []
     with torch.no_grad():
         for t in range(scenes.num_tiles):
+            model = models[t].to(device).eval()
             feats = torch.from_numpy(scenes.features[t]).float()
             out = []
             for start in range(0, feats.shape[0], batch_size):
@@ -195,9 +202,9 @@ def design_iterative(
     ones = np.ones(n_total, dtype=complex)
 
     if method == "sca":
-        solver = SCAOptimizer(num_elements=n_total, max_iterations=50, verbose=False)
+        solver = SISOPhaseSurrogate(num_elements=n_total, max_iterations=50, verbose=False)
     elif method == "ao":
-        solver = AlternatingOptimization(num_elements=n_total, max_iterations=200, verbose=False)
+        solver = ProjectedGradientAscent(num_elements=n_total, max_iterations=200, verbose=False)
     else:
         raise ValueError(f"unknown iterative method {method!r}")
 
@@ -273,10 +280,8 @@ class LinkLevelSuite:
         logger: Optional logger.
     """
 
-    #: Transmit SNR sweep, rho = P_t / sigma^2 in dB. The window is set by the
-    #: cascaded mmWave path loss: with sigma^2 = -90 dBm this spans roughly
-    #: P_t = -10 ... 50 dBm.
-    RHO_DB = np.arange(88.0, 143.0, 1.0)
+    #: Stated transmit-power budget; rho is internal computation only.
+    TX_POWER_DBM = np.arange(-10.0, 31.0, 1.0)
     MODULATIONS = ("QPSK", "16QAM")
     OUTAGE_THRESHOLDS = (1.0, 2.0, 4.0)
     QUANT_BITS = (1, 2, 3, 0)          # 0 == continuous
@@ -287,7 +292,10 @@ class LinkLevelSuite:
 
     def __init__(self, config, models: dict, scene_builder=None, logger=None):
         self.config = config
+        self.RHO_DB = self.TX_POWER_DBM - config.NOISE_POWER_DBM
         self.models = models
+        self.schemes = [(k, v) for k, v in SCHEMES
+                        if k not in LEARNED_SCHEMES or k in models]
         self.scene_builder = scene_builder
         self.device = getattr(config, "DEVICE", torch.device("cpu"))
         self.noise_power = 10 ** ((config.NOISE_POWER_DBM - 30) / 10)
@@ -312,6 +320,8 @@ class LinkLevelSuite:
             return design_random(scenes, np.random.default_rng(self.seed + 1))
         if scheme == "genie":
             return design_genie(scenes)
+        if scheme == "local_mrc":
+            return design_mrc_from_estimate(scenes)
         if scheme in LEARNED_SCHEMES:
             return design_learned(scenes, self.models[scheme], self.device)
         if scheme in ("ao", "sca"):
@@ -327,7 +337,7 @@ class LinkLevelSuite:
         """``{scheme: |h_eff|^2 per scene}`` for every scheme in :data:`SCHEMES`."""
         thetas = thetas if thetas is not None else {}
         gains = {}
-        for key, label in SCHEMES:
+        for key, label in self.schemes:
             theta = thetas.get(key) if key in thetas else self.design(key, scenes)
             thetas[key] = theta
             gains[key] = gains_from_phases(scenes, theta)
@@ -341,7 +351,7 @@ class LinkLevelSuite:
 
     def result_ber_vs_snr(self, gains: dict) -> dict:
         rho_db = self.RHO_DB
-        out = {"rho_db": rho_db.tolist(), "modulations": {}, "snr_at_target": {}}
+        out = {"rho_db": rho_db.tolist(), "tx_power_dbm": self.TX_POWER_DBM.tolist(), "modulations": {}, "snr_at_target": {}}
         for mod in self.MODULATIONS:
             curves, targets = {}, {}
             for key, gain in gains.items():
@@ -364,7 +374,7 @@ class LinkLevelSuite:
             k: (np.asarray(v) / np.maximum(genie, 1e-12)).tolist() for k, v in curves.items()
         }
         return {
-            "rho_db": rho_db.tolist(),
+            "rho_db": rho_db.tolist(), "tx_power_dbm": self.TX_POWER_DBM.tolist(),
             "spectral_efficiency": curves,
             "fraction_of_bound": fraction_of_bound,
         }
@@ -373,7 +383,7 @@ class LinkLevelSuite:
 
     def result_outage(self, gains: dict) -> dict:
         rho_db = self.RHO_DB
-        out = {"rho_db": rho_db.tolist(), "thresholds_bps_hz": list(self.OUTAGE_THRESHOLDS),
+        out = {"rho_db": rho_db.tolist(), "tx_power_dbm": self.TX_POWER_DBM.tolist(), "thresholds_bps_hz": list(self.OUTAGE_THRESHOLDS),
                "curves": {}}
         for r_th in self.OUTAGE_THRESHOLDS:
             out["curves"][f"{r_th:g}"] = {
@@ -391,9 +401,11 @@ class LinkLevelSuite:
         predictor costs on top of it".
         """
         rho_db = self.RHO_DB
-        res = {"rho_db": rho_db.tolist(), "quantization": {}, "phase_noise": {}}
+        res = {"rho_db": rho_db.tolist(), "tx_power_dbm": self.TX_POWER_DBM.tolist(), "quantization": {}, "phase_noise": {}}
 
-        for scheme in ("fed_ris", "genie"):
+        for scheme in ("local_mrc", "fed_ris", "genie"):
+            if scheme not in thetas:
+                continue
             res["quantization"][scheme] = {}
             for bits in self.QUANT_BITS:
                 theta_q = apply_hardware(thetas[scheme], quant_bits=bits)
@@ -429,12 +441,14 @@ class LinkLevelSuite:
         rho_db = self.RHO_DB
         rho_lin = 10 ** (rho_db_operating / 10)
         res = {
-            "rho_db": rho_db.tolist(),
+            "rho_db": rho_db.tolist(), "tx_power_dbm": self.TX_POWER_DBM.tolist(),
             "operating_rho_db": rho_db_operating,
             "csi_error_variances": list(self.CSI_ERROR_VARIANCES),
-            "ber_at_operating_point": {k: [] for k, _ in SCHEMES},
-            "spectral_efficiency_at_operating_point": {k: [] for k, _ in SCHEMES},
-            "mean_snr_db": {k: [] for k, _ in SCHEMES},
+            "ber_at_operating_point": {k: [] for k, _ in self.schemes},
+            "spectral_efficiency_at_operating_point": {k: [] for k, _ in self.schemes},
+            "mean_snr_db": {k: [] for k, _ in self.schemes},
+            "fraction_of_oracle_power": {k: [] for k, _ in self.schemes},
+            "gap_to_local_mrc_db": {k: [] for k, _ in self.schemes},
             "ber_curves": {},
         }
 
@@ -451,6 +465,9 @@ class LinkLevelSuite:
                     float(np.mean(np.log2(1 + gamma)))
                 )
                 res["mean_snr_db"][key].append(float(10 * np.log10(np.mean(gamma))))
+                res["fraction_of_oracle_power"][key].append(float(np.mean(g / gains["genie"])))
+                res["gap_to_local_mrc_db"][key].append(
+                    float(10 * np.log10(np.mean(g) / np.mean(gains["local_mrc"]))))
                 res["ber_curves"][f"{var:g}"][key] = ber_curve(g, rho_db, "QPSK").tolist()
         return res
 
@@ -479,7 +496,8 @@ class LinkLevelSuite:
         }
         from src.link_metrics import awgn_ber
 
-        for key, _label in SCHEMES:
+        res["reflected_only_snr_db"] = {}
+        for key, _label in self.schemes:
             theta = thetas[key]
             snrs, ses, bers = [], [], []
             for t in tile_counts:
@@ -493,24 +511,26 @@ class LinkLevelSuite:
             res["ber_qpsk"][key] = bers
             gamma_full = rho_lin * gains_from_phases(scenes, theta)
             res["snr_cdf"][key] = np.sort(10 * np.log10(gamma_full)).tolist()
+            if theta is not None:
+                res["reflected_only_snr_db"][key] = [float(10 * np.log10(rho_lin *
+                    np.mean(np.abs((scenes.cascade_true[:, :t] *
+                                    np.exp(1j * theta[:, :t])).sum((1, 2))) ** 2)))
+                    for t in tile_counts]
 
-        # Reference slope for coherent combining. Anchoring it at the smallest
-        # surface is wrong here: with only one or two tiles the *direct* path
-        # still dominates the received power, so that anchor measures the
-        # blockage floor rather than the aperture and makes every design look
-        # like it misses the law by ~10 dB. Anchor instead at the first size
-        # where the surface is clearly in charge (>= 3 dB over no-RIS).
-        genie = res["mean_snr_db"]["genie"]
-        no_ris = res["mean_snr_db"]["no_ris"]
-        anchor = next(
-            (i for i in range(len(tile_counts)) if genie[i] - no_ris[i] >= 3.0),
-            len(tile_counts) - 1,
-        )
+        # Compare the N^2 law with reflected-only power. No choice of anchor
+        # removes direct-path contamination from a total-power curve.
+        genie = res["reflected_only_snr_db"]["genie"]
+        anchor = 0
         res["ideal_anchor_index"] = anchor
         res["ideal_anchor_elements"] = res["element_counts"][anchor]
         res["ideal_n_squared_db"] = [
             genie[anchor] + 20 * np.log10(t / tile_counts[anchor]) for t in tile_counts
         ]
+        res["ideal_reference_quantity"] = "reflected-only power; direct path excluded"
+        amplitude = np.abs(scenes.cascade_true).sum((1, 2)) / scenes.total_elements
+        res["uniform_amplitude_total_snr_db"] = [float(10 * np.log10(rho_lin *
+            np.mean((np.abs(scenes.h_direct_true) + n * amplitude) ** 2)))
+            for n in res["element_counts"]]
         return res
 
     # ---- driver --------------------------------------------------------
@@ -530,7 +550,7 @@ class LinkLevelSuite:
                 "tx_power_dbm": self.config.TX_POWER_DBM,
                 "frequency_hz": self.config.FREQUENCY,
                 "direct_link_blockage_db": getattr(self.config, "DIRECT_LINK_BLOCKAGE_DB", 30.0),
-                "scheme_labels": SCHEME_LABELS,
+                "scheme_labels": dict(self.schemes),
                 "mean_solve_time_s": dict(self._solve_times),
             },
             "mean_gain_db": {k: float(10 * np.log10(np.mean(v))) for k, v in gains.items()},
@@ -539,16 +559,10 @@ class LinkLevelSuite:
         self.log.info("[LinkLevel] R1 BER vs SNR")
         results["ber_vs_snr"] = self.result_ber_vs_snr(gains)
 
-        # Operating point for the robustness and scaling sweeps: where the
-        # proposed scheme sits at BER 1e-3 under perfect CSI. A fixed rho would
-        # either sit above the waterfall (every scheme at the BER floor, no
-        # curve to read) or below it (every scheme at chance).
-        rho_op = results["ber_vs_snr"]["snr_at_target"]["QPSK"]["fed_ris"]["1e-03"]
-        if not np.isfinite(rho_op):
-            rho_op = float(np.median(self.RHO_DB))
-        rho_op = float(np.round(rho_op))
+        # Predeclared physical operating point, independent of a model's result.
+        rho_op = float(self.config.TX_POWER_DBM - self.config.NOISE_POWER_DBM)
         results["meta"]["operating_rho_db"] = rho_op
-        self.log.info(f"[LinkLevel] operating point rho = {rho_op:.0f} dB")
+        self.log.info(f"[LinkLevel] operating point Pt = {self.config.TX_POWER_DBM:g} dBm")
 
         self.log.info("[LinkLevel] R2 spectral efficiency")
         results["spectral_efficiency"] = self.result_spectral_efficiency(gains)

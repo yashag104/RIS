@@ -1,0 +1,25 @@
+{
+  "schema": "link-figures-v1",
+  "seed": 42,
+  "num_scenes": 600,
+  "is_quick_run": false,
+  "training_status": "not_run",
+  "source_result": "results/link_level_tier2/seed_42/link_level_results.json",
+  "source_result_sha256": "423d8ecc6ba55263602a3421ba8a0463b4a9de1c080bba54fb4ad77417cebff4",
+  "renderer_sha256": "2c01c5bf2f92b5238857ac8e06e938a8f6614a0c49abebe222dc67c3e048cd78",
+  "output_sha256": {
+    "fig1_ber_vs_snr.pdf": "cc61f4c7504acd4efe9cb88224f2290e10bbaf4aca03f257ba3ffa663a43f8da",
+    "fig1_ber_vs_snr.png": "671cf181e6c8bcf4cace57b57050f45ed866bf5012c1a6dc3daf8855d20bb8c1",
+    "fig2_spectral_efficiency.pdf": "d14fa19dd2e9d4eb3fbaa016a20cc31ec6f5509b80a4dc7699a115ea2ed33964",
+    "fig2_spectral_efficiency.png": "600e3ceeb3dc5e1abe06ba24beaf789b0fbf931ac77a554fd94f7eddadaa005f",
+    "fig3_outage_probability.pdf": "72031beacc6aee6146df0d5e36c30778aafb4ea7909bd646fa3ea9e7c3591a99",
+    "fig3_outage_probability.png": "f5ea5bcd81cb8f0c6307cc8b693653540021d5cba84d2e412369f6953ab60683",
+    "fig4_hardware_impairments.pdf": "a711193d83ce1c0d913b889c564927008f11f45e8193d83f6dfad91b63b5509a",
+    "fig4_hardware_impairments.png": "72a9fdf43f000c21a34c26143e26aaffd81bc080714e2b4d61d09230b73d971b",
+    "fig5_csi_robustness.pdf": "98aa43775a27b722662753a265adcc919329f34e6552c1e97247ee2e67832349",
+    "fig5_csi_robustness.png": "68cbe8bd7990360bc95925888e87a1921846826cd2c617af52f9543ac6d056de",
+    "fig6_array_scaling.pdf": "28c0b5b57c764d8306b3358112d20a727fe7eba31318e0d180743fca196fe8a4",
+    "fig6_array_scaling.png": "ec437449f0964ae934a87701890a9a97933d5037ec075afc9f25ddf76c4c4c90"
+  },
+  "scope": "per-seed curves; use seed-aggregate report for confidence intervals"
+}

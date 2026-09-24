@@ -7,7 +7,10 @@ re-running any physics.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import os
+from pathlib import Path
 
 import matplotlib
 
@@ -16,23 +19,40 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from utils.plotting import COLORS, IEEE_RC, _save, _style_legend
+from utils.plotting import COLORS, IEEE_RC, _style_legend
 
 plt.rcParams.update(IEEE_RC)
+
+
+def _save(fig, save_path, name):
+    """Save without the legacy live-Config stamp; render_all records hashes."""
+    os.makedirs(save_path, exist_ok=True)
+    for extension in ("pdf", "png"):
+        fig.savefig(Path(save_path)/f"{name}.{extension}", format=extension)
+    plt.close(fig)
 
 # One visual identity per scheme, shared by every figure so a reader can track a
 # curve across the whole figure set. The proposed scheme is the only thick solid
 # line; the bound is the only dotted black one.
 STYLE = {
-    "no_ris":         dict(color=COLORS["gray"],   marker="x", ls=":",  lw=1.2, label="No RIS (blocked)"),
-    "random_ris":     dict(color=COLORS["brown"],  marker="v", ls="-.", lw=1.2, label="Random phases"),
-    "ao":             dict(color=COLORS["green"],  marker="^", ls="--", lw=1.3, label="Alternating Opt."),
-    "sca":            dict(color=COLORS["orange"], marker="D", ls="--", lw=1.3, label="SCA"),
-    "centralized_dl": dict(color=COLORS["purple"], marker="s", ls="-",  lw=1.3, label="Centralized DL"),
-    "fed_ris":        dict(color=COLORS["red"],    marker="o", ls="-",  lw=2.0, label="Fed-RIS (proposed)"),
-    "genie":          dict(color="black",          marker="",  ls=":",  lw=1.4, label="Perfect-CSI MRC (bound)"),
+    "no_ris":         {"color": COLORS["gray"],   "marker": "x", "ls": ":",  "lw": 1.2, "label": "No RIS (blocked)"},
+    "random_ris":     {"color": COLORS["brown"],  "marker": "v", "ls": "-.", "lw": 1.2, "label": "Random phases"},
+    "ao":             {"color": COLORS["green"],  "marker": "^", "ls": "--", "lw": 1.3, "label": "Projected gradient"},
+    "sca":            {"color": COLORS["orange"], "marker": "D", "ls": "--", "lw": 1.3, "label": "SISO surrogate"},
+    "centralized_dl": {"color": COLORS["purple"], "marker": "s", "ls": "-",  "lw": 1.3, "label": "Centralized DL"},
+    "fed_ris":        {"color": COLORS["red"],    "marker": "o", "ls": "-",  "lw": 2.0, "label": "Fed-RIS (proposed)"},
+    "genie":          {"color": "black",          "marker": "",  "ls": ":",  "lw": 1.4, "label": "Perfect-CSI MRC (bound)"},
 }
-ORDER = ["no_ris", "random_ris", "ao", "sca", "centralized_dl", "fed_ris", "genie"]
+STYLE.update({
+    "local_mrc": {"color": "#0072B2", "marker": "+", "ls": "--", "lw": 1.4, "label": "Local noisy-CSI MRC"},
+    "local_only": {"color": "#009E73", "marker": "<", "ls": "-.", "lw": 1.2, "label": "Local model"},
+    "fed_1round": {"color": "#CC79A7", "marker": "1", "ls": ":", "lw": 1.2, "label": "One-round FL"},
+    "fed_5round": {"color": "#56B4E9", "marker": "2", "ls": ":", "lw": 1.2, "label": "Five-round FL"},
+    "centralized_client_budget": {"color": "#777777", "marker": ">", "ls": "--", "lw": 1.2,
+                                       "label": "Central (client steps)"},
+})
+ORDER = ["no_ris", "random_ris", "local_mrc", "ao", "sca", "centralized_dl",
+         "centralized_client_budget", "local_only", "fed_1round", "fed_5round", "fed_ris", "genie"]
 BER_FLOOR = 1e-7
 
 
@@ -66,15 +86,6 @@ def _shared_legend(fig, axes, ncol=4, y=-0.02):
                columnspacing=1.4)
 
 
-def _add_ptx_axis(ax, noise_dbm):
-    """Secondary top axis showing transmit power, since rho = P_t - sigma^2."""
-    sec = ax.secondary_xaxis("top", functions=(lambda r: r + noise_dbm,
-                                               lambda p: p - noise_dbm))
-    sec.set_xlabel(r"$P_t$ (dBm)", fontsize=8)
-    sec.tick_params(labelsize=7)
-    return sec
-
-
 def _log_ber_axis(ax, floor=BER_FLOOR):
     ax.set_yscale("log")
     ax.set_ylim(floor * 2, 1.0)
@@ -87,8 +98,7 @@ def _log_ber_axis(ax, floor=BER_FLOOR):
 
 def plot_ber_vs_snr(results, save_path):
     blk = results["ber_vs_snr"]
-    rho = np.array(blk["rho_db"])
-    noise_dbm = results["meta"]["noise_power_dbm"]
+    rho = np.array(blk["rho_db"]) + results["meta"]["noise_power_dbm"]
     mods = [m for m in ("QPSK", "16QAM") if m in blk["modulations"]]
 
     fig, axes = plt.subplots(1, len(mods), figsize=(7.16, 3.2), sharey=True)
@@ -102,9 +112,9 @@ def plot_ber_vs_snr(results, save_path):
         ax.axhline(1e-3, color="#999999", lw=0.6, ls="-", zorder=1)
         ax.text(rho[1], 1.3e-3, r"BER $=10^{-3}$", fontsize=6, color="#777777")
         _log_ber_axis(ax)
-        ax.set_xlabel(r"Transmit SNR $\rho = P_t/\sigma^2$ (dB)")
+        ax.set_xlabel(r"Transmit power $P_t$ (dBm)")
         ax.set_title(f"({'ab'[i]}) {mod}", fontsize=9, loc="left")
-        _add_ptx_axis(ax, noise_dbm)
+
 
     axes[0].set_ylabel("Bit error rate")
     _shared_legend(fig, axes, ncol=4, y=0.005)
@@ -117,26 +127,25 @@ def plot_ber_vs_snr(results, save_path):
 
 def plot_spectral_efficiency(results, save_path):
     blk = results["spectral_efficiency"]
-    rho = np.array(blk["rho_db"])
+    rho = np.array(blk["rho_db"]) + results["meta"]["noise_power_dbm"]
     se = blk["spectral_efficiency"]
-    noise_dbm = results["meta"]["noise_power_dbm"]
 
     fig, (a1, a2) = plt.subplots(1, 2, figsize=(7.16, 3.2))
 
     for key in ORDER:
         if key in se:
             _plot_scheme(a1, rho, np.array(se[key]), key)
-    a1.set_xlabel(r"Transmit SNR $\rho$ (dB)")
+    a1.set_xlabel(r"Transmit power $P_t$ (dBm)")
     a1.set_ylabel("Ergodic spectral efficiency (bit/s/Hz)")
     a1.set_title("(a) Achievable rate", fontsize=9, loc="left")
-    _add_ptx_axis(a1, noise_dbm)
+
 
     # (b) horizontal SNR gain over the no-RIS link at a fixed target rate.
     target = 4.0
     no_ris = np.array(se["no_ris"])
     gains, labels, colors = [], [], []
     for key in ORDER:
-        if key == "no_ris":
+        if key == "no_ris" or key not in se:
             continue
         y = np.array(se[key])
         rho_here = np.interp(target, y, rho, left=np.nan, right=np.nan)
@@ -155,11 +164,16 @@ def plot_spectral_efficiency(results, save_path):
         a2.set_xlim(0, max(finite) * 1.14)
     a2.set_xlabel(f"Transmit-power saving at {target:g} bit/s/Hz (dB)")
     a2.set_title("(b) Gain over the blocked direct link", fontsize=9, loc="left")
+    if not finite:
+        a2.text(0.5, 0.5, "Target not reached by both links\nwithin the transmit-power sweep",
+                transform=a2.transAxes, ha="center", va="center", fontsize=7)
     for b, g in zip(bars, gains):
         if np.isfinite(g):
             a2.text(b.get_width() + 0.4, b.get_y() + b.get_height() / 2,
                     f"{g:.1f}", va="center", fontsize=6.5)
     a2.grid(True, axis="x", ls="--", lw=0.35, alpha=0.3)
+    if not finite:
+        a2.set_axis_off()
 
     _shared_legend(fig, [a1], ncol=4, y=0.005)
     _save(fig, save_path, "fig2_spectral_efficiency")
@@ -171,8 +185,7 @@ def plot_spectral_efficiency(results, save_path):
 
 def plot_outage(results, save_path):
     blk = results["outage"]
-    rho = np.array(blk["rho_db"])
-    noise_dbm = results["meta"]["noise_power_dbm"]
+    rho = np.array(blk["rho_db"]) + results["meta"]["noise_power_dbm"]
     thresholds = [f"{t:g}" for t in blk["thresholds_bps_hz"]]
     show = thresholds[:2] if len(thresholds) >= 2 else thresholds
 
@@ -193,9 +206,9 @@ def plot_outage(results, save_path):
         ax.set_yscale("log")
         ax.set_ylim(floor * 0.6, 1.3)
         ax.grid(True, which="both", ls="--", lw=0.35, alpha=0.3)
-        ax.set_xlabel(r"Transmit SNR $\rho$ (dB)")
+        ax.set_xlabel(r"Transmit power $P_t$ (dBm)")
         ax.set_title(f"({'ab'[i]}) $R_{{th}} = {th}$ bit/s/Hz", fontsize=9, loc="left")
-        _add_ptx_axis(ax, noise_dbm)
+
 
     axes[0].set_ylabel("Outage probability")
     axes[-1].text(
@@ -214,10 +227,11 @@ def plot_outage(results, save_path):
 
 def plot_hardware_impairments(results, save_path):
     blk = results["hardware_impairments"]
-    rho = np.array(blk["rho_db"])
-    quant = blk["quantization"]["fed_ris"]
+    rho = np.array(blk["rho_db"]) + results["meta"]["noise_power_dbm"]
+    scheme = "fed_ris" if "fed_ris" in blk["quantization"] else "local_mrc"
+    quant = blk["quantization"][scheme]
     quant_bound = blk["quantization"]["genie"]
-    noise = blk["phase_noise"]["fed_ris"]
+    noise = blk["phase_noise"][scheme]
 
     fig, (a1, a2, a3) = plt.subplots(1, 3, figsize=(7.16, 2.9))
 
@@ -228,7 +242,7 @@ def plot_hardware_impairments(results, save_path):
                               np.nan, quant[k]["ber_qpsk"]), color=c, lw=1.4,
                 marker="o", markevery=5, markersize=3.5, label=k)
     _log_ber_axis(a1)
-    a1.set_xlabel(r"Transmit SNR $\rho$ (dB)")
+    a1.set_xlabel(r"Transmit power $P_t$ (dBm)")
     a1.set_ylabel("BER (QPSK)")
     a1.set_title("(a) Phase quantization", fontsize=9, loc="left")
     _style_legend(a1, loc="lower left", fontsize=6.2)
@@ -240,7 +254,7 @@ def plot_hardware_impairments(results, save_path):
                 marker="s", markevery=5, markersize=3.5,
                 label=rf"$\sigma_\phi$ = {k.replace('deg', '')}$^\circ$")
     _log_ber_axis(a2)
-    a2.set_xlabel(r"Transmit SNR $\rho$ (dB)")
+    a2.set_xlabel(r"Transmit power $P_t$ (dBm)")
     a2.set_title("(b) RIS phase jitter", fontsize=9, loc="left")
     _style_legend(a2, loc="lower left", fontsize=6.2)
 
@@ -258,7 +272,7 @@ def plot_hardware_impairments(results, save_path):
            color=COLORS["gray"], edgecolor="black", linewidth=0.5)
     a3.bar(x, meas_bound, w, label="Perfect-CSI MRC", color=COLORS["blue"],
            edgecolor="black", linewidth=0.5)
-    a3.bar(x + w, meas, w, label="Fed-RIS", color=COLORS["red"],
+    a3.bar(x + w, meas, w, label=STYLE[scheme]["label"], color=COLORS["red"],
            edgecolor="black", linewidth=0.5)
     a3.set_xticks(x)
     a3.set_xticklabels([f"{b}-bit" for b in bits])
@@ -279,8 +293,8 @@ def plot_csi_robustness(results, save_path):
     if not blk:
         return
     var = np.array(blk["csi_error_variances"])
-    rho = np.array(blk["rho_db"])
-    op = blk["operating_rho_db"]
+    rho = np.array(blk["rho_db"]) + results["meta"]["noise_power_dbm"]
+    op = blk["operating_rho_db"] + results["meta"]["noise_power_dbm"]
 
     fig, (a1, a2, a3) = plt.subplots(1, 3, figsize=(7.16, 3.0))
 
@@ -293,7 +307,7 @@ def plot_csi_robustness(results, save_path):
     _log_ber_axis(a1)
     a1.set_xlabel(r"CSI error variance $\sigma_e^2$")
     a1.set_ylabel("BER (QPSK)")
-    a1.set_title(rf"(a) BER at $\rho$ = {op:g} dB", fontsize=9, loc="left")
+    a1.set_title(rf"(a) BER at $P_t$ = {op:g} dBm", fontsize=9, loc="left")
 
     se = blk["spectral_efficiency_at_operating_point"]
     for key in ORDER:
@@ -312,7 +326,7 @@ def plot_csi_robustness(results, save_path):
         if key in curves:
             _plot_scheme(a3, rho, curves[key], key, mask_floor=True)
     _log_ber_axis(a3)
-    a3.set_xlabel(r"Transmit SNR $\rho$ (dB)")
+    a3.set_xlabel(r"Transmit power $P_t$ (dBm)")
     a3.set_title(rf"(c) Waterfall at $\sigma_e^2$ = {worst}", fontsize=9, loc="left")
 
     _shared_legend(fig, [a2], ncol=4, y=0.005)
@@ -329,19 +343,15 @@ def plot_array_scaling(results, save_path):
     fig, (a1, a2, a3) = plt.subplots(1, 3, figsize=(7.16, 3.0))
 
     for key in ORDER:
-        if key in blk["mean_snr_db"]:
-            _plot_scheme(a1, n, np.array(blk["mean_snr_db"][key]), key, markevery=1)
-    # Recompute the reference here rather than trusting the stored one, so a
-    # JSON written before the anchor was corrected still renders honestly.
-    genie, no_ris = np.array(blk["mean_snr_db"]["genie"]), np.array(blk["mean_snr_db"]["no_ris"])
-    above = np.flatnonzero(genie - no_ris >= 3.0)
-    anchor = int(above[0]) if above.size else len(n) - 1
-    ideal = genie[anchor] + 20 * np.log10(n / n[anchor])
+        if key in blk["reflected_only_snr_db"]:
+            _plot_scheme(a1, n, np.array(blk["reflected_only_snr_db"][key]), key, markevery=1)
+    anchor = blk["ideal_anchor_index"]
+    ideal = np.array(blk["ideal_n_squared_db"])
     a1.plot(n, ideal, color="#444444", ls=(0, (1, 1)), lw=1.0,
             label=rf"$N^2$ law (anchored at $N$={n[anchor]})")
     a1.set_xscale("log", base=2)
     a1.set_xlabel("Active RIS elements $N$")
-    a1.set_ylabel(rf"Mean received SNR (dB) at $\rho$ = {blk['operating_rho_db']:g} dB")
+    a1.set_ylabel("Reflected-only received SNR (dB)")
     a1.set_title("(a) Array-gain scaling", fontsize=9, loc="left")
 
     for key in ORDER:
@@ -378,3 +388,18 @@ def render_all(results, save_path):
     os.makedirs(save_path, exist_ok=True)
     for fn in FIGURES:
         fn(results, save_path)
+    folder = Path(save_path)
+    source = folder / "link_level_results.json"
+    meta = results["meta"]
+    manifest = {
+        "schema": "link-figures-v1", "seed": meta.get("seed"),
+        "num_scenes": meta["num_scenes"], "is_quick_run": meta.get("is_quick_run", False),
+        "training_status": meta.get("training", {}).get("status", "performed"),
+        "source_result": str(source) if source.exists() else None,
+        "source_result_sha256": hashlib.sha256(source.read_bytes()).hexdigest() if source.exists() else None,
+        "renderer_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "output_sha256": {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+                          for p in sorted(folder.glob("fig*")) if p.suffix in (".pdf", ".png")},
+        "scope": "per-seed curves; use seed-aggregate report for confidence intervals",
+    }
+    (folder/"figure_manifest.json").write_text(json.dumps(manifest, indent=2)+"\n")

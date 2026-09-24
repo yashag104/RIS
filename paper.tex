@@ -1,344 +1,161 @@
-% IEEE ISCAS Format Paper
-% Fed-RIS: Federated Phase Optimization for Tiled Reconfigurable Intelligent Surfaces via On-Chip Learning
-\documentclass[conference]{IEEEtran}
-
-\usepackage{amsmath,amssymb,amsfonts}
-\usepackage{algorithmic}
-\usepackage{graphicx}
-\usepackage{textcomp}
-\usepackage{xcolor}
-\usepackage{cite}
-\usepackage{booktabs}
-\usepackage{multirow}
-\usepackage{url}
-\usepackage{bm}
-\usepackage{siunitx}
-\usepackage{subfig}
-
-% Path to figures
-\graphicspath{{results/figures/}{results/link_level/}}
-
+% Tier 0/1/2 working revision. Historical manuscript/PDFs: docs/archive/.
+% Export results with make_summary_tables.py and make_tier2_report.py.
+\documentclass[journal]{IEEEtran}
+\usepackage{amsmath,amssymb,graphicx,booktabs,url,bm}
 \begin{document}
-
-\title{Fed-RIS: Distributed Phase Optimization for Reconfigurable Intelligent Surfaces via On-Chip Federated Learning}
-
-\author{\IEEEauthorblockN{Anonymous Author(s)}
-\IEEEauthorblockA{Affiliation}
-}
-
+\title{Pilot-Limited Phase Control for a Contiguous Tiled Reconfigurable Intelligent Surface: A Controlled Simulation Study}
+\author{Anonymous Author(s)}
 \maketitle
-
-%% ===================================================================
-%% ABSTRACT
-%% ===================================================================
 \begin{abstract}
-Reconfigurable intelligent surfaces (RIS) require real-time channel-state information (CSI) to optimize their reflection phases, yet gathering raw CSI from every element to a central controller is bandwidth-intensive and privacy-invasive. We propose \textbf{Fed-RIS}, a federated learning framework that distributes phase optimization across the physical tiles of a single RIS. A 1024-element surface is partitioned into a $4\!\times\!4$ grid of 16 tiles, each containing $8\!\times\!8=64$ phase-controllable elements. Every tile trains a shared Graph Attention Network (GAT) phase predictor on its local CSI slice and exchanges only INT8 model deltas over an on-chip Network-on-Chip (NoC) interconnect---raw CSI never leaves the tile. We evaluate Fed-RIS against six baselines on identical 28\,GHz mmWave channel realizations with 30\,dB direct-path blockage. Fed-RIS recovers \textbf{36.7\,dB} of link budget over the blocked direct path, sits within \textbf{1.3\,dB} of the perfect-CSI MRC oracle bound, and degrades only \textbf{3.2\,dB} under severe CSI error ($\epsilon\!=\!1$) compared to 5.1\,dB for model-based solvers. Hardware impairments (phase quantization, jitter) are incorporated in-the-loop with measured penalties validated against classical theoretical bounds.
+For a single-antenna transmitter and receiver with supplied cascaded channel estimates, RIS phase alignment has a closed-form solution that each tile can evaluate locally. Federation is therefore unnecessary for that deterministic optimization problem. We instead study inference from a limited number of receiver pilot responses on one contiguous 1024-element surface. Passive reflecting elements do not measure channel coefficients: the receiver measures the configured probes and feeds back their complex responses. The comparisons include local noisy-estimate alignment, best-probe selection, linear estimation followed by alignment, local models without federation, one- and five-round federation, and centralized learners under two explicitly matched update budgets. Training-label acquisition and model-transfer payloads are accounted for separately. Full-aperture channel generation, independent validation, and seed-level confidence intervals replace the previous distributed-panel simulation. Gains over a blocked direct link quantify the benefit of the surface, not a learning contribution. This study tests whether federation improves the measured performance--overhead tradeoff; it does not presume an advantage over local or centralized controls.
 \end{abstract}
-
 \begin{IEEEkeywords}
-Reconfigurable intelligent surface, federated learning, graph attention network, network-on-chip, mmWave, phase optimization.
+Reconfigurable intelligent surface, pilot feedback, channel acquisition, federated learning, local phase alignment.
 \end{IEEEkeywords}
 
-%% ===================================================================
-%% I. INTRODUCTION
-%% ===================================================================
 \section{Introduction}
-\label{sec:intro}
+A programmable reflecting surface can improve a blocked wireless link by coherently combining its reflected paths. That physical array gain must be distinguished from the contribution of a phase-control algorithm. In particular, the known-channel single-input single-output (SISO) problem does not require distributed optimization: every element can independently align its cascaded coefficient with a common direct-path phase reference.
 
-Reconfigurable intelligent surfaces (RIS) have emerged as a transformative technology for beyond-5G wireless communications~\cite{wu2020joint, direnzo2020}. By controlling the reflection phase of each passive element, an RIS can constructively combine scattered paths and overcome severe blockage in millimeter-wave (mmWave) channels~\cite{rappaport2019}. The theoretical coherent array gain scales as $O(N^2)$ with the number of elements $N$~\cite{wu2020discrete}, making large surfaces highly attractive.
+The research question here is narrower: with only $M$ receiver probe responses for $N$ reflecting elements, can a data-derived prior improve phase control at the same acquisition budget, and does federating that prior improve upon independent local learning? The first question concerns incomplete observations. The second requires a separate comparison with a local model and a local statistical estimator. Solving the first does not establish a reason to federate.
 
-However, scaling RIS to thousands of elements introduces critical challenges. Conventional optimization approaches---alternating optimization (AO)~\cite{wu2020joint}, successive convex approximation (SCA)~\cite{guo2020}, ADMM~\cite{yu2020admm}, and semidefinite relaxation (SDR)~\cite{luo2010}---require full instantaneous CSI at a central controller and perform iterative solves per coherence block ($1.9$--$22$\,ms). Centralized deep learning (DL)~\cite{huang2020drl} amortizes inference to a single forward pass but still demands that raw CSI from every element be pooled at a central node.
+Passive channel acquisition is a substantive part of RIS design~\cite{zheng2022survey}. Sensor-assisted surfaces are another possibility: sparse active sensing elements can supply measurements to a controller~\cite{taha2019}. The present pilot experiment uses receiver feedback and a fully passive reflecting aperture. We do not attribute receive chains or per-element channel measurements to passive tiles.
 
-We introduce \textbf{Fed-RIS}, which addresses these limitations through three key ideas:
+The contributions of this revision are a reproducible, contiguous-aperture benchmark; an explicit distinction between supplied-CSI and limited-pilot experiments; controlled learning comparisons with acquisition and communication accounting; and falsifiable criteria for a learning advantage. Numerical superiority, privacy protection, implemented circuit efficiency, and a measured communication crossover are not assumed contributions.
 
-\begin{enumerate}
-\item \textbf{Surface-decomposed federation.} The RIS is physically partitioned into tiles, each acting as an independent federated learning (FL) client. Unlike conventional FL across user devices~\cite{mcmahan2017}, tiles share a coherent physical output---their phase contributions are summed electromagnetically. Non-IID data arises naturally from spatial geometry, not synthetic partitioning.
+\section{System and Observation Models}
+\subsection{One contiguous physical surface}
+A $32\times32$ uniform planar array is partitioned into a $4\times4$ grid of contiguous $8\times8$ tiles. At 28\,GHz, the pitch is $\lambda/2=5.36$\,mm. The cell-edge aperture is approximately $0.1714\times0.1714$\,m; the outermost element centres span $31\lambda/2$ on each axis. The surface centre is $(5,0,1.5)$\,m and the transmitter is at $(5,10,1.5)$\,m. Receiver positions are uniform in $[0.5,9.5]\times[1,9.5]\times[1,2]$\,m.
 
-\item \textbf{Link-quality training objective.} Rather than regressing to precomputed MRC phase labels under MSE loss, the model directly optimizes a differentiable weighted sum-rate normalized by the genie-optimal rate, yielding gradients that reflect the true objective of coherent combining.
+For each scene, the channels are generated over the whole aperture and then sliced into tiles. Line-of-sight (LoS) phases use exact transmitter--element and element--receiver distances. Each hop has five non-LoS plane waves with directions and random gains shared across the aperture. The Rician factor is 10\,dB. Close-in path-loss exponents are 2.5 on the reflecting hops and 3.5 on the direct path, with 30\,dB additional direct-path blockage. Each element has the aperture-factor assumption $G_e=4\pi(\lambda/2)^2/\lambda^2=\pi$ per hop. This is a synthetic propagation model, not a calibrated electromagnetic or ray-tracing model. Mutual coupling and receiver mobility within a coherence block are omitted.
 
-\item \textbf{On-chip aggregation with hardware fidelity.} Model deltas are exchanged via a modeled NoC (2D Torus, RingAllReduce protocol) with INT8 quantization. Phase quantization, jitter, and imperfect CSI are applied before scoring, with measured penalties validated against classical bounds.
-\end{enumerate}
+Tiles separated by centimetres have similar large-scale propagation statistics in this geometry. We do not impose metre-scale tile displacement, independent tile scatterers, or artificial spatial data skew. The physical panel size does not establish a silicon die size or an on-chip interconnect energy model.
 
-To the best of our knowledge, Fed-RIS is the first framework to federate phase optimization across the tiles of a single metasurface, model the on-chip communication cost with physical routing and energy accounting, and evaluate link-level communication metrics (BER, outage, spectral efficiency) across seven schemes on identical channel realizations.
-
-%% ===================================================================
-%% II. SYSTEM MODEL
-%% ===================================================================
-\section{System Architecture}
-\label{sec:system}
-
-\subsection{Propagation Model}
-
-We consider a 28\,GHz mmWave link where a single-antenna base station (BS) at transmit power $P_\text{tx}=30$\,dBm communicates with a user through an RIS comprising $N=1024$ elements arranged in a $4\times4$ grid of 16 tiles, each containing $8\times8=64$ elements. The direct BS--user path suffers 30\,dB excess blockage loss~\cite{rappaport2019} with noise floor $\sigma^2=-90$\,dBm. The effective scalar channel is:
+For tile $t$ and element $n$, let $c_{t,n}$ denote the cascaded channel. With unit-modulus reflections,
 \begin{equation}
-h_\text{eff} = h_\text{direct} + \sum_{t=1}^{T}\sum_{n=1}^{N_t} h_{\text{casc},t,n}\, e^{j\theta_{t,n}},
-\label{eq:heff}
+ h_{\rm eff}=h_d+\sum_{t,n}c_{t,n}e^{j\theta_{t,n}},\qquad
+ \gamma=\frac{P_t}{\sigma^2}|h_{\rm eff}|^2.
 \end{equation}
-where $h_\text{direct}$ is the attenuated direct channel, $h_{\text{casc},t,n} = h_{\text{ris-user},t,n} \cdot h_{\text{bs-ris},t,n}$ is the cascaded channel through element $n$ of tile~$t$, and $\theta_{t,n}$ is the controlled reflection phase. Channels follow a spatially correlated Rician model ($K\!=\!10$\,dB, $\rho\!=\!0.7$, 5 NLoS paths) with close-in path-loss exponents of 2.5 (RIS hops) and 3.5 (direct link), and per-element aperture gain $G_e = 4\pi A/\lambda^2$.
+The noise power is $-90$\,dBm. The principal operating point uses $P_t=30$\,dBm, so $10\log_{10}(P_t/\sigma^2)=120$\,dB. The latter is a transmit-to-noise ratio before propagation, not received SNR.
 
-\subsection{On-Tile Federated Learning}
-
-Each tile~$t$ acts as an FL client. From pilot-based channel estimates, tile~$t$ extracts its local cascaded coefficients as input features (real and imaginary parts, with per-block RMS normalization) and trains a shared 3-layer GAT phase predictor $f_{\bm{w}}: \hat{\bm{h}}_t \rightarrow \bm{\theta}_t$ using a differentiable sum-rate loss:
+\subsection{Supplied-CSI diagnostic and local optimum}
+The triangle inequality gives
 \begin{equation}
-\mathcal{L} = 1 - \frac{\sum_u w_u \log_2\!\left(1 + \text{SINR}_u\right)}{R_\text{genie}},
-\label{eq:loss}
+ |h_{\rm eff}|\leq |h_d|+\sum_{t,n}|c_{t,n}|.
 \end{equation}
-where $R_\text{genie}$ is the genie-optimal rate obtained by maximal-ratio combining (MRC) with perfect CSI. The global direct-path phase $\angle h_\text{direct}$ is factored out as sample-level metadata and added back at application time, preventing it from swamping per-element structure.
+Equality holds for $\theta_{t,n}=\angle h_d-\angle c_{t,n}$. If $h_d=0$, any common reference phase suffices. Consequently, each tile needs only its own coefficients and one shared reference scalar. No CSI pooling, training, model exchange, or iterative optimization is required. With noisy estimates, the deployable plug-in rule is
+\begin{equation}\label{eq:local}
+ \hat\theta_{t,n}=\angle\hat h_d-\angle\hat c_{t,n}.
+\end{equation}
+This maximizes the estimated-channel objective; it is not necessarily the Bayes-optimal rule under uncertainty. With perfect estimates it equals the oracle exactly.
 
-The GAT architecture constructs a 4-nearest-neighbor grid graph over the $8\times8$ tile elements with 8 attention heads, 256-dimensional hidden layers, and per-element cascade projections ($2U \rightarrow d$) to produce sample-specific node features. The output head predicts $(\cos\theta_n, \sin\theta_n)$ pairs to avoid the $0/2\pi$ wrap-around discontinuity.
+The diagnostic supplies $\hat c=c+e$ with complex Gaussian error power $\epsilon\mathbb{E}|c|^2$. The same direct estimate is supplied to every tile. All compared controllers receive the same estimates; noise realizations are coupled across $\epsilon$ by scaling the same standard noise. At $\epsilon=1$, signal and error powers are equal: the estimate is not pure noise. A passive tile cannot acquire these coefficients by itself. This diagnostic abstracts acquisition; a physical implementation would require feedback-derived estimates or an explicitly sensor-equipped architecture, with associated costs.
 
-\subsection{Network-on-Chip Aggregation}
+\subsection{Limited-pilot passive acquisition}
+The passive aperture applies known phase patterns $\phi_{m,n}$ while the transmitter sends pilots. The receiver, which has a receive chain, measures and feeds back
+\begin{equation}\label{eq:pilots}
+ y_m=h_d+\sum_n c_ne^{j\phi_{m,n}}+w_m,
+ \quad w_m\sim\mathcal{CN}(0,1/\rho),\quad \rho=P_t/\sigma^2.
+\end{equation}
+The observations are normalized by the transmitted pilot amplitude. Define $x=[h_d,c_1,\ldots,c_N]^T$ and $A_{m,:}=[1,e^{j\phi_{m,1}},\ldots,e^{j\phi_{m,N}}]$. Then $y=Ax+w$. For $M<N+1$, $A$ has a nontrivial nullspace; in general the full channel and its elementwise phase rule cannot be recovered uniquely from $y$. This observation constraint, rather than a nonseparable SISO objective, is the potential role for a prior.
 
-After $E\!=\!3$ local epochs per tile, INT8 model weight deltas (1~byte/parameter, ${\sim}316$K parameters) are exchanged over a 2D Torus NoC at 10\,Gb/s using bandwidth-optimal RingAllReduce~\cite{patarasuk2009}. The server aggregates via FedAvg~\cite{mcmahan2017} across $R\!=\!20$ rounds. Raw CSI never traverses the interconnect. The system architecture is illustrated in Fig.~\ref{fig:arch}.
+All equal-pilot-budget methods receive exactly the same $M$ noisy complex responses and fixed codebook. Learned inference also receives normalized tile coordinates. It receives no receiver position, per-element test CSI, or true direct-path phase. Inputs rotate the responses by $-\angle y_1$, normalize their RMS, and include estimated probe power relative to noise. This removes a common channel rotation, to which the optimal reflection phases are invariant. Predicted phases are absolute; no oracle phase is added after inference.
 
-\begin{figure*}[t]
-\centering
-\includegraphics[width=\textwidth]{system_architecture.png}
-\caption{End-to-end Fed-RIS architecture. (A)~Propagation scene with 28\,GHz blocked direct path and 1024-element tiled RIS. (B)~On-chip federated learning: each tile trains a local GAT phase net, INT8 deltas are aggregated via NoC. (C)~Phase application pipeline with quantization, jitter, and link-level evaluation.}
-\label{fig:arch}
-\end{figure*}
-
-\subsection{Hardware Impairments}
-
-Predicted phases undergo three hardware degradations before scoring:
+\section{Controls and Learning Protocol}
+\subsection{Baselines that determine whether learning helps}
 \begin{itemize}
-\item \textbf{$b$-bit uniform quantization}: $\theta_q = \text{round}(\theta / \Delta) \cdot \Delta$, where $\Delta = 2\pi / 2^b$. The theoretical array-gain penalty is $20\log_{10}\text{sinc}(2^{-b})$~\cite{wu2020discrete}.
-\item \textbf{Phase jitter}: $\theta_\text{applied} = \theta_q + \delta$, where $\delta \sim \mathcal{N}(0, \sigma_\phi^2)$.
-\item \textbf{CSI estimation error}: $\hat{\bm{h}} = \bm{h} + \bm{e}$, where $\bm{e} \sim \mathcal{CN}(0, \epsilon \cdot \mathbb{E}[|\bm{h}|^2])$, using normalized error variance $\epsilon$.
+\item \emph{Local estimated-CSI MRC}: Eq.~\eqref{eq:local} in the supplied-CSI diagnostic, with zero model-training communication.
+\item \emph{Best observed probe}: select the measured configuration with maximum $|y_m|$.
+\item \emph{LMMSE followed by MRC}: estimate the channel covariance and mean from the same measured training labels, then use $\hat x=\mu+RA^H(ARA^H+\rho^{-1}I)^{-1}(y-A\mu)$. Row-stored samples use $R=X_c^TX_c^*/(S-1)$, with diagonal loading.
+\item \emph{Local linear estimator followed by MRC}: each tile independently regresses its own channel labels, including the direct coefficient, on the shared receiver feedback. No labels from other tiles or federated rounds are required. Ridge loading is $10^{-3}$ of mean input covariance power. This is empirical linear regression, not an oracle-covariance bound.
+\item \emph{Full-probe LS followed by local MRC}: $N+1$ orthogonal DFT probes yield channel-estimation variance $1/[\rho(N+1)]$ per coefficient. This is a higher-acquisition-cost control, explicitly distinguished from equal-$M$ methods.
+\item \emph{Local neural models}, one- and five-round FedAvg, longer FedAvg, and two centralized training budgets.
+\item \emph{Perfect-CSI MRC}: an unattainable-information reference in the pilot experiment; its zero charged acquisition cost must not be read as a deployable performance point.
 \end{itemize}
+The projected-gradient and linear-surrogate routines are numerical controls for the same SISO objective. The former applies normalized phase-gradient ascent; the latter aligns each coefficient with the current effective channel and damps the update before unit-circle projection. Neither implements alternating active/passive MISO beamforming or multiuser weighted-sum-rate optimization. Their agreement in SISO is expected. They are not counted as two distinct state-of-the-art formulations. SDR and ADMM are not evaluated in this revision and support no performance claim.
 
-%% ===================================================================
-%% III. BASELINE SCHEMES
-%% ===================================================================
-\section{Baseline Comparison Framework}
-\label{sec:baselines}
+\subsection{Training information is acquired, not free}
+Training and validation scenes each use $M$ feedback probes and a separate $N+1$-probe DFT sequence to obtain noisy channel labels. Labels do not use simulator truth. True channels are reserved for scoring held-out scenes and the explicitly labelled oracle. For $S$ training and $V$ validation scenes, the training-data acquisition cost is $(S+V)(M+N+1)$ pilot symbols. This is a substantial offline acquisition assumption, not a hardware-free self-supervised training claim.
 
-All schemes are scored on identical channel realizations (600 test scenes, seed 42). Each scheme designs its phases from the CSI it is entitled to access and is then evaluated against the true channel.
+The pilot learner is a two-hidden-layer MLP with width 128 and a sine/cosine output pair per element. This architecture is explicitly different from the earlier 315,906-parameter GAT. No previous GAT ranking or GAT numerical result is transferred to this experiment. Each tile minimizes its own genie-normalized rate loss computed from its measured training-channel labels. This local surrogate is not the gradient of whole-surface rate; that mismatch is a limitation to measure, not a coupled optimization claim.
 
-\begin{table}[t]
-\centering
-\caption{Operational Requirements of Compared Schemes}
-\label{tab:requirements}
-\renewcommand{\arraystretch}{1.1}
-\setlength{\tabcolsep}{3pt}
-\footnotesize
-\begin{tabular}{@{}lcccc@{}}
-\toprule
-\textbf{Scheme} & \textbf{CSI Req.} & \textbf{Per-Block} & \textbf{Local} & \textbf{$O(\cdot)$} \\
-\midrule
-No RIS & --- & --- & \checkmark & $O(1)$ \\
-Random & None & None & \checkmark & $O(N)$ \\
-AO~\cite{wu2020joint} & Full & Iterative & $\times$ & $O(NI)$ \\
-SCA~\cite{guo2020} & Full & Iterative & $\times$ & $O(NI)$ \\
-Centralized DL & Pooled & 1 fwd & $\times$ & $O(N)$ \\
-\textbf{Fed-RIS} & \textbf{Local} & \textbf{1 fwd} & \checkmark & $O(N)$ \\
-MRC (bound) & Perfect & Closed & --- & $O(N)$ \\
-\bottomrule
-\end{tabular}
-\end{table}
+FedAvg and the centralized/local models start from identical weights. They use Adam, learning rate $10^{-3}$, batch size 64, and constant learning rates. The pilot runs use one local epoch-equivalent per round. An epoch-equivalent comprises $\lceil S/64\rceil$ uniformly sampled minibatches; it is not guaranteed to visit every example exactly once. FedAvg resets Adam state on each broadcast. Centralized and independent local training retain optimizer state. These differences are disclosed, so the comparison is not described as differing only in data location.
 
-Table~\ref{tab:requirements} summarizes the operational requirements. Fed-RIS is unique in keeping CSI on-tile while achieving $O(N)$ single-forward-pass inference---no iterative solve per coherence block.
+If federation spends $R$ rounds with $K$ updates per tile per round and $T$ tiles, centralized controls receive both $RK$ updates (one client's serial budget) and $TRK$ updates (total network computation). The latter is the primary total-update control. Local models each receive $RK$ updates. Validation selects checkpoints without consulting test results.
 
-%% ===================================================================
-%% IV. RESULTS
-%% ===================================================================
-\section{Experimental Results}
-\label{sec:results}
+The initial budget is 100 rounds, extended to a cap of 300 if no validation plateau is reached, with at least 20 rounds and a stopping rule of no validation improvement of $10^{-4}$ for 15 rounds. The saved record reports the full validation trajectory, selected round, actual update counts, and stopping reason. A validation plateau establishes a stopping condition only; it is not a proof of optimization convergence. Reaching the maximum without a plateau is reported as budget exhaustion.
 
-Simulations use a 1024-element RIS (16 tiles $\times$ 64 elements), 28\,GHz carrier, 30\,dB blockage, Rician fading ($K\!=\!10$\,dB), 600 test scenes, 20 FL rounds $\times$ 3 local epochs, and FedAvg aggregation with INT8 deltas over Torus NoC.
+\section{Evaluation and Accounting}
+Each full wireless run uses 600 training scenes, 200 independent validation scenes, and 600 test scenes, with seeds 42, 123, 456, 789, and 1024. Supplied-CSI power sweeps use $P_t=-10$ to $30$\,dBm; all power axes display dBm. Targets outside this window are reported as unreached, with no extrapolated transmit-power-saving claim. Every controller is scored on the same true held-out channels for a seed. Reported confidence intervals use the seed as the independent unit. Paired differences use matched seeds. The fixed pilot codebook seed is 2024; intervals do not quantify variation over codebook design or alternative propagation models.
 
-\subsection{BER Performance}
+We report mean received SNR, $\mathbb{E}[\log_2(1+\gamma)]$, conditional-AWGN QPSK BER averaged over fading, and outage. These PHY metrics assume coherent receiver detection; common receiver synchronization and data-channel estimation overhead are not included. The pilot-adjusted rate is
+\begin{equation}
+ R_{\rm net}=\max\{0,1-M_{\rm used}/L\}\,
+             \mathbb{E}[\log_2(1+\gamma)],\quad L=2048.
+\end{equation}
+Here $M_{\rm used}=N+1$ for full-probe LS and $M$ for equal-budget methods. Feedback latency, feedback errors, training amortization, and controller computation are not included in this scalar rate; their payloads or limitations are stated separately.
 
-Fig.~\ref{fig:ber} shows BER vs.\ transmit SNR $\rho$ for QPSK and 16-QAM modulations. Fed-RIS achieves BER\,$=10^{-3}$ at $\rho = 99.2$\,dB (QPSK), which is \textbf{36.7\,dB earlier} than the blocked direct link ($\rho = 135.9$\,dB) and only \textbf{1.3\,dB} behind the perfect-CSI MRC bound ($\rho = 97.9$\,dB). The gap to Centralized DL is a mere 1.1\,dB---the precise cost of keeping CSI distributed on-tile.
+Robustness is assessed by absolute performance, fraction of oracle power, and paired gaps to local baselines. A smaller decrease from a worse starting point is not evidence of denoising. No prior-induced robustness mechanism is asserted without an equal-observation comparison that demonstrates it.
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\columnwidth]{fig1_ber_vs_snr.png}
-\caption{BER vs.\ transmit SNR for QPSK (left) and 16-QAM (right). Fed-RIS closely tracks centralized optimization baselines and recovers 36.7\,dB of link budget over the blocked direct path.}
-\label{fig:ber}
-\end{figure}
+For array scaling, the reflected-only power is
+\begin{equation}
+ P_{\rm refl}(N)=\left|\sum_{n=1}^N c_ne^{j\theta_n}\right|^2.
+\end{equation}
+The $N^2$ reference is anchored to reflected-only oracle power at 64 elements. Direct-plus-reflected power is reported separately. A uniform-amplitude reference including the direct path is $(|h_d|+N\bar a)^2$, evaluated per scene. This prevents direct-path dominance at small $N$ from producing a false departure from the coherent-combining law.
 
-\subsection{Spectral Efficiency and Power Savings}
+Numerical model exchange is float32, so parameter-server endpoint payloads are $2TRP\cdot4$ bytes for $P$ parameters. In the supplied-CSI diagnostic, a hypothetical one-time pooled upload of local complex CSI is $TS(N_t+1)\cdot8$ bytes. In the passive experiment, the controller already receives the acquisition feedback and reconstructs the training labels, so centralized training requires no additional upload. Distributed training requires delivery of the limited-probe feedback and each tile's label slice, including the direct coefficient: $(S+V)T(M+N_t+1)\cdot8$ endpoint bytes before model exchange. The pooled dataset size is reported only as a reference. Local MRC and independent local training have zero federated model-transfer payload. A formula equating model exchange and the supplied-CSI upload gives an analytical crossover only; it does not establish a passive-system crossover. We do not claim a measured operating advantage at a crossover that was not run. Receiver feedback to the controller and its delivery to tiles are separate communication costs. All tiles belong to one owner; data locality is not a privacy guarantee or an adversarial threat model.
 
-Fig.~\ref{fig:se} presents the achievable spectral efficiency and transmit-power savings. At the operating point $\rho = 99$\,dB, Fed-RIS achieves 4.64\,bit/s/Hz compared to 0.16\,bit/s/Hz without RIS. The power-saving analysis at a target rate of 4\,bit/s/Hz shows that Fed-RIS provides a 31.4\,dB transmit-power reduction, within 1.9\,dB of the oracle MRC bound (33.3\,dB).
+\section{Regenerated Results}
+The tables below are generated only from corrected JSON artifacts. They include all controls that were actually run. A supplied-CSI table without neural rows records a classical audit, not a completed GAT retraining experiment. The pilot tables identify the measured model and observation budget; they cannot support claims about the former GAT experiment. Corrected-geometry training and convergence assessment of the original supplied-CSI GAT remain unperformed. The operational plateau evidence applies only to the retained pilot MLP training runs.
+\IfFileExists{results/tier01_report/tables.tex}{\input{results/tier01_report/tables.tex}}{\textbf{Regeneration pending. No legacy numbers are included.}}
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\columnwidth]{fig2_spectral_efficiency.png}
-\caption{(a) Achievable rate vs.\ SNR. (b) Transmit-power saving at 4\,bit/s/Hz target. Fed-RIS achieves 31.4\,dB power saving, only 1.9\,dB from the oracle bound.}
-\label{fig:se}
-\end{figure}
+\IfFileExists{results/tier01_report/pilot_comparison.pdf}{
+\begin{figure*}[t]\centering
+\includegraphics[width=\textwidth]{results/tier01_report/pilot_comparison.pdf}
+\caption{Pilot-adjusted rate with seed-level 95\% intervals. Full-probe LS uses 1025 probes; equal-budget schemes use the indicated $M$. Oracle CSI is excluded from the deployable comparison.}
+\end{figure*}}{}
 
-\subsection{Outage Probability}
+\IfFileExists{results/tier01_report/findings.tex}{\input{results/tier01_report/findings.tex}}{The result interpretation remains pending completion of the recorded runs.}
 
-Fig.~\ref{fig:outage} shows outage probability at rate thresholds $R_\text{th}=1$ and 2\,bit/s/Hz. Fed-RIS closely tracks the centralized baselines across all SNR values, providing a diversity gain that eliminates the deep outage floor present for the blocked direct link and random phases.
+A learning claim requires a positive paired advantage over the local linear estimator, local neural models, and best-probe selection at equal observations, or a demonstrated rate--acquisition--communication tradeoff. An advantage over the blocked direct link alone does not meet this criterion. If federation loses these comparisons, the result is negative evidence for federating this setting and the benchmark must say so.
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\columnwidth]{fig3_outage_probability.png}
-\caption{Outage probability at $R_\text{th}=1$ and 2\,bit/s/Hz. Fed-RIS closely tracks centralized optimization baselines.}
-\label{fig:outage}
-\end{figure}
+\subsection{Architecture diagnostic on the same pilot scale}
+Table~\ref{tab:pilot-architecture} replaces the historical system-level architecture ranking. All four models reuse the primary pilot harness: the same contiguous geometry, measured DFT training labels, receiver-feedback features, codebook, scene seeds, and whole-aperture scoring. This diagnostic fixes $M=16$, $P_t=30$\,dBm, and 500 pooled Adam updates of 64 examples at learning rate $10^{-3}$. Validation is evaluated every 100 updates and selects the checkpoint. Every architecture receives the same minibatch index sequence within a seed. Five independent seeds provide 95\% Student-$t$ intervals and paired differences to the MLP. These are exploratory marginal intervals, not simultaneous significance guarantees.
 
-\subsection{Hardware Impairments}
+The compact profiles are an MLP with two width-128 hidden layers; a GAT with width 128, two layers, and four heads; a CNN with two 32-channel convolutions and squeeze-and-excitation; and a Transformer with width 128, two layers, four heads, and feedforward width 256. Dropout is zero. GAT inputs use global probe context and element embeddings, with no element-CSI input branch. Parameter counts are reported; equal updates do not mean equal FLOPs. This is a finite-budget centralized architecture comparison, not a convergence study, a federated GAT experiment, or a replication of the earlier 315,906-parameter supplied-CSI GAT. The primary pilot MLP results are not relabelled using this diagnostic.
 
-Fig.~\ref{fig:hw} presents the impact of phase quantization and jitter. Table~\ref{tab:quant} compares measured quantization losses against the theoretical $20\log_{10}\text{sinc}(2^{-b})$ bound. The 2-bit operating point incurs only ${\sim}0.82$\,dB loss for Fed-RIS, confirming practical deployability with low-cost phase shifters. Phase jitter is second-order: 5$^\circ$ RMS jitter causes only 0.03\,dB loss.
+\IfFileExists{results/tier2_report/findings.tex}{\input{results/tier2_report/findings.tex}}{}
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\columnwidth]{fig4_hardware_impairments.png}
-\caption{(a) BER under $b$-bit phase quantization. (b) BER under RMS phase jitter. (c) Measured quantization loss vs.\ theoretical sinc bound for Fed-RIS, MRC, and theory.}
-\label{fig:hw}
-\end{figure}
+\subsection{Analytical interconnect sensitivity}
+We evaluate an assumed colocated digital-controller network independently of the RF aperture. The mapping of controllers to silicon, inter-chip links, and phase-control wires to the physical panel is not implemented. The study therefore supplies conditional traffic estimates, not a claim that the 17\,cm aperture occupies one die.
 
-\begin{table}[t]
-\centering
-\caption{Phase Quantization Array-Gain Loss (dB)}
-\label{tab:quant}
-\renewcommand{\arraystretch}{1.1}
-\footnotesize
-\begin{tabular}{@{}lccc@{}}
-\toprule
-\textbf{Resolution} & \textbf{Theory} & \textbf{MRC} & \textbf{Fed-RIS} \\
-\midrule
-1-bit & $-3.92$ & $-3.40$ & $-3.26$ \\
-2-bit & $-0.91$ & $-0.84$ & $-0.82$ \\
-3-bit & $-0.22$ & $-0.21$ & $-0.20$ \\
-Continuous & $0.00$ & $0.00$ & $0.00$ \\
-\bottomrule
-\end{tabular}
-\end{table}
+Each link and endpoint port transfers 128 bits per cycle at assumed clocks of 1 and 2\,GHz, giving 128 and 256\,Gb/s. A 128-bit flit is also a documented configurable default in Garnet~\cite{garnet}; this does not validate our clock, pipeline, or circuit assumptions. We assume two router cycles and one link cycle per logical hop. The estimator is analytical, not discrete-event or cycle-accurate. For phase $q$, with directed-link loads $L_{e,q}$ and endpoint injection/ejection loads $I_{v,q},E_{v,q}$ in bits, it computes
+\begin{equation}
+ \hat t_q=\max\!\left\{\max_e\frac{L_{e,q}}{B},
+ \max_v\frac{I_{v,q}}{B_{\rm ep}},\max_v\frac{E_{v,q}}{B_{\rm ep}}\right\}
+ +H_q\frac{c_{\rm link}+c_{\rm router}}{f}.
+\end{equation}
+Transfers round up to whole flits. Sequential phases add. This model omits queue evolution, virtual channels, arbitration, credits, headers, reductions, and physical wire delay; the result is an estimate, not a validated bound or cycle trace. No Noxim cross-validation has been performed. Technology-node, area, circuit-power, and energy values are unreported because no implemented or calibrated circuit supports them.
 
-\subsection{CSI Robustness}
+The topologies are mesh, torus, folded torus, binary tree, ring, hypercube, and an explicit directed radix-2 butterfly. The previously named butterfly was an XOR hypercube; the corrected butterfly has 80 auxiliary stage vertices for 16 terminal clients. It is not an equal-area alternative to the direct networks. Torus and folded torus have identical predictions without a physical wire-layout model. Protocols include ParameterServer, full-message recursive doubling, RingAllReduce, and fixed-budget gossip. Gossip does not establish exact global averaging and is excluded from equivalent-collective claims. RingAllReduce uses a stated numeric-rank ring and retains remainder bytes; no optimal embedding is asserted.
 
-Fig.~\ref{fig:csi} reveals a key advantage of learned phase prediction: robustness under imperfect CSI. As normalized CSI error grows from $\epsilon\!=\!0$ to $\epsilon\!=\!1$, Fed-RIS loses only \textbf{3.2\,dB}, whereas model-based solvers (AO, SCA) degrade by \textbf{5.1\,dB}. Optimization-based methods treat flawed CSI as exact ground truth; the learned predictor incorporates implicit channel priors that provide graceful degradation. Notably, at $\epsilon\!=\!1$ all intelligent schemes converge to similar performance.
+For this sensitivity study the server is colocated at tile 0, so ParameterServer exchanges $2(T-1)RP\cdot4$ payload bytes; the earlier endpoint-accounting reference $2TRP\cdot4$ uses a separate controller. At 128\,Gb/s, a 150,528-byte model and 20 rounds require 5.644800\,ms of server-endpoint serialization in every topology, plus 0.000480--0.000960\,ms of traversal. Thus a diameter reduction does not produce a proportional latency reduction. Butterfly plus RingAllReduce is evaluated explicitly in Table~\ref{tab:noc}. The saved sweep also replays every retained pilot run's measured model size and actual round count. Sub-millisecond estimates for selected model/protocol budgets are not measurements of training time or proof of a useful federation operating point.
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\columnwidth]{fig5_csi_robustness.png}
-\caption{CSI robustness comparison. (a) BER at $\rho\!=\!99$\,dB vs.\ CSI error. (b) Spectral efficiency vs.\ CSI error. (c) BER waterfall at $\epsilon\!=\!1$. Fed-RIS loses only 3.2\,dB (vs.\ 5.1\,dB for AO/SCA).}
-\label{fig:csi}
-\end{figure}
+\IfFileExists{results/tier2_report/tables.tex}{\input{results/tier2_report/tables.tex}}{\textbf{Tier 2 regeneration pending.}}
 
-\subsection{Array-Gain Scaling}
+\subsection{Reproducibility}
+The active tables and plots are generated from structured JSON with seed, geometry, acquisition, optimizer-budget, and source-hash records. The exporters hash their input artifacts. Architecture rows come from per-seed JSON, never historical text logs. The supplied-CSI audit explicitly records training as not run and exports no neural rows. Historical system-level and circular-panel artifacts are archived or marked superseded. Analytical interconnect values are deterministic scenario calculations; seed-level confidence intervals apply to wireless results, not those calculations.
 
-Fig.~\ref{fig:scaling} validates the coherent combining $N^2$ scaling law. All intelligent schemes track $20\log_{10}N$ up to $N\!\approx\!512$, after which geometric path-loss from peripheral tiles causes saturation---a placement insight enabled by whole-surface modeling.
+\section{Limitations and Scope}
+The limited-pilot observation model makes estimation nontrivial but does not by itself make federation useful. Every tile receives the same pilot feedback, tile statistics are similar on a contiguous surface, and an unfederated tile can fit a local estimator. The synthetic training distribution, finite label SNR, codebook, and local training surrogate can all limit performance. A claim of generalization beyond them requires further experiments.
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\columnwidth]{fig6_array_scaling.png}
-\caption{(a) Array-gain scaling with active elements $N$. (b) Spectral efficiency vs.\ $N$. (c) Received SNR distribution at full aperture. Coherent gain saturates beyond $N\!=\!512$ due to geometric path loss from peripheral tiles.}
-\label{fig:scaling}
-\end{figure}
+The earlier circular-panel results, deployment-saturation interpretation, robustness superiority claim, and unqualified ``price of locality'' interpretation are withdrawn. The former mixed-scale architecture and interconnect tables are superseded by the explicitly scoped diagnostics above. No GAT-versus-Transformer or FedAvg/FedProx/SCAFFOLD ranking from those legacy runs is retained. This is a wireless-systems simulation manuscript, not an ISCAS circuit contribution. The generic IEEE journal layout does not establish compliance with a selected venue's length or novelty requirements; no venue acceptance or submission is implied.
 
-\subsection{Communication Cost Analysis}
-
-Table~\ref{tab:cost} presents the honest cost accounting. At 316K parameters and 600 training samples/tile, FL moves 39.6$\times$ more bytes (192.8\,MB in INT8 deltas) than centralized raw-CSI upload (4.9\,MB). FL becomes bandwidth-cheaper only above ${\sim}23{,}752$ samples/tile. The honest claim for Fed-RIS is therefore \textbf{CSI privacy/locality} and \textbf{$O(N)$ inference latency}, not communication savings at this scale.
-
-\begin{table}[t]
-\centering
-\caption{Training and Per-Coherence-Block Cost}
-\label{tab:cost}
-\renewcommand{\arraystretch}{1.1}
-\footnotesize
-\begin{tabular}{@{}lr@{}}
-\toprule
-\textbf{Metric} & \textbf{Value} \\
-\midrule
-Model parameters & 315,906 \\
-FL rounds $\times$ local epochs & $20 \times 3$ \\
-Total NoC traffic (INT8) & 192.8\,MB \\
-Raw-CSI upload (centralized) & 4.9\,MB \\
-Traffic ratio (FL / raw CSI) & 39.6$\times$ \\
-FL-cheaper crossover & ${\sim}$23,752 samples/tile \\
-Per-block solve: AO & 21.9\,ms \\
-Per-block solve: SCA & 2.0\,ms \\
-Per-block inference: Fed-RIS & 1 fwd pass \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-%% ===================================================================
-%% V. DISCUSSION
-%% ===================================================================
-\section{Discussion}
-
-\textbf{Novelty and positioning.} Existing federated approaches for wireless treat user devices~\cite{mcmahan2017} or base stations as clients with independent outputs. In Fed-RIS, the clients are metasurface tiles whose outputs are \emph{physically summed}---per-tile loss is meaningless without aperture-level coherent summation. This creates a fundamentally different FL problem where the network links are on-chip interconnects with physical topology and energy constraints~\cite{dally2004, bjerregaard2006}, and non-IID data arises from spatial geometry rather than synthetic partitioning.
-
-\textbf{Honest limitations.} (i) With perfect CSI ($\epsilon\!=\!0$), closed-form MRC is provably optimal; Fed-RIS trails by 1.3\,dB. The case for Fed-RIS is on the cost axis (CSI locality, $O(N)$ inference) and the robustness axis ($\epsilon > 0$). (ii) The base evaluation uses a single-antenna BS and single dominant user. (iii) Channels are synthetic Rician/3GPP-UMi; DeepMIMO ray-tracing integration exists but was not used for reported runs.
-
-%% ===================================================================
-%% VI. CONCLUSION
-%% ===================================================================
 \section{Conclusion}
+Known-channel SISO phase alignment is already local and closed form. A defensible learning experiment must instead state how the controller acquires its information and compare against local estimators at the same pilot budget. The revised simulator and controls provide that test on one contiguous aperture, with measured training budgets and explicit costs. The resulting evidence, including negative results, determines whether a federated method has a useful operating point.
 
-We presented Fed-RIS, a framework that federates phase optimization across the tiles of a single reconfigurable intelligent surface using on-chip learning over a Network-on-Chip. On 1024-element 28\,GHz mmWave channels with 30\,dB blockage, Fed-RIS recovers 36.7\,dB of link budget over the blocked direct path and sits within 1.3\,dB of the perfect-CSI MRC oracle bound. Its learned phase predictor exhibits superior robustness under imperfect CSI (3.2\,dB loss vs.\ 5.1\,dB for model-based solvers at $\epsilon\!=\!1$), and hardware non-idealities (2-bit quantization, $5^\circ$ jitter) cause negligible additional loss. The framework maintains full CSI privacy---raw channel measurements never leave the tile---while enabling constant-time $O(N)$ inference without per-coherence-block iterative optimization.
-
-%% ===================================================================
-%% REFERENCES
-%% ===================================================================
-\begin{thebibliography}{20}
-
-\bibitem{wu2020joint}
-Q.~Wu and R.~Zhang, ``Intelligent reflecting surface enhanced wireless network via joint active and passive beamforming,'' \emph{IEEE Trans. Wireless Commun.}, vol.~19, no.~8, pp.~5247--5261, Aug. 2020.
-
-\bibitem{wu2020discrete}
-Q.~Wu and R.~Zhang, ``Beamforming optimization for wireless network aided by intelligent reflecting surface with discrete phase shifts,'' \emph{IEEE Trans. Wireless Commun.}, vol.~19, no.~4, pp.~1838--1852, Apr. 2020.
-
-\bibitem{direnzo2020}
-M.~Di~Renzo \emph{et~al.}, ``Smart radio environments empowered by reconfigurable intelligent surfaces: How it works, state of research, and the road ahead,'' \emph{IEEE J. Sel. Areas Commun.}, vol.~38, no.~11, pp.~2450--2525, Nov. 2020.
-
-\bibitem{rappaport2019}
-T.~S.~Rappaport \emph{et~al.}, ``Wireless communications and applications above 100~GHz: Opportunities and challenges for 6G and beyond,'' \emph{IEEE Access}, vol.~7, pp.~78729--78757, 2019.
-
-\bibitem{guo2020}
-H.~Guo, Y.-C.~Liang, J.~Chen, and E.~G.~Larsson, ``Weighted sum-rate maximization for reconfigurable intelligent surface aided wireless networks,'' \emph{IEEE Trans. Wireless Commun.}, vol.~19, no.~5, pp.~3064--3076, May 2020.
-
-\bibitem{yu2020admm}
-S.~Yu, X.~Liu, and C.~Zhong, ``ADMM for intelligent reflecting surface-enhanced wireless networks,'' \emph{IEEE J. Sel. Areas Commun.}, vol.~38, no.~11, pp.~2550--2562, Nov. 2020.
-
-\bibitem{luo2010}
-Z.-Q.~Luo, W.-K.~Ma, A.~M.-C.~So, Y.~Ye, and S.~Zhang, ``Semidefinite relaxation of quadratic optimization problems,'' \emph{IEEE Signal Process. Mag.}, vol.~27, no.~3, pp.~20--34, May 2010.
-
-\bibitem{huang2020drl}
-C.~Huang \emph{et~al.}, ``Reconfigurable intelligent surface assisted multi-user MISO systems exploiting deep reinforcement learning,'' \emph{IEEE J. Sel. Areas Commun.}, vol.~38, no.~8, pp.~1839--1850, Aug. 2020.
-
-\bibitem{mcmahan2017}
-B.~McMahan, E.~Moore, D.~Ramage, S.~Hampson, and B.~A.~y~Arcas, ``Communication-efficient learning of deep networks from decentralized data,'' in \emph{Proc. AISTATS}, 2017, pp.~1273--1282.
-
-\bibitem{li2020fedprox}
-T.~Li, A.~K.~Sahu, M.~Zaheer, M.~Sanjabi, A.~Talwalkar, and V.~Smith, ``Federated optimization in heterogeneous networks,'' in \emph{Proc. MLSys}, 2020.
-
-\bibitem{karimireddy2020}
-S.~P.~Karimireddy, S.~Kale, M.~Mohri, S.~Reddi, S.~Stich, and A.~T.~Suresh, ``SCAFFOLD: Stochastic controlled averaging for federated learning,'' in \emph{Proc. ICML}, 2020, pp.~5132--5143.
-
-\bibitem{shen2021gnn}
-Y.~Shen, Y.~Shi, J.~Zhang, and K.~B.~Letaief, ``Graph neural networks for scalable radio resource management: Architecture design and theoretical analysis,'' \emph{IEEE J. Sel. Areas Commun.}, vol.~39, no.~1, pp.~101--115, Jan. 2021.
-
-\bibitem{he2022gat}
-S.~He, S.~Xiong, Y.~Ou, J.~Zhang, J.~Wang, Y.~Huang, and Y.~Zhang, ``An overview on the application of graph neural networks in wireless networks,'' \emph{IEEE Open J. Commun. Soc.}, vol.~3, pp.~2067--2089, 2022.
-
-\bibitem{dally2004}
-W.~J.~Dally and B.~Towles, \emph{Principles and Practices of Interconnection Networks}. Morgan Kaufmann, 2004.
-
-\bibitem{bjerregaard2006}
-T.~Bjerregaard and S.~Mahadevan, ``A survey of research and practices of network-on-chip,'' \emph{ACM Comput. Surv.}, vol.~38, no.~1, pp.~1--51, 2006.
-
-\bibitem{patarasuk2009}
-P.~Patarasuk and X.~Yuan, ``Bandwidth optimal all-reduce algorithms for clusters of workstations,'' \emph{J. Parallel Distrib. Comput.}, vol.~69, no.~2, pp.~117--124, 2009.
-
-\bibitem{sergeev2018}
-A.~Sergeev and M.~Del~Balso, ``Horovod: Fast and easy distributed deep learning in TensorFlow,'' \emph{arXiv:1802.05799}, 2018.
-
-\bibitem{zheng2022}
-B.~Zheng, Q.~Wu, and R.~Zhang, ``Intelligent reflecting surface-aided mobile edge computing: Channel estimation and beamforming design,'' \emph{IEEE Trans. Wireless Commun.}, vol.~21, no.~6, pp.~4164--4179, Jun. 2022.
-
-\bibitem{eisen2020}
-M.~Eisen and A.~Ribeiro, ``Optimal wireless resource allocation with random edge graph neural networks,'' \emph{IEEE Trans. Signal Process.}, vol.~68, pp.~2977--2991, 2020.
-
-\bibitem{huang2019}
-C.~Huang, A.~Zappone, G.~C.~Alexandropoulos, M.~Debbah, and C.~Yuen, ``Reconfigurable intelligent surfaces for energy efficiency in wireless communication,'' \emph{IEEE Trans. Wireless Commun.}, vol.~18, no.~8, pp.~4157--4170, Aug. 2019.
-
+\begin{thebibliography}{3}
+\bibitem{zheng2022survey} B.~Zheng, C.~You, W.~Mei, and R.~Zhang, ``A survey on channel estimation and practical passive beamforming design for intelligent reflecting surface aided wireless communications,'' \emph{IEEE Commun. Surveys Tuts.}, 2022. Available: \url{https://arxiv.org/abs/2110.01292}.
+\bibitem{taha2019} A.~Taha, M.~Alrabeiah, and A.~Alkhateeb, ``Enabling large intelligent surfaces with compressive sensing and deep learning,'' 2019. Available: \url{https://arxiv.org/abs/1904.10136}.
+\bibitem{garnet} gem5 Project, ``Garnet 2.0,'' simulator documentation, accessed Sep. 23, 2026. Available: \url{https://www.gem5.org/documentation/general_docs/ruby/garnet-2/}.
 \end{thebibliography}
-
 \end{document}

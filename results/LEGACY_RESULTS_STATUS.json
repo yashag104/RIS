@@ -1,0 +1,19 @@
+{
+  "status": "superseded_for_manuscript",
+  "scope": [
+    "link_level",
+    "advanced_experiments",
+    "figures"
+  ],
+  "reason": "Legacy geometry and mixed-scale/log-only system results are not manuscript evidence; corrected supplied-CSI, passive feedback, pilot architecture, and analytical NoC studies have explicit separate scopes.",
+  "replacement": [
+    "link_level_tier2",
+    "pilot_limited",
+    "pilot_limited_extended",
+    "pilot_architecture",
+    "noc_corrected",
+    "tier01_report",
+    "tier2_report"
+  ],
+  "preserve_historical_artifacts": true
+}

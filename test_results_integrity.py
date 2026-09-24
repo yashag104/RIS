@@ -214,43 +214,21 @@ def test_sdr_beats_random_phases_on_a_ris_dominated_channel():
 # 5. Topologies that differ physically must not produce identical numbers.
 # ---------------------------------------------------------------------------
 
-def test_folded_torus_differs_from_plain_torus():
-    """Folding shortens the longest wire; the model must reflect that.
-
-    Both topologies have the same hop counts, so a hop-only model reported
-    byte-identical rows for them in the comparison table.
-    """
+def test_folded_torus_has_no_uncalibrated_physical_advantage():
     from src.noc_simulator import NoCSimulator
-
-    torus = NoCSimulator(num_tiles=16, topology='Torus')
-    folded = NoCSimulator(num_tiles=16, topology='FoldedTorus')
-
-    assert folded.topology['max_link_length'] < torus.topology['max_link_length'], (
-        "folded torus must have a shorter longest wire than a plain torus"
-    )
-
-    r_t = torus.simulate_fl_round(model_size_bytes=600_000, protocol='ParameterServer')
-    r_f = folded.simulate_fl_round(model_size_bytes=600_000, protocol='ParameterServer')
-
-    assert r_t['latency_us'] != r_f['latency_us'] or r_t['energy_nj'] != r_f['energy_nj'], (
-        "Torus and FoldedTorus produce identical metrics; the model cannot "
-        "distinguish two physically different fabrics"
-    )
+    a = NoCSimulator(16, 'Torus').simulate_fl_round(600_000)
+    b = NoCSimulator(16, 'FoldedTorus').simulate_fl_round(600_000)
+    assert a['latency_ns'] == b['latency_ns']
+    assert a['energy_j'] is b['energy_j'] is None
+    assert not a['model_assumptions']['physical_layout_modeled']
 
 
-def test_topology_metrics_are_not_all_identical():
-    """Distinct topologies must not collapse onto one latency number."""
+def test_topology_routes_affect_traffic_without_forcing_ranking():
     from src.noc_simulator import NoCSimulator
-
-    energies = {}
-    for name in ['Mesh', 'Torus', 'FoldedTorus', 'Tree', 'Butterfly', 'Ring']:
-        sim = NoCSimulator(num_tiles=16, topology=name)
-        r = sim.simulate_fl_round(model_size_bytes=600_000, protocol='ParameterServer')
-        energies[name] = round(r['energy_nj'], 4)
-
-    assert len(set(energies.values())) >= 5, (
-        f"topologies are not being distinguished: {energies}"
-    )
+    a = NoCSimulator(16, 'Mesh').simulate_fl_round(600_000)
+    b = NoCSimulator(16, 'Torus').simulate_fl_round(600_000)
+    assert a['flit_hops'] > b['flit_hops']
+    assert a['serialization_ns'] == b['serialization_ns']
 
 
 # ---------------------------------------------------------------------------

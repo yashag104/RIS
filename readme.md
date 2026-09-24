@@ -1,189 +1,52 @@
-# RIS Federated Learning
+# Contiguous RIS: supplied-CSI audit and pilot-limited control
 
-Federated learning system for Reconfigurable Intelligent Surface (RIS) phase optimization. Each RIS tile trains locally on channel observations and participates in federated aggregation to predict phase shifts for mmWave beamforming while tracking communication, energy, and Network-on-Chip (NoC) costs.
+The active manuscript is [paper.tex](paper.tex). It has been revised around **passive receiver pilot feedback**, not a claim that learning is necessary for known-channel SISO phase alignment.
 
-## What This Repository Contains
+The old circular-panel simulation, paper source and PDFs are historical artifacts. The manuscript and PDFs are preserved under [docs/archive](docs/archive). Old results under `results/link_level` and the system experiment logs are **not evidence for the corrected paper**. See [the Tier 0/1 audit](docs/TIER01_CORRECTIONS.md) and [Tier 2 corrections](docs/TIER2_CORRECTIONS.md) for scope and remaining research limitations.
 
-- RIS channel generation with Rician and 3GPP UMi-style models
-- Spatial correlation, CSI estimation error, phase noise, and phase quantization utilities
-- Federated learning with FedAvg, FedProx, and SCAFFOLD aggregation
-- Neural phase predictors: MLP, GNN/GAT, CNN with squeeze-and-excitation, and Transformer
-- Baselines: random search, alternating optimization, SCA, ADMM, SDR, DRL/TD3, and centralized learning
-- NoC communication simulation with multiple topologies and protocols
-- Plotting, metrics, validation, and experiment scripts
+## Reproduce
 
-## Repository Layout
-
-```text
-.
-|-- main.py                         # End-to-end FL training entry point
-|-- config.py                       # Central configuration
-|-- experiments.py                  # Advanced experiment suite
-|-- run_all_experiments.py          # Experiment runner
-|-- models/
-|   `-- ris_net.py                  # MLP, GNN, CNN, Transformer model factory
-|-- run_link_level.py               # Link-level (BER/outage/SE) result suite
-|-- make_summary_tables.py          # Regenerates the Markdown tables in docs/
-|-- docs/                           # Novelty, paper-results and comparison write-ups
-|-- src/
-|   |-- channel_model.py            # Channel and phase hardware models
-|   |-- client.py                   # RIS tile client training/evaluation
-|   |-- dataset_utils.py            # Dataset generation helpers
-|   |-- link_metrics.py             # BER/SER/outage/spectral-efficiency math
-|   |-- noc_simulator.py            # NoC topology/protocol simulator
-|   `-- server.py                   # Federated aggregation server
-|-- baselines/                      # Optimization and learning baselines
-|-- utils/                          # Metrics, plotting, references, reports
-|-- noxim_configs/                  # Noxim traffic/config files
-|-- noxim_scripts/                  # Noxim helper scripts
-`-- test_*.py, experiments_check.py # Smoke, component, validation checks
-```
-
-## Installation
-
-Use Python 3.8 or newer. A virtual environment is recommended.
+Use the project virtual environment (or install `requirements.txt`). Run from this directory:
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+# Full contiguous 16-tile classical audit: five seeds, 600 test scenes per seed
+.venv/bin/python run_link_level.py --skip-training --output results/link_level_tier2
+
+# Passive pilot experiment: five seeds, M=16 and 64, up to 300 FL rounds
+.venv/bin/python run_pilot_limited.py
+
+# Five-seed pilot architecture diagnostic: shared data, 500 updates/model
+.venv/bin/python run_pilot_ablation.py
+
+# Analytical 128/256 Gb/s traffic scenarios, including Butterfly + RingAllReduce
+.venv/bin/python run_noc_study.py
+
+# Tables, confidence intervals, plots, and hash manifests from corrected JSON
+.venv/bin/python make_summary_tables.py --link-dir results/link_level_tier2
+.venv/bin/python make_tier2_report.py
+
+# Focused physical, statistical, and information-boundary regression tests
+.venv/bin/python -m pytest -q test_tier01.py test_tier2.py test_noc.py test_link_metrics.py
 ```
 
-The default GNN implementation in `models/ris_net.py` is implemented with PyTorch only; `torch-geometric` is not required for the current code path.
+`--quick` on either runner writes separate smoke artifacts. These cannot replace a full run. `--seed` / `--seeds` restrict the seed set on the supplied-CSI runner; `--seeds` does so on the pilot runner. Single-seed output has no confidence interval. Set `MPLCONFIGDIR=/tmp/ris-matplotlib` if your home config directory is read-only.
 
-## Quick Start
+The original GAT can be retrained under corrected geometry with `run_link_level.py --model GNN --rounds 100`. Both centralized update budgets and unfederated local models are included. This is expensive on CPU and is not required to establish the exact SISO closed form. Pilot results use a separately identified width-128 MLP; they do not validate the old GAT claims.
 
-Run the main federated RIS training pipeline:
+## What the experiment actually measures
 
-```bash
-python main.py
-```
+- One 32×32 element aperture at half-wavelength spacing, approximately 17.14 cm per side at 28 GHz. Shared scattering fields are generated before slicing into tiles.
+- With supplied CSI, local MRC is exact for perfect estimates and has no model-training traffic. This diagnostic does not implement passive channel acquisition.
+- With passive probes, the receiver measures `M` complex responses and sends feedback. Neural inference gets only these responses and tile coordinates, with no true direct-path phase or per-element test CSI.
+- Offline training labels cost an additional `N+1` DFT probes per training and validation scene. They are noisy estimates, not free simulator truth.
+- Comparisons include best observed probe, LMMSE/MRC, independently fitted local linear estimators, full-probe LS/MRC, one/five-round FL, local neural models, and centralized learning at per-client and total-network update budgets.
+- Validation selects checkpoints. A recorded plateau is not proof of convergence. Budget exhaustion remains explicit.
+- Float32 model payloads are counted because that is what the numerical averaging uses. The old INT8 discount is not claimed. Payload traffic is not a circuit energy measurement.
 
-The script will:
+There is no guarantee that federation wins. The paired comparisons in `results/tier01_report/REPORT.md` determine whether it has a useful operating point. Improvements from adding an RIS are not attributed to the learning method.
 
-1. Create output directories.
-2. Generate or load RIS channel datasets.
-3. Evaluate simple baselines.
-4. Train the federated model.
-5. Save metrics, model weights, plots, and comparison tables.
+The new architecture diagnostic and analytical interconnect sweep are reported in `results/tier2_report/REPORT.md`. Architecture comparisons use the same physical/pilot scale as the headline experiment, with a separately declared finite update budget. They do not establish convergence of the original supplied-CSI GAT, which remains untrained on corrected geometry. The supplied-CSI table contains no neural rows.
 
-Default outputs are written under `results/`, `models/saved/`, `plots/`, `metrics/`, and `data/` according to `Config` paths.
+NoC latency is a conditional bottleneck-serialization estimate; technology-node, cycle-accurate, area, power, and energy claims are withdrawn. No Noxim validation or circuit implementation is claimed. The manuscript uses a generic IEEE journal layout and is positioned as wireless-systems simulation, with venue scope notes in the Tier 2 audit. It has not been compiled or checked against a selected venue's page limit.
 
-## Configuration
-
-Most behavior is controlled in `config.py`.
-
-Important settings include:
-
-- `MODEL_TYPE`: one of `MLP`, `GNN`, `CNN`, `CNN_Attention`, or `Transformer`
-- `NUM_TILES`, `TILE_GRID_ROWS`, `TILE_GRID_COLS`: RIS tile layout
-- `ELEMENTS_PER_TILE`, `PIXEL_GRID_ROWS`, `PIXEL_GRID_COLS`: per-tile element grid
-- `FL_ROUNDS`, `LOCAL_EPOCHS`, `BATCH_SIZE`, `LEARNING_RATE`: training loop parameters
-- `AGGREGATION_METHOD`: `FedAvg`, `FedProx`, or `SCAFFOLD`
-- `CHANNEL_MODEL_TYPE`: synthetic Rician or 3GPP UMi-style channel generation
-- `PHASE_QUANTIZATION_BITS`, `PHASE_NOISE_STD_DEG`, `CSI_ERROR_VARIANCE`: hardware realism controls
-- `NOC_TOPOLOGY`, `NOC_PROTOCOL`, `NOC_BANDWIDTH_GBPS`: NoC simulation controls
-
-When changing tile or pixel geometry, keep the derived dimensions consistent. Use `Config.update_tile_config(...)` where possible.
-
-## Running Checks
-
-After installing dependencies, run:
-
-```bash
-python test_smoke.py
-python test_components.py
-python test_validation.py
-python experiments_check.py
-```
-
-`test_smoke.py` performs a compact end-to-end pass. `test_components.py` checks individual building blocks. `test_validation.py` checks channel/SNR/model sanity conditions. `experiments_check.py` runs mini versions of experiment infrastructure checks.
-
-## Paper Results
-
-The six link-level (physical-layer) results and the system figure:
-
-```bash
-python run_link_level.py                # BER/outage/SE/scaling + six figures
-python run_link_level.py --quick        # minutes, pipeline check only
-python run_link_level.py --plot-only    # re-render figures from saved JSON
-python -m utils.system_diagram          # end-to-end system architecture figure
-python make_summary_tables.py --write   # refresh the tables in docs/
-```
-
-Outputs land in `results/link_level/` and `results/figures/`. See
-[`docs/README.md`](docs/README.md) for what each figure argues,
-[`docs/NOVELTY.md`](docs/NOVELTY.md) for the contributions, and
-[`docs/BASELINE_COMPARISON.md`](docs/BASELINE_COMPARISON.md) for the comparison
-against baselines and against the published literature.
-
-## Experiments
-
-Run all configured experiments:
-
-```bash
-python run_all_experiments.py
-```
-
-Run the advanced experiment suite directly:
-
-```bash
-python experiments.py
-```
-
-Experiment outputs are stored in `results/advanced_experiments` unless overridden in `Config`.
-
-## Noxim Integration
-
-Noxim-related traffic tables, YAML configs, helper scripts, and patch notes are kept in:
-
-- `noxim_configs/`
-- `noxim_scripts/`
-- `noxim_patch/`
-- `noxim_execution_guide.md`
-
-Use these files when comparing the Python NoC simulator with hardware-accurate Noxim runs.
-
-## Notes For Development
-
-- `PROGRESS.md` is the active implementation tracker.
-- The main priority after Phase 2 is Phase 3 code-quality and correctness work.
-- The repo currently uses a class-based `Config`; several experiments mutate config values at class scope, so isolate experiment overrides carefully.
-- Some scripts generate results and plots as part of normal operation.
-
-## Architecture Diagram
-
-```mermaid
-graph TD
-    subgraph Federated Server
-    S[Global Server] --> |Broadcasts global model| C
-    C --> |Uploads local updates| S
-    end
-    
-    subgraph RIS Array
-    C[RIS Tiles] --> |Local training on| D[Tile Dataset]
-    C --> |Phase predictions| R[RIS Elements]
-    end
-    
-    subgraph Environment
-    R -.-> |Beamforming| U[Users]
-    BS[Base Station] -.-> |Direct/Cascaded Channel| R
-    BS -.-> |Direct Channel| U
-    end
-```
-
-## Results / Figures
-
-The results of the experiments will be saved automatically in the `plots/` and `results/` directories.
-Some typical results you will find include:
-- **Convergence Curves**: Loss vs Communication Rounds
-- **SNR Improvement**: SNR comparison between No RIS, Random RIS, Baseline methods, and FL RIS
-- **NoC Metrics**: Latency, Bandwidth, and Energy utilization of different communication protocols
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## References
-
-Reference annotations used by plotting/report generation live in `utils/references.py`. The code comments cite the main methods used for FL aggregation, RIS optimization, GAT models, TD3, and NoC all-reduce protocols.
+Other experiment entry points (`main.py`, `run_all_experiments.py`, legacy system-level suites) remain historical research tools and are not manuscript evidence.

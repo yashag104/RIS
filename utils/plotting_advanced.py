@@ -217,16 +217,16 @@ def plot_pilot_analysis(results, save_path):
 def plot_noc_traffic_analysis(results, save_path):
     """Exp 7: NoC traffic load vs power consumption."""
     tiles = [r['num_tiles'] for r in results]
-    power = [r['total_power_mw'] for r in results]
+    power = [float('nan') if r['total_power_mw'] is None else r['total_power_mw'] for r in results]
     lat = [r['avg_latency_us'] for r in results]
     comm = [r['total_communication_kb'] for r in results]
 
     fig, ((a1, a2), (a3, a4)) = plt.subplots(2, 2, figsize=(7.16, 5.0))
 
     a1.plot(tiles, power, marker=MARKERS[0], color=C[1], label='Total', linewidth=1.5, zorder=3)
-    a1.plot(tiles, [r['static_power_mw'] for r in results], marker=MARKERS[1], color=C[0],
+    a1.plot(tiles, [float('nan') if r['static_power_mw'] is None else r['static_power_mw'] for r in results], marker=MARKERS[1], color=C[0],
             linestyle='--', label='Static', linewidth=1.2, zorder=3)
-    a1.plot(tiles, [r['dynamic_power_mw'] for r in results], marker=MARKERS[2], color=C[2],
+    a1.plot(tiles, [float('nan') if r['dynamic_power_mw'] is None else r['dynamic_power_mw'] for r in results], marker=MARKERS[2], color=C[2],
             linestyle='--', label='Dynamic', linewidth=1.2, zorder=3)
     a1.set_xlabel('Number of Tiles'); a1.set_ylabel('Power (mW)')
     a1.set_title('(a) Power Breakdown', fontsize=9, loc='left')
@@ -623,10 +623,10 @@ def plot_topology_comparison(results, save_path):
 
     topos = [r['topology'] if 'topology' in r else r.get('name', '') for r in results]
     latencies = [r.get('total_latency_ms', r.get('total_latency_us', 0) / 1000) for r in results]
-    energies = [r.get('total_energy_uj', r.get('total_energy_nj', 0) / 1000) for r in results]
+    energies = [float('nan') if r.get('total_energy_uj') is None else r['total_energy_uj'] for r in results]
     hops = [r.get('avg_hops', 0) for r in results]
     diameters = [r.get('diameter', r.get('topology_diameter', 0)) for r in results]
-    bisection = [r.get('bisection_bandwidth', r.get('topology_bisection_bw', 0)) for r in results]
+    bisection = [float('nan') if r.get('bisection_bandwidth') is None else r['bisection_bandwidth'] for r in results]
     [r.get('degree', 0) for r in results]
 
     n = len(topos)
@@ -649,7 +649,7 @@ def plot_topology_comparison(results, save_path):
     ax2.set_xticks(range(n))
     ax2.set_xticklabels(topos, rotation=35, ha='right', fontsize=6)
     ax2.set_ylabel('Energy (\u03bcJ)')
-    ax2.set_title('(b) Total Energy', fontsize=9, loc='left')
+    ax2.set_title('(b) Energy: uncalibrated' if not np.isfinite(energies).any() else '(b) Total Energy', fontsize=9, loc='left')
 
     # Average hops
     ax3 = fig.add_subplot(gs[0, 2])
@@ -748,10 +748,10 @@ def plot_protocol_comparison(results, save_path):
                 r = topo_groups.get(topo, {}).get(proto, {})
                 v = r.get(metric_key, 0)
                 if metric_key == 'total_energy_uj' and v == 0:
-                    v = r.get('total_energy_nj', 0) / 1000
+                    v = float('nan') if r.get('total_energy_nj') is None else r['total_energy_nj'] / 1000
                 if metric_key == 'total_latency_ms' and v == 0:
                     v = r.get('total_latency_us', 0) / 1000
-                vals.append(v)
+                vals.append(float('nan') if v is None else v)
             offset = (j - len(all_protocols) / 2 + 0.5) * width
             ax.bar(x + offset, vals, width * 0.9, color=C[j % len(C)],
                    edgecolor='black', linewidth=0.3, label=proto if ax == a1 else '', zorder=3)
@@ -763,7 +763,7 @@ def plot_protocol_comparison(results, save_path):
 
     _style_legend(a1, fontsize=6, loc='upper right')
 
-    _add_reference_note(fig, 'best_protocol_ringallreduce')
+    # No universal protocol or circuit-energy superiority claim.
     _save(fig, save_path, 'protocol_comparison')
 
 
@@ -876,7 +876,7 @@ def plot_golden_ratio_analysis(results, save_path):
     pixels_list = [r.get('pixels_per_tile', 0) for r in configs]
     snrs = [r.get('avg_snr_db', 0) for r in configs]
     scores = [r.get('composite_score', 0) for r in configs]
-    energies = [r.get('comm_energy_nj', 0) for r in configs]
+    energies = [float('nan') if r.get('comm_energy_nj') is None else r['comm_energy_nj'] for r in configs]
 
     n = len(configs)
     colors = [C[i % len(C)] for i in range(n)]

@@ -1,0 +1,21 @@
+\begin{table*}[t]\centering\small
+\caption{Pilot-feedback architecture diagnostic: five seeds, 500 pooled updates per model, $M=16$, $P_t=30$\,dBm. Seed-level 95\% intervals; compact profiles, unequal FLOPs. Checkpoints are selected using validation. This is not supplied-CSI GAT retraining.}
+\label{tab:pilot-architecture}\begin{tabular}{lrrrr}\toprule
+Model & Parameters & Received SNR (dB) & Net rate (bit/s/Hz) & Paired net-rate gap to MLP\\\midrule
+MLP & 37632 & 13.732 $\pm$ 0.776 & 2.364 $\pm$ 0.072 & 0.000 $\pm$ 0.000 \\
+GAT (compact) & 62850 & 14.111 $\pm$ 0.609 & 2.208 $\pm$ 0.100 & -0.156 $\pm$ 0.054 \\
+CNN + SE & 29730 & 14.044 $\pm$ 0.666 & 2.431 $\pm$ 0.139 & 0.067 $\pm$ 0.075 \\
+Transformer & 294530 & 13.772 $\pm$ 0.469 & 2.294 $\pm$ 0.148 & -0.070 $\pm$ 0.104 \\
+\bottomrule\end{tabular}\end{table*}
+\begin{table*}[t]\centering\small
+\caption{Analytical interconnect sensitivity for 16 endpoints, a 150,528-byte FP32 model, and 20 rounds. PS is ParameterServer; RingAR is RingAllReduce. Equal link rates do not imply equal silicon area. Energy is uncalibrated.}
+\label{tab:noc}\begin{tabular}{lrrrr}\toprule
+Topology & Endpoint diameter & PS, 128 Gb/s (ms) & RingAR, 128 Gb/s (ms) & RingAR, 256 Gb/s (ms)\\\midrule
+Mesh & 6 & 5.645520 & 0.716400 & 0.358200\\
+Torus & 4 & 5.645280 & 0.709200 & 0.354600\\
+FoldedTorus & 4 & 5.645280 & 0.709200 & 0.354600\\
+Tree & 7 & 5.645280 & 1.423800 & 0.711900\\
+Butterfly & 6 & 5.645520 & 0.363600 & 0.181800\\
+Hypercube & 4 & 5.645280 & 1.418400 & 0.709200\\
+Ring & 8 & 5.645760 & 0.354600 & 0.177300\\
+\bottomrule\end{tabular}\end{table*}

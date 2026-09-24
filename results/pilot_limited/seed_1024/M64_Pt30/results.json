@@ -1,0 +1,687 @@
+{
+  "meta": {
+    "schema": "passive-feedback-v1",
+    "arguments": {
+      "quick": false,
+      "skip_training": false,
+      "seeds": [
+        42,
+        123,
+        456,
+        789,
+        1024
+      ],
+      "pilot_counts": [
+        16,
+        64
+      ],
+      "tx_powers_dbm": [
+        30.0
+      ],
+      "train_samples": 600,
+      "validation_samples": 200,
+      "test_samples": 600,
+      "rounds": 100,
+      "min_rounds": 20,
+      "patience": 15,
+      "min_delta": 0.0001,
+      "hidden_dim": 128,
+      "codebook_seed": 2024,
+      "coherence_symbols": 2048,
+      "threads": 1,
+      "output": null
+    },
+    "geometry": {
+      "tile_rows": 4,
+      "tile_cols": 4,
+      "pixel_rows": 8,
+      "pixel_cols": 8,
+      "frequency": 28000000000.0,
+      "spacing_wavelengths": 0.5,
+      "center": [
+        5.0,
+        0.0,
+        1.5
+      ]
+    },
+    "scene": {
+      "bs_position": [
+        5.0,
+        10.0,
+        1.5
+      ],
+      "user_low": [
+        0.5,
+        1.0,
+        1.0
+      ],
+      "user_high": [
+        9.5,
+        9.5,
+        2.0
+      ],
+      "k_factor_db": 10.0,
+      "num_paths": 5,
+      "ris_path_loss_exponent": 2.5,
+      "direct_path_loss_exponent": 3.5,
+      "direct_link_blockage_db": 30.0,
+      "element_gain_enabled": true
+    },
+    "aperture_m": [
+      0.17142857142857143,
+      0.17142857142857143
+    ],
+    "source_sha256": {
+      "run_link_level.py": "5d6d8d96134ab97686ae1ff5d2f6a8618b3973f68162568ba26bd4dcb21b7f64",
+      "run_pilot_limited.py": "565ce106c940ce7c7cda6f4d47e6d9513d6cd0bded189f83723e7eb8bda17288",
+      "config.py": "6847624811c9200ee2583db415b73dfe7ac5a945a7bfb74d90fd82cfe038ee4a",
+      "src/__init__.py": "fef3d4e3932696e4e15e66b40f4cd77e5c497e24a5bbbebb148691eb6a2891cc",
+      "src/channel_model.py": "be6481a32be76d2d2c0f0bff85a9b69b60ca497393eda00d5669532fe47aa76e",
+      "src/client.py": "f613646bc0ac9cc51aa881dc7f248bcf465509bdb72b051ad4c3b0a2f48ac4b2",
+      "src/controlled_training.py": "6a5cdef69c9abd90527fa584564db58203caaeebcfe85456735372afb203ed58",
+      "src/dataset_utils.py": "65471706365d4bf38325d95b1170e4d5a4c6859b1a79b219a6b5a4288089d01e",
+      "src/link_metrics.py": "b2247192f63ce0136444402400f1fb17c87c363737c04bdd22c8a33b357bef0f",
+      "src/noc_simulator.py": "31c793c89ad2c29479ae3a84df7ff0a75c3becff4b1c9bb1285939a115428abf",
+      "src/objectives.py": "89742c03982a3294f370a2ccd1bac96d43b37d4241e87104161a576792c72bfa",
+      "src/pilot_probing.py": "09fab33c5de5ced70cb0229d243486a4f41a5ba19bc8609c5769626147447e88",
+      "src/server.py": "afcb0b16197e5276c8dcb0032fb190608812b0caf4203e4692bd9463223f2dc7",
+      "src/surface_channel.py": "0dae6337c6cfb2114ed465e520fd3510d46e02225035a2c282aa9853ba4720db",
+      "src/system_eval.py": "ef48389f787d05d871fadef4b465298ab203c7dfdf226afbfcb2ae366a51d5cd",
+      "models/__init__.py": "da79847220202540dd0c5bcef7ec260e47391c9f58f23c99da5fc3c18b56bce9",
+      "models/ris_net.py": "f9dafcbd9bae4b5747156d4593da36c20bdeb5378b853d8e8120b5724eb87672",
+      "baselines/__init__.py": "1bae15f90b3a8e388af7c89729250da3bb01b1af4729d9a841a3b69de081de1d",
+      "baselines/admm_optimizer.py": "dc6c1eb4ac7d97a7fe42a3df8f0800b21395253650efe113212c74a5a64bc6b8",
+      "baselines/alternating_optimization.py": "26cbd4f2519dc1502e336d32d2e80c30eae90e312f05cd9813a19bd69da621cd",
+      "baselines/centralized_learning.py": "a597d139f0f381c40fed678c4e9c9a7ce9712c4fa899769f1b533a6d357c6b69",
+      "baselines/drl_agent.py": "b1b09cdd4d518376acf235a64ff166ca1752e32b6316023953e079716ec207db",
+      "baselines/random_search.py": "1c2a0adfc81238e0d94ecc31625cf8081810c8d05885df4098873ce1ce1eb5bb",
+      "baselines/sca_optimizer.py": "fd975b9ffd8ca6b3a1febe1146f932580ce6627721bc606dc758093c98ad2a6c",
+      "baselines/sdr_optimizer.py": "9564151f5593844d10e88a322b8ab5a294da46c240ebb1faaf82494884f5856b",
+      "experiments/__init__.py": "5b0b8075fb31c4dc27d17a00c79f04209f07d1e88c2e1a0f07248e01fc6bfa60",
+      "experiments/__main__.py": "b68da449090b7d8d145f63b38a01b7fdf4b9c4f9ca9ba9f90ef87a8265959963",
+      "experiments/base.py": "893eb1576f56cc462a076c1b5b39af772542ed9ee14ba797e3934170247773d3",
+      "experiments/baselines_multiuser.py": "181a358ade1733b708fb190198a67fc1dfe5d7c2d6fec2af8407ebc45ab04c2e",
+      "experiments/cli.py": "323e8d1ab8246dffb5c921cc41b13ccf8170474a5f7ec5ba3b4b473dc9987e70",
+      "experiments/federated.py": "2af243e9d127a5ad1475483ed528dec133178359222452db87a0669c89ac131b",
+      "experiments/journal.py": "d2a8eba83c3ee6bc6dc523615e6d6fcf4f07f6e8fc655591f73c95989c16db3e",
+      "experiments/link_level.py": "9f6a602f80ce0f9736245bb7184261f13d04f360216f266e73d49cef428f219e",
+      "experiments/logging_utils.py": "4eec085b7514f41241732830a341253835d8964cd9c153da02496fbcb77a5916",
+      "experiments/suite.py": "2b639935e54fe85414915f77d796b186765cce235cac987f7e48cbebe4d42444"
+    },
+    "git_commit": "9dca49781296c10acde946f446042f513bac0416",
+    "numpy": "2.5.2",
+    "torch": "2.13.0+cpu",
+    "observation_model": "passive receiver feedback",
+    "seed": 1024,
+    "num_probes": 64,
+    "tx_power_dbm": 30.0,
+    "noise_power_dbm": -90,
+    "label_acquisition": "N+1 orthogonal DFT probes at training SNR",
+    "input_dim": 131,
+    "hidden_dim": 128,
+    "num_layers": 2,
+    "model_type": "MLP",
+    "dropout": 0.0,
+    "sample_counts_train_validation_test": [
+      600,
+      200,
+      600
+    ],
+    "codebook_sha256": "331ca8b6eb60a5590362899c4bcac03cdf9e71fcafadbb59c4ddd3b9a5a42dbc",
+    "disk_source_sha256_at_case_start": {
+      "run_link_level.py": "63a0a0a2f47a15fa245fc38d42d0a3515404c39793061d6a20de0c460fe2a674",
+      "run_pilot_limited.py": "a280a5c1fdf0b2c071309950b3458c58c2e95dd035971012303dbe9159f0f5dc",
+      "config.py": "6847624811c9200ee2583db415b73dfe7ac5a945a7bfb74d90fd82cfe038ee4a",
+      "src/__init__.py": "fef3d4e3932696e4e15e66b40f4cd77e5c497e24a5bbbebb148691eb6a2891cc",
+      "src/channel_model.py": "be6481a32be76d2d2c0f0bff85a9b69b60ca497393eda00d5669532fe47aa76e",
+      "src/client.py": "f613646bc0ac9cc51aa881dc7f248bcf465509bdb72b051ad4c3b0a2f48ac4b2",
+      "src/controlled_training.py": "8547915caef62ad66a042a6e7a17dbf08b0d96f1de5372cababefa84fe9b17e3",
+      "src/dataset_utils.py": "65471706365d4bf38325d95b1170e4d5a4c6859b1a79b219a6b5a4288089d01e",
+      "src/link_metrics.py": "b2247192f63ce0136444402400f1fb17c87c363737c04bdd22c8a33b357bef0f",
+      "src/noc_simulator.py": "31c793c89ad2c29479ae3a84df7ff0a75c3becff4b1c9bb1285939a115428abf",
+      "src/objectives.py": "89742c03982a3294f370a2ccd1bac96d43b37d4241e87104161a576792c72bfa",
+      "src/pilot_probing.py": "09fab33c5de5ced70cb0229d243486a4f41a5ba19bc8609c5769626147447e88",
+      "src/server.py": "afcb0b16197e5276c8dcb0032fb190608812b0caf4203e4692bd9463223f2dc7",
+      "src/surface_channel.py": "74136f1a10b769407a9491d706975acb52cdecb7e3fdf990245ecc363e1ab8cb",
+      "src/system_eval.py": "ef48389f787d05d871fadef4b465298ab203c7dfdf226afbfcb2ae366a51d5cd",
+      "models/__init__.py": "da79847220202540dd0c5bcef7ec260e47391c9f58f23c99da5fc3c18b56bce9",
+      "models/ris_net.py": "f9dafcbd9bae4b5747156d4593da36c20bdeb5378b853d8e8120b5724eb87672",
+      "baselines/__init__.py": "1bae15f90b3a8e388af7c89729250da3bb01b1af4729d9a841a3b69de081de1d",
+      "baselines/admm_optimizer.py": "dc6c1eb4ac7d97a7fe42a3df8f0800b21395253650efe113212c74a5a64bc6b8",
+      "baselines/alternating_optimization.py": "26cbd4f2519dc1502e336d32d2e80c30eae90e312f05cd9813a19bd69da621cd",
+      "baselines/centralized_learning.py": "a597d139f0f381c40fed678c4e9c9a7ce9712c4fa899769f1b533a6d357c6b69",
+      "baselines/drl_agent.py": "b1b09cdd4d518376acf235a64ff166ca1752e32b6316023953e079716ec207db",
+      "baselines/random_search.py": "1c2a0adfc81238e0d94ecc31625cf8081810c8d05885df4098873ce1ce1eb5bb",
+      "baselines/sca_optimizer.py": "fd975b9ffd8ca6b3a1febe1146f932580ce6627721bc606dc758093c98ad2a6c",
+      "baselines/sdr_optimizer.py": "9564151f5593844d10e88a322b8ab5a294da46c240ebb1faaf82494884f5856b",
+      "experiments/__init__.py": "5b0b8075fb31c4dc27d17a00c79f04209f07d1e88c2e1a0f07248e01fc6bfa60",
+      "experiments/__main__.py": "b68da449090b7d8d145f63b38a01b7fdf4b9c4f9ca9ba9f90ef87a8265959963",
+      "experiments/base.py": "893eb1576f56cc462a076c1b5b39af772542ed9ee14ba797e3934170247773d3",
+      "experiments/baselines_multiuser.py": "181a358ade1733b708fb190198a67fc1dfe5d7c2d6fec2af8407ebc45ab04c2e",
+      "experiments/cli.py": "323e8d1ab8246dffb5c921cc41b13ccf8170474a5f7ec5ba3b4b473dc9987e70",
+      "experiments/federated.py": "2af243e9d127a5ad1475483ed528dec133178359222452db87a0669c89ac131b",
+      "experiments/journal.py": "d2a8eba83c3ee6bc6dc523615e6d6fcf4f07f6e8fc655591f73c95989c16db3e",
+      "experiments/link_level.py": "23f7d78cba4d33c0394e79c702a75074b26dae4ed373492b4e21f31aa4f6182b",
+      "experiments/logging_utils.py": "4eec085b7514f41241732830a341253835d8964cd9c153da02496fbcb77a5916",
+      "experiments/suite.py": "2b639935e54fe85414915f77d796b186765cce235cac987f7e48cbebe4d42444"
+    },
+    "source_manifest_scope": "First case in this uninterrupted Python study process; later disk edits do not replace imported modules.",
+    "source_manifest_anchor": "results/pilot_limited/seed_42/M16_Pt30/results.json"
+  },
+  "training": {
+    "fl_rounds": 44,
+    "max_rounds": 100,
+    "local_epochs": 1,
+    "steps_per_round_per_client": 10,
+    "fl_steps_per_client": 440,
+    "fl_total_optimizer_steps": 7040,
+    "centralized_optimizer_steps": 7040,
+    "centralized_client_budget_steps": 440,
+    "local_only_steps_per_client": 440,
+    "batch_size": 64,
+    "learning_rate": 0.001,
+    "optimizer": "Adam",
+    "schedule": "constant",
+    "fl_optimizer_state": "reset each round",
+    "central_and_local_optimizer_state": "persistent",
+    "objective": "local genie-normalized rate; not whole-aperture gradient",
+    "best_round": 29,
+    "stopping_reason": "validation_plateau",
+    "convergence_claim": false,
+    "validation_patience": 15,
+    "validation_min_delta": 0.0001,
+    "fl_round_losses": [
+      0.542156207561493,
+      0.5349670648574829,
+      0.5331249440088868,
+      0.531384925544262,
+      0.5265923943370581,
+      0.5196319742128253,
+      0.5180755304172635,
+      0.5167815208435058,
+      0.5151126503944398,
+      0.5103125613182783,
+      0.5083274021744728,
+      0.5072971096262335,
+      0.5021274400874973,
+      0.5020375929772853,
+      0.4985755367204547,
+      0.4931226514279842,
+      0.49356379453092813,
+      0.4877490047365427,
+      0.4899664420634508,
+      0.48394279442727567,
+      0.4819666549563408,
+      0.4801557132974267,
+      0.4773203412070871,
+      0.4771953536197543,
+      0.4758983509615064,
+      0.47222671173512937,
+      0.4718181589618325,
+      0.4695608055219054,
+      0.4668465612456203,
+      0.4691705776378512,
+      0.46535588409751655,
+      0.4632606578990817,
+      0.4578236907720566,
+      0.4580569077283144,
+      0.4568142997100949,
+      0.4558575306087732,
+      0.45410264600068334,
+      0.45194931980222464,
+      0.45146200302988293,
+      0.450315915606916,
+      0.44643620830029246,
+      0.445653442107141,
+      0.44463700223714114,
+      0.44007653221488
+    ],
+    "validation_losses": [
+      0.5417311042547226,
+      0.5407447218894958,
+      0.5397268645465374,
+      0.5381254889070988,
+      0.5381822437047958,
+      0.537914115935564,
+      0.5374875664710999,
+      0.5372332744300365,
+      0.5376275107264519,
+      0.5374753102660179,
+      0.5377563759684563,
+      0.5373349003493786,
+      0.5369674451649189,
+      0.536583911627531,
+      0.5364680886268616,
+      0.536930538713932,
+      0.5371404588222504,
+      0.5369434989988804,
+      0.5365712866187096,
+      0.5370575487613678,
+      0.5363578237593174,
+      0.5364522598683834,
+      0.5359901748597622,
+      0.5369294919073582,
+      0.5371784418821335,
+      0.536675225943327,
+      0.5363979712128639,
+      0.5365533865988255,
+      0.535735797137022,
+      0.536661796271801,
+      0.5369250848889351,
+      0.5364867076277733,
+      0.5362453013658524,
+      0.5374462455511093,
+      0.5372678004205227,
+      0.5369639657437801,
+      0.5376635119318962,
+      0.5372030287981033,
+      0.5372958816587925,
+      0.5365139096975327,
+      0.5370890758931637,
+      0.5371258556842804,
+      0.5368098355829716,
+      0.5374037437140942
+    ],
+    "centralized_validation_history": [
+      {
+        "steps": 160,
+        "validation_loss": 0.5298586376011372
+      },
+      {
+        "steps": 320,
+        "validation_loss": 0.5301345475018024
+      },
+      {
+        "steps": 440,
+        "validation_loss": 0.5274883359670639
+      },
+      {
+        "steps": 600,
+        "validation_loss": 0.5285935252904892
+      },
+      {
+        "steps": 760,
+        "validation_loss": 0.5299816429615021
+      },
+      {
+        "steps": 920,
+        "validation_loss": 0.5268137790262699
+      },
+      {
+        "steps": 1080,
+        "validation_loss": 0.5260732918977737
+      },
+      {
+        "steps": 1240,
+        "validation_loss": 0.5271436870098114
+      },
+      {
+        "steps": 1400,
+        "validation_loss": 0.5266277864575386
+      },
+      {
+        "steps": 1560,
+        "validation_loss": 0.5272679887712002
+      },
+      {
+        "steps": 1720,
+        "validation_loss": 0.5246955491602421
+      },
+      {
+        "steps": 1880,
+        "validation_loss": 0.5268108025193214
+      },
+      {
+        "steps": 2040,
+        "validation_loss": 0.5285897739231586
+      },
+      {
+        "steps": 2200,
+        "validation_loss": 0.5274176672101021
+      },
+      {
+        "steps": 2360,
+        "validation_loss": 0.5276732258498669
+      },
+      {
+        "steps": 2520,
+        "validation_loss": 0.5291976071894169
+      },
+      {
+        "steps": 2680,
+        "validation_loss": 0.5264700129628181
+      },
+      {
+        "steps": 2840,
+        "validation_loss": 0.5283697657287121
+      },
+      {
+        "steps": 3000,
+        "validation_loss": 0.5281264595687389
+      },
+      {
+        "steps": 3160,
+        "validation_loss": 0.5243700630962849
+      },
+      {
+        "steps": 3320,
+        "validation_loss": 0.5244796201586723
+      },
+      {
+        "steps": 3480,
+        "validation_loss": 0.5268703699111938
+      },
+      {
+        "steps": 3640,
+        "validation_loss": 0.5271067433059216
+      },
+      {
+        "steps": 3800,
+        "validation_loss": 0.5258531235158443
+      },
+      {
+        "steps": 3960,
+        "validation_loss": 0.5255729369819164
+      },
+      {
+        "steps": 4120,
+        "validation_loss": 0.5272049270570278
+      },
+      {
+        "steps": 4280,
+        "validation_loss": 0.5260415300726891
+      },
+      {
+        "steps": 4440,
+        "validation_loss": 0.5253031030297279
+      },
+      {
+        "steps": 4600,
+        "validation_loss": 0.5267505086958408
+      },
+      {
+        "steps": 4760,
+        "validation_loss": 0.5267670415341854
+      },
+      {
+        "steps": 4920,
+        "validation_loss": 0.527610432356596
+      },
+      {
+        "steps": 5080,
+        "validation_loss": 0.5272199809551239
+      },
+      {
+        "steps": 5240,
+        "validation_loss": 0.5283513516187668
+      },
+      {
+        "steps": 5400,
+        "validation_loss": 0.5265660174190998
+      },
+      {
+        "steps": 5560,
+        "validation_loss": 0.5263732895255089
+      },
+      {
+        "steps": 5720,
+        "validation_loss": 0.5277337469160557
+      },
+      {
+        "steps": 5880,
+        "validation_loss": 0.5268259197473526
+      },
+      {
+        "steps": 6040,
+        "validation_loss": 0.5259008556604385
+      },
+      {
+        "steps": 6200,
+        "validation_loss": 0.5270338803529739
+      },
+      {
+        "steps": 6360,
+        "validation_loss": 0.5271281450986862
+      },
+      {
+        "steps": 6520,
+        "validation_loss": 0.5256088897585869
+      },
+      {
+        "steps": 6680,
+        "validation_loss": 0.5246280133724213
+      },
+      {
+        "steps": 6840,
+        "validation_loss": 0.5247324891388416
+      },
+      {
+        "steps": 7000,
+        "validation_loss": 0.5238631851971149
+      },
+      {
+        "steps": 7040,
+        "validation_loss": 0.5245094895362854
+      }
+    ],
+    "centralized_selected_steps": {
+      "centralized_client_budget": 440,
+      "centralized_dl": 7000
+    },
+    "local_selected_steps": [
+      90,
+      430,
+      340,
+      140,
+      440,
+      420,
+      250,
+      290,
+      260,
+      430,
+      310,
+      290,
+      240,
+      150,
+      220,
+      150
+    ],
+    "local_validation_losses": [
+      0.51933753490448,
+      0.5274637341499329,
+      0.5289830565452576,
+      0.5251977443695068,
+      0.5308936834335327,
+      0.5343309640884399,
+      0.5289066433906555,
+      0.5246056914329529,
+      0.5286480784416199,
+      0.5328492522239685,
+      0.5262086391448975,
+      0.5356340408325195,
+      0.528876543045044,
+      0.5335801243782043,
+      0.5274178981781006,
+      0.5354748368263245
+    ],
+    "model_type": "MLP",
+    "model_parameters": 49920,
+    "train_samples_per_tile": 600,
+    "num_tiles": 16,
+    "communication_dtype": "float32",
+    "payload_bytes_per_model": 199680,
+    "fl_total_communication_bytes": 281149440,
+    "raw_csi_upload_bytes": 4992000,
+    "traffic_ratio_fl_to_raw_csi": 56.32,
+    "crossover_samples_per_tile_analytic_only": 33792.0,
+    "local_mrc_training_bytes": 0,
+    "local_only_training_bytes": 0,
+    "fixed_round_training_bytes": {
+      "1": 6389760,
+      "5": 31948800
+    },
+    "fl_wall_clock_s": 21.48214136300021,
+    "centralized_wall_clock_s": 16.087471988999823,
+    "local_only_wall_clock_s": 17.655638154999906
+  },
+  "accounting": {
+    "coherence_symbols": 2048,
+    "training_and_validation_probe_symbols": 871200,
+    "training_probe_symbols": 653400,
+    "training_label_pilots_per_scene": 1025,
+    "pilot_feedback_bytes_per_block_to_controller": 512,
+    "pilot_feedback_endpoint_bytes_per_block_to_tiles": 8192,
+    "phase_command_bytes_if_centralized_float32": 4096,
+    "centralized_training_label_bytes": 4920000,
+    "centralized_training_feedback_bytes": 307200,
+    "privacy_claim": false,
+    "local_linear_training_communication_bytes": 0,
+    "scope": "payload bytes; no topology, energy or cycle-accurate claim"
+  },
+  "scores": {
+    "no_ris": {
+      "mean_received_snr_db": 13.521041855188713,
+      "spectral_efficiency": 2.12429422463339,
+      "net_spectral_efficiency": 2.12429422463339,
+      "ber_qpsk": 0.11971017610014267,
+      "outage_2bps_hz": 0.6166666666666667,
+      "fraction_of_oracle_power": 0.04849512310201919,
+      "pilots_per_block": 0,
+      "snr_gap_to_local_linear_mrc_db": -2.0226188007984707,
+      "net_rate_gap_to_local_linear_mrc": -1.587283763019963,
+      "deployable": true
+    },
+    "random_max": {
+      "mean_received_snr_db": 13.983366418770249,
+      "spectral_efficiency": 2.8681483067144335,
+      "net_spectral_efficiency": 2.7785186721296076,
+      "ber_qpsk": 0.04440705796570487,
+      "outage_2bps_hz": 0.32666666666666666,
+      "fraction_of_oracle_power": 0.05373103941922457,
+      "pilots_per_block": 64,
+      "snr_gap_to_local_linear_mrc_db": -1.5602942372169348,
+      "net_rate_gap_to_local_linear_mrc": -0.9330593155237454,
+      "deployable": true
+    },
+    "lmmse_mrc": {
+      "mean_received_snr_db": 16.242229054360678,
+      "spectral_efficiency": 4.200291928730122,
+      "net_spectral_efficiency": 4.069032805957306,
+      "ber_qpsk": 0.0055644451088977575,
+      "outage_2bps_hz": 0.03,
+      "fraction_of_oracle_power": 0.08194641158003887,
+      "pilots_per_block": 64,
+      "snr_gap_to_local_linear_mrc_db": 0.698568398373494,
+      "net_rate_gap_to_local_linear_mrc": 0.3574548183039532,
+      "deployable": true
+    },
+    "local_linear_mrc": {
+      "mean_received_snr_db": 15.543660655987184,
+      "spectral_efficiency": 3.8313063098357194,
+      "net_spectral_efficiency": 3.711577987653353,
+      "ber_qpsk": 0.012607602019029288,
+      "outage_2bps_hz": 0.09,
+      "fraction_of_oracle_power": 0.07352949911247769,
+      "pilots_per_block": 64,
+      "snr_gap_to_local_linear_mrc_db": 0.0,
+      "net_rate_gap_to_local_linear_mrc": 0.0,
+      "deployable": true
+    },
+    "full_probe_ls_mrc": {
+      "mean_received_snr_db": 24.650755084380055,
+      "spectral_efficiency": 6.564252235017344,
+      "net_spectral_efficiency": 3.2789209162220425,
+      "ber_qpsk": 1.7689558822837206e-05,
+      "outage_2bps_hz": 0.0,
+      "fraction_of_oracle_power": 0.3145989536507069,
+      "pilots_per_block": 1025,
+      "snr_gap_to_local_linear_mrc_db": 9.107094428392871,
+      "net_rate_gap_to_local_linear_mrc": -0.4326570714313105,
+      "deployable": true
+    },
+    "oracle_mrc": {
+      "mean_received_snr_db": 27.380573896149013,
+      "spectral_efficiency": 8.389245781903528,
+      "net_spectral_efficiency": 8.389245781903528,
+      "ber_qpsk": 1.0452995214472073e-20,
+      "outage_2bps_hz": 0.0,
+      "fraction_of_oracle_power": 1.000000000693663,
+      "pilots_per_block": 0,
+      "snr_gap_to_local_linear_mrc_db": 11.836913240161829,
+      "net_rate_gap_to_local_linear_mrc": 4.6776677942501745,
+      "deployable": false
+    },
+    "fed_1round": {
+      "mean_received_snr_db": 13.672246292558935,
+      "spectral_efficiency": 2.3119401161346094,
+      "net_spectral_efficiency": 2.239691987505403,
+      "ber_qpsk": 0.1015353229104953,
+      "outage_2bps_hz": 0.5666666666666667,
+      "fraction_of_oracle_power": 0.050185218550804093,
+      "pilots_per_block": 64,
+      "snr_gap_to_local_linear_mrc_db": -1.871414363428249,
+      "net_rate_gap_to_local_linear_mrc": -1.4718860001479501,
+      "deployable": true
+    },
+    "fed_5round": {
+      "mean_received_snr_db": 13.730280590619135,
+      "spectral_efficiency": 2.3775715389896352,
+      "net_spectral_efficiency": 2.303272428396209,
+      "ber_qpsk": 0.0949959251308422,
+      "outage_2bps_hz": 0.545,
+      "fraction_of_oracle_power": 0.050757180685750934,
+      "pilots_per_block": 64,
+      "snr_gap_to_local_linear_mrc_db": -1.8133800653680492,
+      "net_rate_gap_to_local_linear_mrc": -1.408305559257144,
+      "deployable": true
+    },
+    "fed_ris": {
+      "mean_received_snr_db": 13.829339667349394,
+      "spectral_efficiency": 2.4325305433921827,
+      "net_spectral_efficiency": 2.356513963911177,
+      "ber_qpsk": 0.09206998866699254,
+      "outage_2bps_hz": 0.5266666666666666,
+      "fraction_of_oracle_power": 0.05216282481459061,
+      "pilots_per_block": 64,
+      "snr_gap_to_local_linear_mrc_db": -1.7143209886377893,
+      "net_rate_gap_to_local_linear_mrc": -1.3550640237421758,
+      "deployable": true
+    },
+    "centralized_client_budget": {
+      "mean_received_snr_db": 13.984420239792943,
+      "spectral_efficiency": 2.500203148396729,
+      "net_spectral_efficiency": 2.422071800009331,
+      "ber_qpsk": 0.0894627770854444,
+      "outage_2bps_hz": 0.5066666666666667,
+      "fraction_of_oracle_power": 0.053244220522201964,
+      "pilots_per_block": 64,
+      "snr_gap_to_local_linear_mrc_db": -1.5592404161942408,
+      "net_rate_gap_to_local_linear_mrc": -1.289506187644022,
+      "deployable": true
+    },
+    "centralized_dl": {
+      "mean_received_snr_db": 14.183791827215305,
+      "spectral_efficiency": 2.604904662024438,
+      "net_spectral_efficiency": 2.523501391336174,
+      "ber_qpsk": 0.08713092976027864,
+      "outage_2bps_hz": 0.4666666666666667,
+      "fraction_of_oracle_power": 0.05741866921596569,
+      "pilots_per_block": 64,
+      "snr_gap_to_local_linear_mrc_db": -1.3598688287718783,
+      "net_rate_gap_to_local_linear_mrc": -1.1880765963171789,
+      "deployable": true
+    },
+    "local_only": {
+      "mean_received_snr_db": 13.896624355157316,
+      "spectral_efficiency": 2.718106776821316,
+      "net_spectral_efficiency": 2.6331659400456497,
+      "ber_qpsk": 0.06135971573708109,
+      "outage_2bps_hz": 0.38666666666666666,
+      "fraction_of_oracle_power": 0.053697472832826325,
+      "pilots_per_block": 64,
+      "snr_gap_to_local_linear_mrc_db": -1.6470363008298676,
+      "net_rate_gap_to_local_linear_mrc": -1.0784120476077033,
+      "deployable": true
+    }
+  }
+}

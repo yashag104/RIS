@@ -1,8 +1,8 @@
 # RIS Federated Learning — Master Improvement Plan
 
 > **Purpose**: This file tracks all improvement phases. Read this to know where to resume.
-> **Last Updated**: 2026-09-05
-> **Current Phase**: Phase 9 — Physics & Learning Correctness (in progress)
+> **Last Updated**: 2026-09-24
+> **Current Phase**: Tier 2 corrections implemented; original supplied-CSI GAT convergence and useful FL advantage remain open
 
 ---
 
@@ -487,3 +487,19 @@ using FL, enabling SNR improvements in mmWave communication. The project include
 |------|-------|-----------------|-------|
 | 2026-08-25 | — | Plan created | Initial comprehensive analysis of all files |
 | 2026-09-02 | 7 | Type hints & Docs | Added typing to metrics.py, client.py, server.py, dataset_utils.py. Phase 7 Complete. |
+
+## 2026-09-23 — Tier 0 / Tier 1 scientific correction
+
+Replaced the manuscript's circular-panel evidence with a contiguous-aperture audit and a passive pilot-feedback experiment. Added local MRC, local linear and unfederated neural controls, one/five-round FedAvg, matched optimizer budgets, independent validation stopping, and five-seed intervals. Completed 5 supplied-CSI cases and 10 pilot cases; two exhausted pilot cases were extended and reached validation plateaus at 122/123 rounds. All corrected results and generated manuscript tables are under `results/tier01_report`; see `docs/TIER01_CORRECTIONS.md`.
+
+The corrected geometry follows the reflected-only N² reference. The pilot-limited federated MLP still loses to the local and classical controls. No FL advantage, privacy benefit, or passive-system traffic crossover is claimed. Old manuscript sources/PDFs are preserved under `docs/archive`. Tier 2 NoC/circuit/venue work remains outside this change. Validation: 51 regression checks, final focused 11-test rerun, and Ruff passed.
+
+## Tier 2 corrections completed, 2026-09-24
+
+Implemented review items 10–16 in the active manuscript and experiment paths. Five classical supplied-CSI seeds were regenerated with −10 to 30 dBm axes; no neural rows were added. Original supplied-CSI GAT training/convergence remains unperformed. The retained pilot MLP validation plateaus and new compact pilot GAT diagnostic do not close Tier 1 #8.
+
+The new common-harness architecture diagnostic completed MLP/GAT/CNN/Transformer across five seeds, with 600/200/600 scenes and 500 pooled Adam steps per model. Per-seed JSON, validation histories, seed CIs, paired comparisons, execution-source snapshot and export manifests replace the log-only mixed-scale ablation. CNN/Transformer paired net-rate intervals versus MLP include zero; compact GAT has −0.156 ± 0.054 bit/s/Hz at this fixed budget. No universal architecture ranking or convergence claim is made.
+
+The analytical NoC study contains 672 cases at 128/256 Gb/s, actual endpoint serialization, exact remainder-payload accounting, staged Butterfly + RingAllReduce, a correctly named hypercube, and actual pilot model/round budgets. Unsupported energy/power/area/technology values are absent; cycle-accurate/Noxim claims are withdrawn. Baselines are labelled projected gradient and SISO surrogate controls; the manuscript uses a generic IEEE journal working layout with wireless-systems scope.
+
+Validation: 74 passed and 1 optional solver test skipped in the regression suite; the final focused interconnect/Tier 2 suite passed 12 tests. The shared pilot preparation reproduced all original seed-42 classical scores within 1e-10 relative tolerance. All five new supplied-CSI operating-point gains match the prior corrected audit. Targeted Ruff and whitespace checks pass. Source/input hash manifests were verified. No LaTeX compiler is installed, so no compiled manuscript/page-limit claim is made. See `docs/TIER2_CORRECTIONS.md` and `results/tier2_report/REPORT.md`.

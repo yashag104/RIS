@@ -1,754 +1,337 @@
+"""Analytical traffic/serialization model for tile-controller interconnects.
+
+This is not a discrete-event or cycle-accurate simulator. Each phase costs the
+maximum directed-link or endpoint serialization time plus longest-path pipeline
+delay. It omits buffers, arbitration, credit stalls, packet headers, reduction
+computation, and clock/physical-design closure. Energy is unknown unless a caller
+supplies an explicitly sourced calibration. A physical RIS panel is not a die.
 """
-Network-on-Chip (NoC) Simulator for Federated Learning on RIS Tiles
-
-Implements discrete-event simulation of FL communication patterns
-across different NoC topologies and aggregation protocols.
-
-Topologies: Mesh, Torus, FoldedTorus, Tree, Butterfly, Ring
-Protocols: Parameter-Server, All-Reduce, Ring-AllReduce, Gossip
-
-References:
-- Dally & Towles, "Principles and Practices of Interconnection Networks," 2004
-- Ring-AllReduce: Patarasuk & Yuan, "Bandwidth Optimal All-reduce Algorithms," 2009
-"""
-
-from collections import defaultdict
+import importlib.util
+import math
+from collections import defaultdict, deque
 
 import numpy as np
-
-# Routing uses the built-in BFS below; networkx is only probed so callers can
-# tell whether richer graph analysis is available.
-import importlib.util
 
 HAS_NETWORKX = importlib.util.find_spec("networkx") is not None
 
 
-def _ring_link_lengths(rows: int, cols: int, folded: bool) -> tuple[float, float]:
-    """Physical link lengths, in tile pitches, for a 2D (folded) torus.
-
-    An unfolded torus closes each row and column with one wrap-around wire that
-    spans the whole array; every other link spans one tile pitch. Folding
-    interleaves the nodes so that EVERY link spans two pitches instead.
-
-    That trade is the entire point of folding: the mean wire gets slightly
-    longer, but the longest wire -- which sets the critical path and hence the
-    achievable clock -- drops from (n-1) pitches to 2. Modelling only hop counts
-    made a folded torus and a plain torus produce byte-identical results.
-
-    Returns:
-        ``(mean_length, max_length)`` in tile pitches.
-    """
-    if folded:
-        return 2.0, 2.0
-
-    lengths = []
-    for n in (rows, cols):
-        if n <= 1:
+def _graph(name, n, edges, directed=False, **extra):
+    adj = {i: set() for i in range(n)}
+    for u, v in edges:
+        if u == v:
             continue
-        # n-1 short links of length 1 plus one wrap link of length n-1.
-        lengths.extend([1.0] * (n - 1))
-        lengths.append(float(n - 1))
-    if not lengths:
-        return 1.0, 1.0
-    return float(np.mean(lengths)), float(np.max(lengths))
+        adj.setdefault(u, set()).add(v)
+        adj.setdefault(v, set())
+        if not directed:
+            adj[v].add(u)
+    return dict(name=name, num_nodes=n, adjacency={k: sorted(v) for k, v in adj.items()},
+                directed=directed, **extra)
 
 
 class NoCTopology:
-    """
-    Builds adjacency graph for various NoC topologies.
-
-    Each node represents a tile (processing element).
-    Edges represent bidirectional communication links.
-    """
-    
-    @staticmethod
-    def build_mesh(rows: int, cols: int) -> dict:
-        """
-        2D Mesh topology. Each node connects to up to 4 neighbors.
-        Routing: XY deterministic routing.
-        """
-        num_nodes = rows * cols
-        adj = defaultdict(list)
-        
-        for r in range(rows):
-            for c in range(cols):
-                node = r * cols + c
-                # Right
-                if c + 1 < cols:
-                    adj[node].append(r * cols + c + 1)
-                    adj[r * cols + c + 1].append(node)
-                # Down
-                if r + 1 < rows:
-                    adj[node].append((r + 1) * cols + c)
-                    adj[(r + 1) * cols + c].append(node)
-        
-        # Remove duplicates
-        adj = {k: list(set(v)) for k, v in adj.items()}
-        
-        return {
-            'name': 'Mesh',
-            'num_nodes': num_nodes,
-            'adjacency': dict(adj),
-            'rows': rows,
-            'cols': cols,
-            'bisection_bandwidth': cols,  # Minimum cut
-            'diameter': rows + cols - 2,
-            'avg_hops': (rows + cols) / 3,  # Approximation
-        }
-    
-    @staticmethod
-    def build_torus(rows: int, cols: int) -> dict:
-        """
-        2D Torus: Mesh with wrap-around edges.
-        Reduces diameter and average hops.
-        """
-        num_nodes = rows * cols
-        adj = defaultdict(list)
-        
-        for r in range(rows):
-            for c in range(cols):
-                node = r * cols + c
-                # Right (with wrap)
-                right = r * cols + (c + 1) % cols
-                adj[node].append(right)
-                adj[right].append(node)
-                # Down (with wrap)
-                down = ((r + 1) % rows) * cols + c
-                adj[node].append(down)
-                adj[down].append(node)
-        
-        adj = {k: list(set(v)) for k, v in adj.items()}
-        
-        return {
-            'name': 'Torus',
-            'num_nodes': num_nodes,
-            'adjacency': dict(adj),
-            'rows': rows,
-            'cols': cols,
-            'bisection_bandwidth': 2 * cols,
-            'diameter': (rows // 2) + (cols // 2),
-            'avg_hops': (rows + cols) / 4,
-            # A plain torus closes each ring with a wrap-around wire that spans
-            # the whole array. That long wire, not the hop count, is what a
-            # folded torus exists to remove -- so the cost has to live here.
-            # Mean link length in tile pitches, averaged over short internal
-            # links (1) and the (rows-1)-long wrap links, one per ring.
-            'mean_link_length': _ring_link_lengths(rows, cols, folded=False)[0],
-            'max_link_length': _ring_link_lengths(rows, cols, folded=False)[1],
-        }
+    """Logical graphs; auxiliary butterfly stage vertices are not tile clients."""
 
     @staticmethod
-    def build_folded_torus(rows: int, cols: int) -> dict:
-        """
-        Folded Torus: Torus with halved wrap-around distances.
-        Each wrap-around link is the same length as internal links.
-        """
-        # Same connectivity (and therefore same hop counts) as a torus. The
-        # difference is physical: folding makes every wire the same length,
-        # which cuts wire delay and wire energy but not the number of hops.
-        # Reporting only hop-derived metrics made the two topologies produce
-        # byte-identical rows in the comparison table.
-        torus = NoCTopology.build_torus(rows, cols)
-        torus['name'] = 'FoldedTorus'
-        mean_len, max_len = _ring_link_lengths(rows, cols, folded=True)
-        torus['mean_link_length'] = mean_len
-        torus['max_link_length'] = max_len
-        return torus
-    
+    def build_mesh(rows, cols):
+        edges = []
+        for r in range(rows):
+            for c in range(cols):
+                u = r*cols+c
+                if c+1 < cols:
+                    edges.append((u, u+1))
+                if r+1 < rows:
+                    edges.append((u, u+cols))
+        return _graph("Mesh", rows*cols, edges, rows=rows, cols=cols)
+
     @staticmethod
-    def build_tree(num_nodes: int, branching_factor: int = 2) -> dict:
-        """
-        Fat Tree topology. Root is node 0.
-        Good for aggregation-heavy traffic (FL).
-        """
-        adj = defaultdict(list)
-        depth = max(1, int(np.ceil(np.log(max(num_nodes, 2)) / np.log(max(branching_factor, 2)))))
-        
-        for node in range(num_nodes):
-            if node == 0:
-                continue
-            parent = (node - 1) // branching_factor
-            if parent < num_nodes:
-                adj[node].append(parent)
-                adj[parent].append(node)
-        
-        adj = {k: list(set(v)) for k, v in adj.items()}
-        # Ensure all nodes exist
-        for n in range(num_nodes):
-            if n not in adj:
-                adj[n] = []
-        
-        return {
-            'name': 'Tree',
-            'num_nodes': num_nodes,
-            'adjacency': dict(adj),
-            'branching_factor': branching_factor,
-            'depth': depth,
-            'bisection_bandwidth': branching_factor,
-            'diameter': 2 * depth,
-            'avg_hops': depth,
-        }
-    
+    def build_torus(rows, cols):
+        edges = [(r*cols+c, r*cols+(c+1) % cols) for r in range(rows) for c in range(cols)]
+        edges += [(r*cols+c, ((r+1) % rows)*cols+c) for r in range(rows) for c in range(cols)]
+        return _graph("Torus", rows*cols, edges, rows=rows, cols=cols)
+
     @staticmethod
-    def build_butterfly(num_nodes: int) -> dict:
-        """
-        Butterfly network. Used in FFT-like communication patterns.
-        Stages of log(N) with N switches each.
-        For simplicity, we model a flattened butterfly (one stage of full crossbar).
-        """
-        adj = defaultdict(list)
-        
-        # Flattened butterfly: each node connects to log2(N) other nodes
-        # at distances that are powers of 2
-        log_n = max(1, int(np.ceil(np.log2(max(num_nodes, 2)))))
-        
-        for node in range(num_nodes):
-            for stage in range(log_n):
-                partner = node ^ (1 << stage)  # XOR with 2^stage
-                if partner < num_nodes and partner != node:
-                    adj[node].append(partner)
-                    adj[partner].append(node)
-        
-        adj = {k: list(set(v)) for k, v in adj.items()}
-        for n in range(num_nodes):
-            if n not in adj:
-                adj[n] = []
-        
-        return {
-            'name': 'Butterfly',
-            'num_nodes': num_nodes,
-            'adjacency': dict(adj),
-            'stages': log_n,
-            'bisection_bandwidth': num_nodes // 2,
-            'diameter': log_n,
-            'avg_hops': log_n / 2,
-        }
-    
+    def build_folded_torus(rows, cols):
+        g = NoCTopology.build_torus(rows, cols)
+        g.update(name="FoldedTorus", physical_layout="not modeled; same logical graph as torus")
+        return g
+
     @staticmethod
-    def build_ring(num_nodes: int) -> dict:
+    def build_tree(num_nodes, branching_factor=2):
+        if branching_factor < 2:
+            raise ValueError("Tree branching factor must be at least two")
+        return _graph("Tree", num_nodes, [((n-1)//branching_factor, n) for n in range(1, num_nodes)],
+                      description="binary heap tree, not fat tree", branching_factor=branching_factor)
+
+    @staticmethod
+    def build_hypercube(num_nodes):
+        if num_nodes < 1 or num_nodes & (num_nodes-1):
+            raise ValueError("Hypercube requires a power-of-two endpoint count")
+        return _graph("Hypercube", num_nodes,
+                      [(n, n ^ (1 << s)) for n in range(num_nodes)
+                       for s in range(num_nodes.bit_length()-1)])
+
+    @staticmethod
+    def build_butterfly(num_nodes):
+        """Directed radix-2 butterfly graph with explicit input/output stages.
+
+        Level s has N vertices; each vertex connects to row i and i xor 2**s
+        in level s+1. A tile injects at its input row and receives at its output
+        row. Stage vertices are extra resources (N*(log2(N)+1)), so this is
+        not an equal-area comparison to direct topologies. This graph replaces
+        the old mislabeled XOR hypercube, which remains available by name.
         """
-        Ring topology. Optimal for Ring-AllReduce protocol.
-        """
-        adj = defaultdict(list)
-        
-        for node in range(num_nodes):
-            left = (node - 1) % num_nodes
-            right = (node + 1) % num_nodes
-            adj[node].extend([left, right])
-        
-        adj = {k: list(set(v)) for k, v in adj.items()}
-        
-        return {
-            'name': 'Ring',
-            'num_nodes': num_nodes,
-            'adjacency': dict(adj),
-            'bisection_bandwidth': 2,
-            'diameter': num_nodes // 2,
-            'avg_hops': num_nodes / 4,
-        }
+        if num_nodes < 1 or num_nodes & (num_nodes-1):
+            raise ValueError("Butterfly requires a power-of-two endpoint count")
+        depth = num_nodes.bit_length()-1
+        def node(stage, row):
+            return num_nodes + stage*num_nodes + row
+        edges = [(i, node(0, i)) for i in range(num_nodes)]
+        edges += [(node(depth, i), i) for i in range(num_nodes)]
+        for stage in range(depth):
+            for i in range(num_nodes):
+                edges += [(node(stage, i), node(stage+1, i)),
+                          (node(stage, i), node(stage+1, i ^ (1 << stage)))]
+        return _graph("Butterfly", num_nodes, edges, directed=True,
+                      stages=depth, auxiliary_vertices=num_nodes*(depth+1),
+                      description="directed radix-2 butterfly; distinct stage resources")
+
+    @staticmethod
+    def build_ring(num_nodes):
+        return _graph("Ring", num_nodes, [(i, (i+1) % num_nodes) for i in range(num_nodes)])
 
 
 class NoCSimulator:
+    """Compatibility name for an analytical, full-duplex traffic model.
+
+    Default scenario: 128 bits/cycle at 1 GHz, one injection and one ejection
+    port per endpoint at the link rate, one link plus two router pipeline
+    cycles per hop. These are assumptions, not synthesized technology results.
     """
-    Discrete-event NoC simulator for FL communication.
-    
-    Simulates the communication overhead of different FL aggregation
-    protocols over various NoC topologies for one FL round.
-    """
-    
-    # Energy model constants
-    ENERGY_PER_FLIT_SWITCH = 0.98e-12  # ~1 pJ per flit per switch (45nm)
-    ENERGY_PER_FLIT_LINK = 0.37e-12   # ~0.4 pJ per flit per link
-    FLIT_SIZE_BYTES = 16               # 128-bit flit
-    LINK_LATENCY_NS = 1.0             # 1 ns per hop
-    SWITCH_LATENCY_NS = 2.0           # 2 ns router pipeline
-    
-    def __init__(
-        self,
-        num_tiles: int,
-        topology: str = "Mesh",
-        bandwidth_gbps: float = 10.0,
-        tile_rows: int | None = None,
-        tile_cols: int | None = None,
-    ):
-        """
-        Args:
-            num_tiles: Number of processing tiles
-            topology: One of "Mesh", "Torus", "FoldedTorus", "Tree", "Butterfly", "Ring"
-            bandwidth_gbps: Link bandwidth in Gbps
-            tile_rows: Grid rows (auto-computed if None)
-            tile_cols: Grid cols (auto-computed if None)
-        """
-        self.num_tiles = num_tiles
-        self.topology_name = topology
-        self.bandwidth_gbps = bandwidth_gbps
-        self.bytes_per_sec = bandwidth_gbps * 1e9 / 8
-        
-        # Compute grid dimensions for 2D topologies
-        if tile_rows is None or tile_cols is None:
-            sqrt_n = int(np.ceil(np.sqrt(num_tiles)))
-            tile_rows = sqrt_n
-            tile_cols = max(1, (num_tiles + sqrt_n - 1) // sqrt_n)
-        self.tile_rows = tile_rows
-        self.tile_cols = tile_cols
-        
-        # Build topology
-        self.topology = self._build_topology(topology)
-        
-        # Precompute shortest paths using BFS
-        self.shortest_paths = self._compute_shortest_paths()
-    
-    def _build_topology(self, name: str) -> dict:
-        """Build the specified topology."""
-        builders = {
-            'Mesh': lambda: NoCTopology.build_mesh(self.tile_rows, self.tile_cols),
-            'Torus': lambda: NoCTopology.build_torus(self.tile_rows, self.tile_cols),
-            'FoldedTorus': lambda: NoCTopology.build_folded_torus(self.tile_rows, self.tile_cols),
-            'Tree': lambda: NoCTopology.build_tree(self.num_tiles),
-            'Butterfly': lambda: NoCTopology.build_butterfly(self.num_tiles),
-            'Ring': lambda: NoCTopology.build_ring(self.num_tiles),
-        }
-        if name not in builders:
-            raise ValueError(f"Unknown topology: {name}. Options: {list(builders.keys())}")
-        return builders[name]()
-    
-    def _compute_shortest_paths(self) -> dict:
-        """BFS-based all-pairs shortest path computation.
+    FLIT_SIZE_BYTES = 16
 
-        Also records the BFS predecessor tree so that a single deterministic
-        shortest route can be reconstructed for every source/destination pair.
-        """
-        paths = {}
-        self._predecessors = {}
-        adj = self.topology['adjacency']
+    def __init__(self, num_tiles, topology="Mesh", bandwidth_gbps=None,
+                 tile_rows=None, tile_cols=None, *, link_width_bits=128,
+                 clock_ghz=1.0, endpoint_bandwidth_gbps=None, router_cycles=2,
+                 link_cycles=1, energy_profile=None):
+        if num_tiles < 1 or int(num_tiles) != num_tiles:
+            raise ValueError("Positive integer tile count required")
+        if link_width_bits <= 0 or link_width_bits % 8 or clock_ghz <= 0:
+            raise ValueError("Positive byte-aligned width and clock required")
+        self.num_tiles, self.topology_name = num_tiles, topology
+        self.link_width_bits, self.clock_ghz = link_width_bits, clock_ghz
+        self.FLIT_SIZE_BYTES = link_width_bits//8
+        self.bandwidth_gbps = float(bandwidth_gbps if bandwidth_gbps is not None else link_width_bits*clock_ghz)
+        self.endpoint_bandwidth_gbps = float(self.bandwidth_gbps if endpoint_bandwidth_gbps is None else endpoint_bandwidth_gbps)
+        if min(self.bandwidth_gbps, self.endpoint_bandwidth_gbps) <= 0 or min(router_cycles, link_cycles) < 0:
+            raise ValueError("Positive bandwidth and nonnegative pipeline cycles required")
+        self.bytes_per_sec = self.bandwidth_gbps*1e9/8
+        self.router_cycles, self.link_cycles = router_cycles, link_cycles
+        self.energy_profile = energy_profile
+        if energy_profile is not None:
+            if not energy_profile.get("source") or not energy_profile.get("technology_node"):
+                raise ValueError("Energy calibration requires source and technology_node")
+            if energy_profile.get("pj_per_flit_hop", -1) < 0:
+                raise ValueError("Energy calibration requires nonnegative pj_per_flit_hop")
+        if tile_rows is None and tile_cols is None:
+            tile_rows = math.isqrt(num_tiles)
+            while num_tiles % tile_rows:
+                tile_rows -= 1
+            tile_cols = num_tiles//tile_rows
+        elif tile_rows is None:
+            tile_rows = num_tiles//tile_cols
+        elif tile_cols is None:
+            tile_cols = num_tiles//tile_rows
+        if tile_rows*tile_cols != num_tiles:
+            raise ValueError("Grid dimensions must equal tile count; no phantom routers")
+        self.tile_rows, self.tile_cols = tile_rows, tile_cols
+        builders = {"Mesh": lambda: NoCTopology.build_mesh(tile_rows, tile_cols),
+                        "Torus": lambda: NoCTopology.build_torus(tile_rows, tile_cols),
+                        "FoldedTorus": lambda: NoCTopology.build_folded_torus(tile_rows, tile_cols),
+                        "Tree": lambda: NoCTopology.build_tree(num_tiles),
+                        "Butterfly": lambda: NoCTopology.build_butterfly(num_tiles),
+                        "Hypercube": lambda: NoCTopology.build_hypercube(num_tiles),
+                        "Ring": lambda: NoCTopology.build_ring(num_tiles)}
+        if topology not in builders:
+            raise ValueError(f"Unknown topology: {topology}")
+        self.topology = builders[topology]()
+        self.shortest_paths, self._predecessors = {}, {}
+        for src in range(num_tiles):
+            dist, pred, queue = {src: 0}, {src: None}, deque([src])
+            while queue:
+                u = queue.popleft()
+                for v in self.topology["adjacency"][u]:
+                    if v not in dist:
+                        dist[v], pred[v] = dist[u]+1, u
+                        queue.append(v)
+            if any(i not in dist for i in range(num_tiles)):
+                raise ValueError("Disconnected endpoint graph")
+            self.shortest_paths[src], self._predecessors[src] = dist, pred
+        distances = [self.get_hop_count(s, d) for s in range(num_tiles) for d in range(num_tiles) if s != d]
+        self.topology.update(diameter=max(distances, default=0), avg_hops=float(np.mean(distances)) if distances else 0)
 
-        for src in range(self.num_tiles):
-            dist = {src: 0}
-            pred = {src: None}
-            queue = [src]
-            idx = 0
-            while idx < len(queue):
-                node = queue[idx]
-                idx += 1
-                for neighbor in sorted(adj.get(node, [])):
-                    if neighbor not in dist:
-                        dist[neighbor] = dist[node] + 1
-                        pred[neighbor] = node
-                        queue.append(neighbor)
-            paths[src] = dist
-            self._predecessors[src] = pred
+    def get_hop_count(self, src, dst):
+        return self.shortest_paths[src][dst]
 
-        return paths
-
-    def get_hop_count(self, src: int, dst: int) -> int:
-        """Get hop count between two nodes."""
-        return self.shortest_paths.get(src, {}).get(dst, self.num_tiles)  # Fallback
-
-    def get_route(self, src: int, dst: int) -> list:
-        """Return the deterministic shortest route as a list of directed links.
-
-        Routing is minimal and deterministic (BFS tree order), matching the
-        dimension-ordered routing assumed for the mesh/torus fabrics.
-        """
-        pred = self._predecessors.get(src, {})
-        if dst not in pred:
-            return []
-        links = []
-        node = dst
+    def get_route(self, src, dst):
+        """Sorted-neighbor BFS route; no claim of dimension-ordered routing."""
+        if not (0 <= src < self.num_tiles and 0 <= dst < self.num_tiles):
+            raise ValueError("Routes must connect valid endpoints")
+        pred, route, node = self._predecessors[src], [], dst
         while node != src:
-            prev = pred[node]
-            links.append((prev, node))
-            node = prev
-        links.reverse()
-        return links
+            route.append((pred[node], node))
+            node = pred[node]
+        return route[::-1]
 
-    def _phase_cost(self, transfers: list) -> dict:
-        """Cost of one communication phase under static link-contention analysis.
-
-        Args:
-            transfers: list of (src, dst, bytes) tuples that are injected
-                concurrently in this phase.
-
-        Returns:
-            Dict with the phase latency, the time the bottleneck link spends
-            serialising, the per-link byte loads and the total flit-hops.
-
-        The phase latency is set by the most heavily loaded directed link
-        (bytes on that link / link rate) plus the traversal latency of the
-        longest route. Because the serialisation term is one addend of that
-        sum, the busy fraction it defines can never exceed one.
-        """
-        link_bytes = defaultdict(float)
-        max_hops = 0
-        flit_hops = 0.0
-
-        for src, dst, nbytes in transfers:
+    def _phase_cost(self, transfers):
+        links, injection, ejection = defaultdict(int), defaultdict(int), defaultdict(int)
+        hops, flit_hops, payload, wire_bytes = 0, 0, 0, 0
+        for src, dst, size in transfers:
+            if size < 0 or int(size) != size:
+                raise ValueError("Transfer payload must be a nonnegative integer")
+            if not size or src == dst:
+                continue
             route = self.get_route(src, dst)
-            if not route:
-                continue
-            max_hops = max(max_hops, len(route))
-            n_flits = max(1, int(nbytes) // self.FLIT_SIZE_BYTES)
-            flit_hops += n_flits * len(route)
-            for link in route:
-                link_bytes[link] += nbytes
+            # Last partial flit occupies a whole link transfer, including chunks.
+            n_flits = (int(size)+self.FLIT_SIZE_BYTES-1)//self.FLIT_SIZE_BYTES
+            physical_bytes = n_flits*self.FLIT_SIZE_BYTES
+            payload += size
+            wire_bytes += physical_bytes
+            injection[src] += physical_bytes
+            ejection[dst] += physical_bytes
+            hops = max(hops, len(route))
+            flit_hops += n_flits*len(route)
+            for edge in route:
+                links[edge] += physical_bytes
+        resources = [(v*8/self.bandwidth_gbps, f"link:{k[0]}->{k[1]}") for k, v in links.items()]
+        resources += [(v*8/self.endpoint_bandwidth_gbps, f"injection:{k}") for k, v in injection.items()]
+        resources += [(v*8/self.endpoint_bandwidth_gbps, f"ejection:{k}") for k, v in ejection.items()]
+        busy = max((x[0] for x in resources), default=0)
+        traversal = hops*(self.router_cycles+self.link_cycles)/self.clock_ghz
+        return {"latency_ns": busy+traversal, "busy_ns": busy, "traversal_ns": traversal,
+                    "link_bytes": dict(links), "bottleneck_bytes": max(links.values(), default=0),
+                    "bottleneck_resources": [key for time, key in resources if math.isclose(time, busy)],
+                    "flit_hops": flit_hops, "max_hops": hops, "payload_bytes": payload, "wire_endpoint_bytes": wire_bytes}
 
-        if not link_bytes:
-            return {'latency_ns': 0.0, 'busy_ns': 0.0, 'link_bytes': {},
-                    'bottleneck_bytes': 0.0, 'flit_hops': 0.0, 'max_hops': 0}
+    def _schedule(self, size, protocol):
+        n = self.num_tiles
+        if protocol not in ("ParameterServer", "AllReduce", "RingAllReduce", "Gossip"):
+            raise ValueError(f"Unknown protocol: {protocol}")
+        if n == 1:
+            return []
+        if protocol == "ParameterServer":
+            return [[(t, 0, size) for t in range(1, n)], [(0, t, size) for t in range(1, n)]]
+        if protocol == "AllReduce":
+            # Recursive doubling: all nodes exchange the full current partial
+            # reduction in both directions at each XOR stage. Power-of-two only.
+            if n & (n-1):
+                raise ValueError("Recursive doubling requires power-of-two tiles")
+            return [[(t, t ^ (1 << stage), size) for t in range(n)] for stage in range(n.bit_length()-1)]
+        if protocol == "RingAllReduce":
+            chunks = [size//n + (i < size % n) for i in range(n)]
+            # Reduce-scatter sends chunk (rank-step); all-gather starts from
+            # the chunk owned by that rank after n-1 reduce-scatter steps.
+            return [[(t, (t+1) % n, chunks[(t-step+offset) % n]) for t in range(n)]
+                    for offset in (0, 1) for step in range(n-1)]
+        if protocol == "Gossip":
+            # A fixed number of pairwise exchanges, NOT exact global averaging.
+            rng = np.random.default_rng(42)
+            phases = []
+            for _ in range(math.ceil(math.log2(n))+1):
+                order = rng.permutation(n).tolist()
+                pairs = list(zip(order[::2], order[1::2]))
+                phases.append([(s, d, size) for a, b in pairs for s, d in ((a, b), (b, a))])
+            return phases
+        raise ValueError(f"Unknown protocol: {protocol}")
 
-        bottleneck_bytes = max(link_bytes.values())
-        # ns = bits / (Gbit/s), since 1 Gbit/s = 1 bit/ns
-        busy_ns = bottleneck_bytes * 8 / self.bandwidth_gbps
-        # Wire delay scales with physical link length, so topologies with the
-        # same hop count but different wire lengths (torus vs folded torus) do
-        # not collapse onto identical numbers.
-        # Wire delay is set by the LONGEST link on the critical path, which is
-        # what folding shortens; router delay is fixed per hop.
-        link_len = self.topology.get('max_link_length', 1.0)
-        traversal_ns = max_hops * (
-            self.LINK_LATENCY_NS * link_len + self.SWITCH_LATENCY_NS
-        )
+    def simulate_fl_round(self, model_size_bytes, protocol="ParameterServer"):
+        if int(model_size_bytes) != model_size_bytes or model_size_bytes < 0:
+            raise ValueError("Model payload must be a nonnegative integer")
+        schedule = self._schedule(int(model_size_bytes), protocol)
+        phases = [self._phase_cost(x) for x in schedule]
+        latency = sum(x["latency_ns"] for x in phases)
+        busy = sum(x["busy_ns"] for x in phases)
+        total_bytes = sum(x["payload_bytes"] for x in phases)
+        flit_hops = sum(x["flit_hops"] for x in phases)
+        energy = None if self.energy_profile is None else flit_hops*self.energy_profile["pj_per_flit_hop"]*1e-12
+        loads = defaultdict(int)
+        for phase in phases:
+            for edge, count in phase["link_bytes"].items():
+                loads[edge] += count
+        max_load = max(loads.values(), default=0)
+        mean_load = float(np.mean(list(loads.values()))) if loads else 0
+        return {"protocol": protocol, "topology": self.topology_name, "total_bytes": total_bytes,
+            "total_hops": sum(len(self.get_route(s, d)) for p in schedule for s, d, b in p if b),
+            "flit_hops": flit_hops, "latency_ns": latency, "latency_us": latency/1000,
+            "serialization_ns": busy, "traversal_ns": sum(x["traversal_ns"] for x in phases),
+            "energy_j": energy, "energy_nj": None if energy is None else energy*1e9,
+            "energy_status": "uncalibrated" if energy is None else "caller_supplied_calibration",
+            "utilization": busy/latency if latency else 0,
+            "utilization_scope": "fraction of phase estimate occupied by bottleneck serialization",
+            "aggregate_throughput_gbps": total_bytes*8/latency if latency else 0,
+            "bottleneck_link_bytes": max_load, "congestion_ratio": max_load/mean_load if mean_load else 1,
+            "bottleneck": "server_node" if protocol == "ParameterServer" else "busiest_ring_link" if protocol == "RingAllReduce" else "phase_resource",
+            "phase_bottlenecks": [p["bottleneck_resources"] for p in phases], "num_phases": len(phases),
+            "exact_collective": protocol != "Gossip", "model_assumptions": self.assumptions()}
 
-        return {
-            'latency_ns': busy_ns + traversal_ns,
-            'busy_ns': busy_ns,
-            'link_bytes': dict(link_bytes),
-            'bottleneck_bytes': bottleneck_bytes,
-            'flit_hops': flit_hops,
-            'max_hops': max_hops,
-        }
+    def assumptions(self):
+        return {"model": "analytical bottleneck serialization plus pipeline traversal",
+            "cycle_accurate": False, "noxim_validated": False, "link_width_bits": self.link_width_bits,
+            "clock_ghz": self.clock_ghz, "bandwidth_gbps": self.bandwidth_gbps,
+            "rate_override": self.bandwidth_gbps != self.link_width_bits*self.clock_ghz,
+            "endpoint_bandwidth_gbps": self.endpoint_bandwidth_gbps, "link_cycles": self.link_cycles,
+            "router_cycles": self.router_cycles, "energy_profile": self.energy_profile,
+            "technology_node": None if self.energy_profile is None else self.energy_profile["technology_node"],
+            "area": None, "physical_layout_modeled": False, "reduction_compute_modeled": False,
+            "server_location": "tile 0; no external controller endpoint"}
 
-    def _energy_per_flit_hop(self) -> float:
-        """Energy for one flit crossing one router plus one link.
+    def simulate_full_fl_training(self, model_size_bytes, num_rounds, protocol="ParameterServer"):
+        if num_rounds < 0 or int(num_rounds) != num_rounds:
+            raise ValueError("Round count must be a nonnegative integer")
+        r = self.simulate_fl_round(model_size_bytes, protocol)
+        energy = None if r["energy_nj"] is None else r["energy_nj"]*num_rounds
+        return {"protocol": protocol, "topology": self.topology_name, "num_rounds": num_rounds,
+            "model_size_bytes": model_size_bytes, "per_round_bytes": r["total_bytes"],
+            "per_round_latency_us": r["latency_us"], "per_round_energy_nj": r["energy_nj"],
+            "total_bytes": r["total_bytes"]*num_rounds, "total_latency_us": r["latency_us"]*num_rounds,
+            "total_latency_ms": r["latency_us"]*num_rounds/1000, "total_energy_nj": energy,
+            "total_energy_uj": None if energy is None else energy/1000,
+            "total_serialization_us": r["serialization_ns"]*num_rounds/1000,
+            "total_traversal_us": r["traversal_ns"]*num_rounds/1000,
+            "avg_utilization": r["utilization"], "aggregate_throughput_gbps": r["aggregate_throughput_gbps"],
+            "congestion_ratio": r["congestion_ratio"], "topology_diameter": self.topology["diameter"],
+            "topology_bisection_bw": None, "exact_collective": r["exact_collective"],
+            "phase_bottlenecks": r["phase_bottlenecks"], "model_assumptions": self.assumptions()}
 
-        Router energy is fixed per hop; wire energy scales with the physical
-        length of the link. Without the length term a folded torus and a plain
-        torus -- identical in hop count, different in wire length -- report
-        exactly the same interconnect energy.
-        """
-        link_len = self.topology.get('mean_link_length', 1.0)
-        return self.ENERGY_PER_FLIT_SWITCH + self.ENERGY_PER_FLIT_LINK * link_len
-
-    @staticmethod
-    def _combine_phases(phases: list) -> dict:
-        """Aggregate sequential phases into round-level latency and utilization."""
-        total_latency_ns = sum(p['latency_ns'] for p in phases)
-        total_busy_ns = sum(p['busy_ns'] for p in phases)
-        flit_hops = sum(p['flit_hops'] for p in phases)
-
-        merged = defaultdict(float)
-        for p in phases:
-            for link, nbytes in p['link_bytes'].items():
-                merged[link] += nbytes
-
-        loads = list(merged.values()) or [0.0]
-        max_load = max(loads)
-        mean_load = sum(loads) / len(loads)
-
-        return {
-            'total_latency_ns': total_latency_ns,
-            'utilization': (total_busy_ns / total_latency_ns) if total_latency_ns > 0 else 0.0,
-            'flit_hops': flit_hops,
-            'bottleneck_link_bytes': max_load,
-            'congestion_ratio': (max_load / mean_load) if mean_load > 0 else 1.0,
-            'num_links_used': len(merged),
-        }
-
-    
-    def simulate_fl_round(
-        self,
-        model_size_bytes: int,
-        protocol: str = "ParameterServer",
-    ) -> dict:
-        """
-        Simulate one FL round of communication.
-        
-        Args:
-            model_size_bytes: Size of model parameters in bytes
-            protocol: "ParameterServer", "AllReduce", "RingAllReduce", "Gossip"
-            
-        Returns:
-            Dictionary with communication metrics for this round
-        """
-        protocols = {
-            'ParameterServer': self._simulate_parameter_server,
-            'AllReduce': self._simulate_all_reduce,
-            'RingAllReduce': self._simulate_ring_allreduce,
-            'Gossip': self._simulate_gossip,
-        }
-        
-        if protocol not in protocols:
-            raise ValueError(f"Unknown protocol: {protocol}. Options: {list(protocols.keys())}")
-        
-        return protocols[protocol](model_size_bytes)
-    
-    def _simulate_parameter_server(self, model_size_bytes: int) -> dict:
-        """
-        Parameter Server protocol: all tiles send to node 0, node 0 broadcasts back.
-
-        Traffic pattern: star centered at node 0. The links incident to the
-        server carry every model, so they are the bottleneck.
-        """
-        N = self.num_tiles
-        server = 0
-
-        upload = [(t, server, model_size_bytes) for t in range(N) if t != server]
-        download = [(server, t, model_size_bytes) for t in range(N) if t != server]
-
-        phases = [self._phase_cost(upload), self._phase_cost(download)]
-        agg = self._combine_phases(phases)
-
-        total_bytes = 2 * (N - 1) * model_size_bytes
-        total_energy = agg['flit_hops'] * self._energy_per_flit_hop()
-
-        return {
-            'protocol': 'ParameterServer',
-            'topology': self.topology_name,
-            'total_bytes': total_bytes,
-            'total_hops': int(sum(len(self.get_route(s, d)) for s, d, _ in upload + download)),
-            'latency_ns': agg['total_latency_ns'],
-            'latency_us': agg['total_latency_ns'] / 1000,
-            'energy_j': total_energy,
-            'energy_nj': total_energy * 1e9,
-            'utilization': agg['utilization'],
-            'aggregate_throughput_gbps': (total_bytes * 8) / max(agg['total_latency_ns'], 1e-9),
-            'bottleneck_link_bytes': agg['bottleneck_link_bytes'],
-            'congestion_ratio': agg['congestion_ratio'],
-            'bottleneck': 'server_node',
-            'num_phases': 2,
-        }
-
-    def _simulate_all_reduce(self, model_size_bytes: int) -> dict:
-        """
-        Recursive-halving/doubling All-Reduce.
-        Phase 1: Reduce over log2(N) butterfly stages.
-        Phase 2: Broadcast back over the same stages in reverse.
-        """
-        N = self.num_tiles
-        depth = max(1, int(np.ceil(np.log2(max(N, 2)))))
-
-        phases = []
-        total_bytes = 0
-        for stage in range(depth):
-            stride = 1 << stage
-            transfers = [(node, node ^ stride, model_size_bytes)
-                         for node in range(N)
-                         if node ^ stride < N and node ^ stride > node]
-            if not transfers:
-                continue
-            cost = self._phase_cost(transfers)
-            phases.append(cost)
-            phases.append(cost)  # symmetric broadcast stage
-            total_bytes += 2 * len(transfers) * model_size_bytes
-
-        agg = self._combine_phases(phases)
-        total_energy = agg['flit_hops'] * self._energy_per_flit_hop()
-
-        return {
-            'protocol': 'AllReduce',
-            'topology': self.topology_name,
-            'total_bytes': total_bytes,
-            'total_hops': int(agg['flit_hops'] * self.FLIT_SIZE_BYTES / max(model_size_bytes, 1)),
-            'latency_ns': agg['total_latency_ns'],
-            'latency_us': agg['total_latency_ns'] / 1000,
-            'energy_j': total_energy,
-            'energy_nj': total_energy * 1e9,
-            'utilization': agg['utilization'],
-            'aggregate_throughput_gbps': (total_bytes * 8) / max(agg['total_latency_ns'], 1e-9),
-            'bottleneck_link_bytes': agg['bottleneck_link_bytes'],
-            'congestion_ratio': agg['congestion_ratio'],
-            'bottleneck': 'butterfly_stage',
-            'num_phases': len(phases),
-        }
-
-    def _simulate_ring_allreduce(self, model_size_bytes: int) -> dict:
-        """
-        Ring-AllReduce: bandwidth-optimal all-reduce.
-        Phase 1: Scatter-Reduce (N-1 steps around the ring).
-        Phase 2: All-Gather (N-1 steps around the ring).
-
-        Each step every node forwards one model_size/N chunk to its ring
-        successor, so the per-step payload is independent of N.
-        """
-        N = self.num_tiles
-        chunk_size = max(1, model_size_bytes // max(N, 1))
-        num_steps = 2 * max(N - 1, 1)
-
-        step_transfers = [(node, (node + 1) % N, chunk_size)
-                          for node in range(N)] if N > 1 else []
-        step_cost = self._phase_cost(step_transfers)
-        phases = [step_cost] * num_steps
-        agg = self._combine_phases(phases)
-
-        total_bytes = num_steps * N * chunk_size
-        total_energy = agg['flit_hops'] * self._energy_per_flit_hop()
-
-        return {
-            'protocol': 'RingAllReduce',
-            'topology': self.topology_name,
-            'total_bytes': total_bytes,
-            'total_hops': int(num_steps * sum(
-                len(self.get_route(n, (n + 1) % N)) for n in range(N))),
-            'latency_ns': agg['total_latency_ns'],
-            'latency_us': agg['total_latency_ns'] / 1000,
-            'energy_j': total_energy,
-            'energy_nj': total_energy * 1e9,
-            'utilization': agg['utilization'],
-            'aggregate_throughput_gbps': (total_bytes * 8) / max(agg['total_latency_ns'], 1e-9),
-            'bottleneck_link_bytes': agg['bottleneck_link_bytes'],
-            'congestion_ratio': agg['congestion_ratio'],
-            'bottleneck': 'busiest_ring_link',
-            'num_phases': num_steps,
-            'chunk_size_bytes': chunk_size,
-        }
-
-    def _simulate_gossip(self, model_size_bytes: int) -> dict:
-        """
-        Gossip protocol: each node exchanges models with a random peer.
-
-        Each gossip round pairs the nodes at random; O(log N) rounds are needed
-        for mixing. Pairs are spatially arbitrary, so multi-hop routes collide
-        on shared links and the contention analysis captures that cost.
-        """
-        N = self.num_tiles
-        num_gossip_rounds = max(1, int(np.ceil(np.log2(max(N, 2)))) + 1)
-
-        rng = np.random.default_rng(42)  # Reproducible
-        phases = []
-        total_bytes = 0
-        for _ in range(num_gossip_rounds):
-            nodes = list(range(N))
-            rng.shuffle(nodes)
-            transfers = []
-            for i in range(0, len(nodes) - 1, 2):
-                n1, n2 = int(nodes[i]), int(nodes[i + 1])
-                transfers.append((n1, n2, model_size_bytes))
-                transfers.append((n2, n1, model_size_bytes))
-            if transfers:
-                phases.append(self._phase_cost(transfers))
-                total_bytes += len(transfers) * model_size_bytes
-
-        agg = self._combine_phases(phases)
-        total_energy = agg['flit_hops'] * self._energy_per_flit_hop()
-
-        return {
-            'protocol': 'Gossip',
-            'topology': self.topology_name,
-            'total_bytes': total_bytes,
-            'total_hops': int(agg['flit_hops'] * self.FLIT_SIZE_BYTES / max(model_size_bytes, 1)),
-            'latency_ns': agg['total_latency_ns'],
-            'latency_us': agg['total_latency_ns'] / 1000,
-            'energy_j': total_energy,
-            'energy_nj': total_energy * 1e9,
-            'utilization': agg['utilization'],
-            'aggregate_throughput_gbps': (total_bytes * 8) / max(agg['total_latency_ns'], 1e-9),
-            'bottleneck_link_bytes': agg['bottleneck_link_bytes'],
-            'congestion_ratio': agg['congestion_ratio'],
-            'bottleneck': 'mixing_time',
-            'num_phases': num_gossip_rounds,
-            'gossip_rounds': num_gossip_rounds,
-        }
-
-    def simulate_full_fl_training(
-        self,
-        model_size_bytes: int,
-        num_rounds: int,
-        protocol: str = "ParameterServer"
-    ) -> dict:
-        """
-        Simulate communication for a full FL training session.
-        
-        Args:
-            model_size_bytes: Size of model in bytes
-            num_rounds: Number of FL rounds
-            protocol: Communication protocol
-            
-        Returns:
-            Aggregated metrics over all rounds
-        """
-        round_metrics = self.simulate_fl_round(model_size_bytes, protocol)
-        
-        return {
-            'protocol': protocol,
-            'topology': self.topology_name,
-            'num_rounds': num_rounds,
-            'per_round_bytes': round_metrics['total_bytes'],
-            'per_round_latency_us': round_metrics['latency_us'],
-            'per_round_energy_nj': round_metrics['energy_nj'],
-            'total_bytes': round_metrics['total_bytes'] * num_rounds,
-            'total_latency_us': round_metrics['latency_us'] * num_rounds,
-            'total_latency_ms': round_metrics['latency_us'] * num_rounds / 1000,
-            'total_energy_nj': round_metrics['energy_nj'] * num_rounds,
-            'total_energy_uj': round_metrics['energy_nj'] * num_rounds / 1000,
-            'avg_utilization': round_metrics['utilization'],
-            'aggregate_throughput_gbps': round_metrics['aggregate_throughput_gbps'],
-            'congestion_ratio': round_metrics['congestion_ratio'],
-            'topology_diameter': self.topology.get('diameter', -1),
-            'topology_bisection_bw': self.topology.get('bisection_bandwidth', -1),
-        }
-    
-    def get_topology_info(self) -> dict:
-        """Return topology properties."""
-        return {
-            'name': self.topology_name,
-            'num_tiles': self.num_tiles,
-            'diameter': self.topology.get('diameter', -1),
-            'bisection_bandwidth': self.topology.get('bisection_bandwidth', -1),
-            'avg_hops': self.topology.get('avg_hops', -1),
-            'num_links': sum(len(v) for v in self.topology['adjacency'].values()) // 2,
-            'degree': max(len(v) for v in self.topology['adjacency'].values()) if self.topology['adjacency'] else 0,
-        }
+    def get_topology_info(self):
+        adj = self.topology["adjacency"]
+        return {"name": self.topology_name, "num_tiles": self.num_tiles,
+            "diameter": self.topology["diameter"], "avg_hops": self.topology["avg_hops"],
+            "bisection_bandwidth": None, "num_links": sum(map(len, adj.values()))//(1 if self.topology["directed"] else 2),
+            "degree": max(map(len, adj.values())), "directed": self.topology["directed"],
+            "auxiliary_vertices": len(adj)-self.num_tiles, "equal_area_comparison": False}
 
 
-def compare_topologies_and_protocols(
-    num_tiles: int,
-    model_size_bytes: int,
-    num_rounds: int = 20,
-    bandwidth_gbps: float = 10.0,
-) -> dict:
-    """
-    Comprehensive comparison of all topologies × all protocols.
-    
-    Returns:
-        Nested dictionary: topology → protocol → metrics
-    """
-    topologies = ['Mesh', 'Torus', 'FoldedTorus', 'Tree', 'Butterfly', 'Ring']
-    protocols = ['ParameterServer', 'AllReduce', 'RingAllReduce', 'Gossip']
-    
-    results = {}
-    
-    for topo in topologies:
-        results[topo] = {}
+def compare_topologies_and_protocols(num_tiles, model_size_bytes, num_rounds=20, bandwidth_gbps=None):
+    results, rankings = {}, {}
+    protocols = ("ParameterServer", "AllReduce", "RingAllReduce", "Gossip")
+    for topology in ("Mesh", "Torus", "FoldedTorus", "Tree", "Butterfly", "Hypercube", "Ring"):
         try:
-            sim = NoCSimulator(num_tiles, topology=topo, bandwidth_gbps=bandwidth_gbps)
-            results[topo]['_info'] = sim.get_topology_info()
-            
-            for proto in protocols:
-                try:
-                    metrics = sim.simulate_full_fl_training(
-                        model_size_bytes, num_rounds, proto)
-                    results[topo][proto] = metrics
-                except Exception as e:
-                    results[topo][proto] = {'error': str(e)}
-        except Exception as e:
-            results[topo] = {'error': str(e)}
-    
-    # Rank topologies by total latency for each protocol
-    rankings = {}
-    for proto in protocols:
-        latencies = {}
-        for topo in topologies:
-            if proto in results.get(topo, {}) and 'total_latency_us' in results[topo].get(proto, {}):
-                latencies[topo] = results[topo][proto]['total_latency_us']
-        
-        if latencies:
-            ranked = sorted(latencies.items(), key=lambda x: x[1])
-            rankings[proto] = {
-                'best': ranked[0][0],
-                'worst': ranked[-1][0],
-                'ranking': [t[0] for t in ranked],
-                'latencies': {t[0]: t[1] for t in ranked},
-            }
-    
-    results['_rankings'] = rankings
+            sim = NoCSimulator(num_tiles, topology, bandwidth_gbps)
+        except ValueError as exc:
+            results[topology] = {p: {"error": str(exc)} for p in protocols}
+            continue
+        results[topology] = {"_info": sim.get_topology_info()}
+        for protocol in protocols:
+            try:
+                results[topology][protocol] = sim.simulate_full_fl_training(model_size_bytes, num_rounds, protocol)
+            except ValueError as exc:
+                results[topology][protocol] = {"error": str(exc)}
+    for protocol in protocols:
+        latencies = {t: r[protocol]["total_latency_us"] for t, r in results.items() if "total_latency_us" in r[protocol]}
+        order = sorted(latencies, key=latencies.get)
+        if order:
+            rankings[protocol] = {"best": order[0], "worst": order[-1], "ranking": order, "latencies": latencies,
+                                      "scope": "fixed assumptions; ties are not superiority evidence",
+                                      "exact_collective": protocol != "Gossip"}
+    results["_rankings"] = rankings
     return results

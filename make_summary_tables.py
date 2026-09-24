@@ -1,322 +1,226 @@
 #!/usr/bin/env python
-"""Emit the Markdown tables used in docs/ from the saved result JSONs.
+"""Export Tier 0/1 results from corrected, provenance-carrying JSON only.
 
-Numbers in a paper should be traceable to a file, not retyped. Running
-
-    python make_summary_tables.py
-
-prints every table in docs/BASELINE_COMPARISON.md and docs/PAPER_RESULTS.md so
-they can be regenerated after any re-run instead of drifting.
+Legacy circular-panel results and log-only ablations are intentionally not read.
 """
-
 from __future__ import annotations
 
 import argparse
 import json
-import os
-import re
+from pathlib import Path
 
 import numpy as np
 
-LINK_JSON = "results/link_level/link_level_results.json"
-ADV_DIR = "results/advanced_experiments"
+from run_link_level import write_json
 
-SCHEME_ORDER = ["no_ris", "random_ris", "ao", "sca", "centralized_dl", "fed_ris", "genie"]
-PRETTY = {
-    "no_ris": "No RIS (blocked direct)",
-    "random_ris": "Random phases",
-    "ao": "Alternating Optimization",
-    "sca": "SCA",
-    "centralized_dl": "Centralized DL (pooled)",
-    "fed_ris": "**Fed-RIS (proposed)**",
-    "genie": "Perfect-CSI MRC (bound)",
-}
-# What each scheme costs to run, independent of the numbers measured here.
-PROPERTIES = {
-    "no_ris":         ("—", "—", "yes", "O(1)"),
-    "random_ris":     ("none", "none", "yes", "O(N)"),
-    "ao":             ("full instantaneous", "per block", "no", "O(N·I)"),
-    "sca":            ("full instantaneous", "per block", "no", "O(N·I)"),
-    "centralized_dl": ("pooled to server", "one forward", "no", "O(N)"),
-    "fed_ris":        ("stays on tile", "one forward", "yes", "O(N)"),
-    "genie":          ("perfect (oracle)", "closed form", "n/a", "O(N)"),
+LABELS = {
+    'no_ris': 'No RIS', 'random_ris': 'Random phases', 'local_mrc': 'Local noisy-CSI MRC',
+    'ao': 'Projected-gradient control', 'sca': 'Surrogate control', 'genie': 'Perfect-CSI bound',
+    'random_max': 'Best observed probe', 'lmmse_mrc': 'LMMSE + MRC',
+    'local_linear_mrc': 'Local linear estimate + MRC', 'full_probe_ls_mrc': 'Full-probe LS + MRC',
+    'oracle_mrc': 'Perfect-CSI bound (oracle)', 'fed_ris': 'FedAvg (validation selected)',
+    'centralized_dl': 'Central (total-step budget)', 'centralized_client_budget': 'Central (client-step budget)',
+    'local_only': 'Local models', 'fed_1round': 'One-round FedAvg', 'fed_5round': 'Five-round FedAvg',
 }
 
 
-def _fmt(v, nd=2, dash="—"):
-    if v is None:
-        return dash
-    try:
-        f = float(v)
-    except (TypeError, ValueError):
-        return str(v)
-    return dash if not np.isfinite(f) else f"{f:.{nd}f}"
-
-
-def _table(header, rows):
-    out = ["| " + " | ".join(header) + " |",
-           "|" + "|".join("---" for _ in header) + "|"]
-    out += ["| " + " | ".join(str(c) for c in r) + " |" for r in rows]
-    return "\n".join(out)
-
-
-def table_link_summary(res):
-    """Main scheme comparison: array gain, SNR at target BER, rate."""
-    gains = res["mean_gain_db"]
-    tgt = res["ber_vs_snr"]["snr_at_target"]
-    se = res["spectral_efficiency"]["spectral_efficiency"]
-    rho = np.array(res["spectral_efficiency"]["rho_db"])
-    op = res["meta"].get("operating_rho_db")
-    ref = gains["no_ris"]
-    fed_q = tgt["QPSK"]["fed_ris"]["1e-03"]
-
-    rows = []
-    for k in SCHEME_ORDER:
-        se_at_op = float(np.interp(op, rho, se[k])) if op else float("nan")
-        rows.append([
-            PRETTY[k],
-            _fmt(gains[k] - ref),
-            _fmt(tgt["QPSK"][k]["1e-03"], 1),
-            _fmt(tgt["QPSK"][k]["1e-04"], 1),
-            _fmt(tgt["16QAM"][k]["1e-03"], 1),
-            _fmt(se_at_op),
-            _fmt(tgt["QPSK"][k]["1e-03"] - fed_q, 1),
-        ])
-    return _table(
-        ["Scheme", "Array gain vs no-RIS (dB)", "ρ @ BER 1e-3, QPSK (dB)",
-         "ρ @ BER 1e-4, QPSK (dB)", "ρ @ BER 1e-3, 16QAM (dB)",
-         f"SE @ ρ={_fmt(op, 0)} dB (bit/s/Hz)", "Δ vs Fed-RIS (dB)"],
-        rows,
-    )
-
-
-def table_properties():
-    rows = [[PRETTY[k], *PROPERTIES[k]] for k in SCHEME_ORDER]
-    return _table(["Scheme", "CSI requirement", "Per-block cost", "CSI stays local",
-                   "Inference complexity"], rows)
-
-
-def table_quantization(res):
-    q = res["hardware_impairments"]["quantization"]
-    rows = []
-    for bits in (1, 2, 3):
-        label = f"{bits}-bit"
-        theory = 20 * np.log10(np.sinc(1.0 / (2 ** bits)))
-        rows.append([
-            f"{label} ({2 ** bits} states)",
-            _fmt(theory),
-            _fmt(q["genie"][label]["mean_gain_db"] - q["genie"]["continuous"]["mean_gain_db"]),
-            _fmt(q["fed_ris"][label]["mean_gain_db"] - q["fed_ris"]["continuous"]["mean_gain_db"]),
-        ])
-    rows.append(["Continuous", "0.00", "0.00", "0.00"])
-    return _table(["Phase resolution", "Theory 20·log10 sinc(2⁻ᵇ) (dB)",
-                   "Measured, perfect-CSI MRC (dB)", "Measured, Fed-RIS (dB)"], rows)
-
-
-def table_phase_noise(res):
-    pn = res["hardware_impairments"]["phase_noise"]["fed_ris"]
-    ref = pn["0deg"]["mean_gain_db"]
-    rows = [[k.replace("deg", "°"), _fmt(v["mean_gain_db"] - ref)]
-            for k, v in sorted(pn.items(), key=lambda kv: float(kv[0].replace("deg", "")))]
-    return _table(["RMS phase jitter σ_φ", "Array-gain loss (dB)"], rows)
-
-
-def table_csi_robustness(res):
-    blk = res.get("csi_robustness") or {}
-    if not blk:
-        return "_(CSI robustness sweep not present in this run.)_"
-    var = blk["csi_error_variances"]
-    snr = blk["mean_snr_db"]
-    rows = []
-    for k in SCHEME_ORDER:
-        if k not in snr:
-            continue
-        vals = snr[k]
-        rows.append([PRETTY[k]] + [_fmt(v, 1) for v in vals] + [_fmt(vals[0] - vals[-1], 1)])
-    return _table(["Scheme"] + [f"ε={v:g}" for v in var] + ["Loss over sweep (dB)"], rows)
-
-
-def table_array_scaling(res):
-    blk = res["array_scaling"]
-    n = blk["element_counts"]
-    rows = []
-    for k in SCHEME_ORDER:
-        rows.append([PRETTY[k]] + [_fmt(v, 1) for v in blk["mean_snr_db"][k]])
-    rows.append(["_Ideal N² law_"] + [_fmt(v, 1) for v in blk["ideal_n_squared_db"]])
-    return _table(["Scheme"] + [f"N={v}" for v in n], rows)
-
-
-def table_cost(res):
-    """Training and inference cost, including the traffic federation actually costs.
-
-    The FL-vs-raw-CSI comparison is reported both ways round on purpose. With a
-    300k-parameter model and a few hundred samples per tile, shipping weights
-    every round moves far *more* bytes than shipping the raw CSI once — the
-    federated design buys locality here, not bandwidth. The crossover row says
-    where the trade flips.
-    """
-    tr = res["meta"].get("training", {})
-    params = tr.get("model_parameters") or 0
-    rounds = tr.get("fl_rounds") or 0
-    samples = tr.get("train_samples_per_tile") or 0
-    fl_kb = tr.get("fl_total_communication_kb")
-    csi_kb = tr.get("raw_csi_upload_kb")
-
-    # FL moves 2 * rounds * params bytes per tile (upload + broadcast, INT8);
-    # a centralized controller moves 4 * samples * feature_dim bytes per tile
-    # once. Equate them to get the per-tile dataset size at which FL is cheaper.
-    feature_dim = (samples and csi_kb and (csi_kb * 1024) /
-                   (res["meta"]["num_tiles"] * samples * 4)) or 0
-    crossover = (2 * rounds * params / (4 * feature_dim)) if feature_dim else float("nan")
-
-    rows = [
-        ["Model parameters", f"{params:,}"],
-        ["FL rounds × local epochs", f"{rounds} × {tr.get('local_epochs')}"],
-        ["Tiles", f"{res['meta']['num_tiles']}"],
-        ["Train samples per tile", f"{samples:,}"],
-        ["Total NoC traffic, FL, INT8 deltas (MB)",
-         _fmt((fl_kb or 0) / 1024, 1)],
-        ["Raw-CSI upload a centralized controller needs (MB)",
-         _fmt((csi_kb or 0) / 1024, 1)],
-        ["FL traffic ÷ raw-CSI traffic",
-         _fmt((fl_kb / csi_kb) if (fl_kb and csi_kb) else None, 1) + "×"],
-        ["Samples per tile at which FL becomes the cheaper transfer",
-         f"≈ {crossover:,.0f}" if np.isfinite(crossover) else "—"],
-        ["FL wall clock (s)", _fmt(tr.get("fl_wall_clock_s"), 0)],
-        ["Centralized wall clock (s)", _fmt(tr.get("centralized_wall_clock_s"), 0)],
-    ]
-    st = res["meta"].get("mean_solve_time_s", {})
-    for k, v in st.items():
-        rows.append([f"Mean per-coherence-block solve time, {PRETTY[k]} (ms)",
-                     _fmt(v * 1e3, 3)])
-    rows.append(["Mean per-coherence-block inference, learned schemes",
-                 "one forward pass, no iteration"])
-    return _table(["Quantity", "Value"], rows)
-
-
-def table_legacy_baselines():
-    """The system-level experiment-9 table, for continuity with the earlier runs."""
-    path = os.path.join(ADV_DIR, "baseline_comparison_results.json")
-    if not os.path.exists(path):
-        return "_(results/advanced_experiments/baseline_comparison_results.json not found.)_"
-    with open(path) as fh:
-        blob = json.load(fh)
-    entry = blob["results"][0] if isinstance(blob["results"], list) else blob["results"]
-    prov = blob.get("provenance", {})
-    rows = []
-    for key, val in entry.items():
-        if not isinstance(val, dict):
-            continue
-        rows.append([
-            key, _fmt(val.get("snr_db")), _fmt(val.get("rate_bps_hz")),
-            _fmt(val.get("communication_kb"), 1), _fmt(val.get("energy_mj"), 1),
-            str(val.get("convergence_iters", "—")),
-            "yes" if val.get("privacy") else "no",
-            str(val.get("complexity", "—")),
-        ])
-    note = (f"\n\n_Provenance: {prov.get('num_tiles')} tiles × "
-            f"{prov.get('elements_per_tile')} elements, {prov.get('fl_rounds')} FL rounds, "
-            f"{prov.get('train_samples')} train samples, "
-            f"reduced run = {prov.get('is_reduced_run')}, saved {prov.get('saved_at')}._")
-    return _table(["Method", "SNR (dB)", "Rate (bit/s/Hz)", "Comm (KB)", "Energy (mJ)",
-                   "Iterations", "CSI stays local", "Complexity"], rows) + note
-
-
-BEGIN = "<!-- BEGIN GENERATED TABLES -->"
-END = "<!-- END GENERATED TABLES -->"
-
-
-def build_sections(res):
-    meta = res["meta"]
-    provenance = "## Run provenance\n\n" + _table(["Setting", "Value"], [
-        ["Tiles × elements", f"{meta['num_tiles']} × {meta['elements_per_tile']} "
-                             f"= {meta['total_elements']}"],
-        ["Test scenes", meta["num_scenes"]],
-        ["Carrier", f"{meta['frequency_hz'] / 1e9:.0f} GHz"],
-        ["Noise power", f"{meta['noise_power_dbm']} dBm"],
-        ["Direct-link blockage", f"{meta['direct_link_blockage_db']} dB"],
-        ["Operating point ρ", f"{_fmt(meta.get('operating_rho_db'), 0)} dB"],
-        ["Reduced (quick) run", meta.get("is_quick_run")],
-        ["Seed", meta.get("seed")],
-    ])
-    return [
-        ("provenance", provenance),
-        ("Table 1 — Link-level comparison, all schemes on one channel set",
-         table_link_summary(res)),
-        ("Table 2 — What each scheme requires to produce a phase design",
-         table_properties()),
-        ("Table 3 — Phase-quantization loss vs the classical sinc bound",
-         table_quantization(res)),
-        ("Table 4 — RIS phase-jitter loss (Fed-RIS design)", table_phase_noise(res)),
-        ("Table 5 — Mean received SNR vs normalized CSI error ε",
-         table_csi_robustness(res)),
-        ("Table 6 — Array-gain scaling (mean received SNR, dB)",
-         table_array_scaling(res)),
-        ("Table 7 — Training and per-coherence-block cost", table_cost(res)),
-        ("Table 8 — System-level baseline table (experiment 9, earlier run)",
-         table_legacy_baselines()),
-    ]
-
-
-def render(res, only=None):
-    parts = []
-    for title, body in build_sections(res):
-        if only and title.split(" —")[0] not in only and title not in only:
-            continue
-        parts.append(body if title == "provenance" else f"## {title}\n\n{body}")
-    return "\n\n".join(parts)
-
-
-def splice(path: str, text: str) -> bool:
-    """Replace the generated block in a Markdown file, leaving prose untouched."""
-    with open(path) as fh:
-        doc = fh.read()
-    if BEGIN not in doc or END not in doc:
-        print(f"  ! {path} has no generated-table markers; skipped")
-        return False
-    new = re.sub(
-        re.escape(BEGIN) + r".*?" + re.escape(END),
-        f"{BEGIN}\n<!-- regenerate with: python make_summary_tables.py --write -->\n\n"
-        f"{text}\n\n{END}",
-        doc,
-        flags=re.DOTALL,
-    )
-    if new == doc:
-        return False
-    with open(path, "w") as fh:
-        fh.write(new)
-    print(f"  > updated {path}")
-    return True
-
-
-#: Which tables belong in which document.
-DOC_TABLES = {
-    "docs/BASELINE_COMPARISON.md": None,          # all of them
-    "docs/PAPER_RESULTS.md": ["provenance", "Table 1", "Table 3", "Table 5", "Table 6"],
-    "docs/NOVELTY.md": ["provenance", "Table 1", "Table 2", "Table 7"],
-}
+def cell(stat, digits=2):
+    mean, ci = stat['mean'], stat['ci95_half_width']
+    return f'{mean:.{digits}f}' + (f' $\\pm$ {ci:.{digits}f}' if ci is not None else ' (one seed)')
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--write", action="store_true",
-                    help="splice the tables into the docs instead of printing them")
+    ap.add_argument('--link-dir', default='results/link_level_corrected')
+    ap.add_argument('--pilot-dir', default='results/pilot_limited')
+    ap.add_argument('--pilot-extensions', default='results/pilot_limited_extended')
+    ap.add_argument('--output', default='results/tier01_report')
     args = ap.parse_args()
+    out = Path(args.output)
+    out.mkdir(parents=True, exist_ok=True)
+    tex, findings, md = [], [], ['# Tier 0 / Tier 1 corrected results', '']
+    manifest = {'inputs': [], 'legacy_results_used': False}
+    import hashlib
+    def read(p):
+        manifest['inputs'].append({'path': str(p), 'sha256': hashlib.sha256(p.read_bytes()).hexdigest()})
+        return json.loads(p.read_text())
+    link_path = Path(args.link_dir) / 'summary.json'
+    if link_path.exists():
+        s = read(link_path)
+        n = len(s['seeds'])
+        tex += [r'\begin{table}[t]\centering\small',
+                rf'\caption{{Supplied-CSI diagnostic: channel power gain in dB, {n} seeds. Intervals are 95\% Student-$t$ intervals over seeds.}}',
+                r'\begin{tabular}{lr}\toprule Scheme & Gain (dB)\\\midrule']
+        md += [f'Supplied-CSI audit: {n} independent seeds.', '', '| Scheme | Channel gain (dB), 95% CI |', '|---|---:|']
+        for k, m in s['metrics'].items():
+            v = cell(m['mean_gain_db'])
+            tex.append(f'{LABELS[k]} & {v} ' + r'\\')
+            md.append(f'| {LABELS[k]} | {v.replace("$", "").replace(chr(92)+"pm", "±")} |')
+        tex += [r'\bottomrule\end{tabular}\end{table}']
+        # Physical diagnostics from every individual result, with provenance.
+        records = [read(Path(args.link_dir) / f'seed_{seed}' / 'link_level_results.json')
+                   for seed in s['seeds']]
+        for r in records:
+            if r['meta'].get('schema') != 'contiguous-siso-v1':
+                raise ValueError('Refusing legacy link results')
+            if r['meta'].get('is_quick_run'):
+                raise ValueError('Smoke results cannot be exported as paper evidence')
+        spreads = [float(np.ptp(10*np.log10(r['meta']['tile_mean_cascade_power']))) for r in records]
+        slopes = [r['array_scaling']['reflected_only_snr_db']['genie'][-1] -
+                  r['array_scaling']['reflected_only_snr_db']['genie'][0] for r in records]
+        manifest['geometry_diagnostics'] = {'tile_mean_power_spread_db_by_seed': spreads,
+                                           'reflected_gain_64_to_1024_db_by_seed': slopes}
+        md += ['', f'Tile-average power spread by seed (dB): {spreads}.',
+               f'Reflected-only oracle gain from 64 to 1024 elements (dB): {slopes}.', '']
+        findings.append(
+            f'The corrected aperture has a tile-average channel-power spread of '
+            f'{min(spreads):.2f}--{max(spreads):.2f}\\,dB across the independent seeds. '
+            f'Its reflected-only oracle gain from 64 to 1024 elements is '
+            f'{min(slopes):.2f}--{max(slopes):.2f}\\,dB, compared with '
+            r'$20\log_{10}(1024/64)=24.08$\,dB. The previous geometric saturation claim does not survive.')
+    pilot_path = Path(args.pilot_dir) / 'summary.json'
+    if pilot_path.exists():
+        s = read(pilot_path)
+        if s['schema'] != 'passive-feedback-v1':
+            raise ValueError('Wrong pilot observation model')
+        records = []
+        for group, g in s['groups'].items():
+            for seed in g['seeds']:
+                base = read(Path(args.pilot_dir) / f'seed_{seed}' / group / 'results.json')
+                extended_path = Path(args.pilot_extensions) / f'seed_{seed}' / group / 'results.json'
+                if base['training'].get('stopping_reason') == 'budget_exhausted' and extended_path.exists():
+                    ext = read(extended_path)
+                    same_fields = ('seed', 'num_probes', 'tx_power_dbm', 'noise_power_dbm', 'geometry',
+                                   'scene', 'sample_counts_train_validation_test', 'input_dim',
+                                   'hidden_dim', 'num_layers', 'model_type', 'dropout', 'codebook_sha256')
+                    if any(base['meta'][k] != ext['meta'][k] for k in same_fields):
+                        raise ValueError(f'Extended case changes the experiment: {extended_path}')
+                    old = base['training']['validation_losses']
+                    new = ext['training']['validation_losses']
+                    if len(new) < len(old) or not np.allclose(old, new[:len(old)], rtol=1e-5, atol=1e-7):
+                        raise ValueError(f'Extended case does not reproduce the first budget: {extended_path}')
+                    if ext['training']['fl_rounds'] > base['training']['fl_rounds']:
+                        base = ext  # Selection depends on budget exhaustion, never test scores.
+                records.append(base)
+        from run_pilot_limited import summarize
+        s = summarize(records)
+        write_json(out / 'pilot_summary.json', s)
+        for group, g in s['groups'].items():
+            tex += [r'\begin{table*}[t]\centering\small',
+                    rf'\caption{{Passive pilot experiment {group.replace("_", ", ")}: {len(g["seeds"])} seeds; 95\% intervals. Net rate uses the scheme-specific probe count and declared coherence length.}}',
+                    r'\begin{tabular}{lrrr}\toprule Scheme & Received SNR (dB) & Net rate (bit/s/Hz) & Paired net-rate gap to local linear\\\midrule']
+            md += ['', f'## {group}', '', '| Scheme | SNR (dB) | Net rate | Paired gap to local linear |', '|---|---:|---:|---:|']
+            for k, m in g['scores'].items():
+                values = [cell(m[x], 3) for x in ('mean_received_snr_db', 'net_spectral_efficiency', 'net_rate_gap_to_local_linear_mrc')]
+                tex.append(LABELS[k] + ' & ' + ' & '.join(values) + r'\\')
+                md.append('| ' + LABELS[k] + ' | ' + ' | '.join(v.replace('$', '').replace('\\pm','±') for v in values) + ' |')
+            tex += [r'\bottomrule\end{tabular}\end{table*}']
+            if 'fed_ris' in g['scores']:
+                fed = g['scores']['fed_ris']
+                gap = fed['net_rate_gap_to_local_linear_mrc']
+                findings.append(
+                    f'For {group.replace("_", ", ")}, FedAvg achieves '
+                    f'{cell(fed["net_spectral_efficiency"], 3)} bit/s/Hz after pilot overhead. '
+                    'Its paired difference from the local linear estimator is '
+                    f'{cell(gap, 3)} bit/s/Hz. '
+                    'These intervals reflect seed variation under the specified model only.')
+        if any(r['meta']['arguments'].get('quick') for r in records):
+            raise ValueError('Smoke results cannot be exported as paper evidence')
+        states = [{"seed": r['meta']['seed'], "M": r['meta']['num_probes'],
+                   "pt_dbm": r['meta']['tx_power_dbm'],
+                   "rounds": r['training'].get('fl_rounds'),
+                   "best_round": r['training'].get('best_round'),
+                   "stopping_reason": r['training'].get('stopping_reason'),
+                   "fl_bytes": r['training'].get('fl_total_communication_bytes'),
+                   "pooled_dataset_payload_reference_bytes":
+                       r['accounting']['centralized_training_label_bytes'] +
+                       r['accounting']['centralized_training_feedback_bytes'],
+                   "additional_centralized_training_upload_bytes": 0}
+                  for r in records]
+        manifest['training_runs'] = states
+        trained = [r for r in states if r['rounds'] is not None]
+        if trained:
+            rounds = [r['rounds'] for r in trained]
+            ratios = [r['fl_bytes']/r['pooled_dataset_payload_reference_bytes'] for r in trained]
+            exhausted = sum(r['stopping_reason'] == 'budget_exhausted' for r in trained)
+            findings.append(
+                f'The recorded FL runs spend {min(rounds)}--{max(rounds)} rounds; '
+                f'{exhausted} reach the budget without the declared validation plateau. '
+                f'Model-transfer payload is {min(ratios):.1f}--{max(ratios):.1f} times '
+                'the size of the pooled training dataset. This dataset size is a reference, '
+                'not an extra transfer required by the passive centralized control: the '
+                'controller already receives the acquisition feedback. Distributed training '
+                'additionally requires data delivery to the tiles. No communication advantage '
+                'is established for federation.')
+        accounting_audit = []
+        for r in records:
+            meta = r['meta']
+            train, valid, _ = meta['sample_counts_train_validation_test']
+            g = meta['geometry']
+            tiles = g['tile_rows'] * g['tile_cols']
+            ne = g['pixel_rows'] * g['pixel_cols']
+            nt = tiles * ne
+            m = meta['num_probes']
+            accounting_audit.append({
+                'seed': meta['seed'], 'num_probes': m, 'tx_power_dbm': meta['tx_power_dbm'],
+                'common_receiver_feedback_training_validation_bytes': (train + valid) * (m + nt + 1) * 8,
+                'additional_centralized_training_upload_bytes': 0,
+                'distributed_training_validation_data_endpoint_bytes': (train + valid) * tiles * (m + ne + 1) * 8,
+                'federated_model_endpoint_bytes': r['training'].get('fl_total_communication_bytes', 0),
+                'local_model_exchange_bytes': 0,
+                'distributed_online_feedback_endpoint_bytes_per_block': tiles * m * 8,
+                'central_online_phase_command_bytes_float32': nt * 4,
+                'best_probe_index_command_bytes': int(np.ceil(np.log2(max(m, 2)) / 8)),
+                'scope': 'endpoint payloads; feedback timing and physical broadcast routing excluded',
+            })
+        write_json(out / 'accounting_audit.json', accounting_audit)
+        md += ['', 'Training stopping and payload accounting:', '', '```json', json.dumps(states, indent=2), '```']
+        plot_pilot(s, records, out)
+    if not tex:
+        raise SystemExit('No corrected results found; run the corrected experiments first.')
+    (out / 'tables.tex').write_text('\n'.join(tex) + '\n')
+    (out / 'findings.tex').write_text('\n\n'.join(findings) + '\n')
+    (out / 'REPORT.md').write_text('\n'.join(md) + '\n')
+    write_json(out / 'manifest.json', manifest)
+    print(f'Wrote {out / "REPORT.md"} and tables.tex')
 
-    if not os.path.exists(LINK_JSON):
-        raise SystemExit(f"missing {LINK_JSON}; run `python run_link_level.py` first")
-    with open(LINK_JSON) as fh:
-        res = json.load(fh)
 
-    if not args.write:
-        print(render(res))
-        return
-    for path, only in DOC_TABLES.items():
-        if os.path.exists(path):
-            splice(path, render(res, only))
-        else:
-            print(f"  ! {path} not found; skipped")
+def plot_pilot(summary, records, out):
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    groups = list(summary['groups'])
+    schemes = ['random_max', 'lmmse_mrc', 'local_linear_mrc', 'full_probe_ls_mrc',
+               'centralized_dl', 'centralized_client_budget', 'local_only', 'fed_1round', 'fed_5round', 'fed_ris']
+    fig, axes = plt.subplots(1, len(groups), figsize=(7.16, 4.3), squeeze=False, sharey=True, sharex=True)
+    keys = [k for k in schemes if any(k in summary['groups'][g]['scores'] for g in groups)]
+    for i, (ax, group) in enumerate(zip(axes[0], groups)):
+        metrics = summary['groups'][group]['scores']
+        vals = [metrics[k]['net_spectral_efficiency']['mean'] if k in metrics else np.nan for k in keys]
+        ci = [metrics[k]['net_spectral_efficiency']['ci95_half_width'] or 0 if k in metrics else 0 for k in keys]
+        ax.barh(range(len(keys)), vals, xerr=ci, color='#4079a8', capsize=3)
+        ax.set_yticks(range(len(keys)), [LABELS[k] for k in keys], fontsize=7.5)
+        ax.tick_params(axis='y', labelleft=(i == 0))
+        ax.tick_params(axis='x', labelsize=7)
+        ax.set_xlabel('Net rate (bit/s/Hz); 95% CI', fontsize=8)
+        ax.set_title(group.replace('_', ', '), fontsize=9)
+    axes[0, 0].invert_yaxis()
+    fig.tight_layout()
+    fig.savefig(out / 'pilot_comparison.pdf')
+    fig.savefig(out / 'pilot_comparison.png', dpi=160)
+    plt.close(fig)
+    fig, ax = plt.subplots(figsize=(7, 4))
+    for r in records:
+        vals = r['training'].get('validation_losses', [])
+        if vals:
+            ax.plot(np.arange(1,len(vals)+1), vals, label=f"M={r['meta']['num_probes']}, seed={r['meta']['seed']}")
+    ax.set_xlabel('Federated round')
+    ax.set_ylabel('Held-out validation loss (measured training channels)')
+    ax.legend(fontsize=6, ncol=2)
+    fig.tight_layout()
+    fig.savefig(out / 'validation_curves.pdf')
+    plt.close(fig)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

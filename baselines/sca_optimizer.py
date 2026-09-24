@@ -1,23 +1,9 @@
-"""
-Successive Convex Approximation (SCA) Optimizer for RIS Phase Configuration
-Based on: Pan et al., "Multicell MIMO Communications Relying on Intelligent
-Reflecting Surfaces," IEEE TWC 2020
+"""Linear-surrogate phase iteration for supplied-channel SISO power.
 
-Algorithm:
-1. Initialize phase shifts (random or from previous solution)
-2. At iteration t, linearize the non-convex objective around θ^(t)
-3. Solve the resulting convex subproblem (SOCP or QP)
-4. Update θ^(t+1) and repeat until convergence
-
-Advantages:
-- Guaranteed convergence to KKT stationary point
-- Lower per-iteration complexity than SDR: O(N^2) vs O(N^3.5)
-- Can incorporate additional constraints easily
-
-Disadvantages:
-- May converge to local optima (depends on initialization)
-- Requires centralized CSI
-- Multiple iterations needed
+This is not a reproduction of a multiuser weighted-sum-rate or multicell MIMO
+algorithm. It uses a per-element linear-surrogate alignment and damped unit-circle
+projection, with no SOCP/QP solver and no asserted KKT guarantee. The exact SISO
+phase-alignment rule remains the meaningful training-free baseline.
 """
 
 
@@ -26,17 +12,8 @@ import numpy as np
 from utils.logger import logger
 
 
-class SCAOptimizer:
-    """
-    Successive Convex Approximation for RIS phase optimization.
-    
-    Maximizes received SNR by iteratively solving convex approximations
-    of the original non-convex unit-modulus constrained problem.
-    
-    At each iteration, the objective |h_d + a^H θ|^2 is lower-bounded
-    by a concave quadratic (first-order Taylor expansion of the concave part),
-    and the unit-modulus constraint is handled via penalty or projection.
-    """
+class SISOPhaseSurrogate:
+    """Damped unit-circle projection of the SISO linear surrogate maximizer."""
     
     def __init__(
         self,
@@ -53,7 +30,7 @@ class SCAOptimizer:
             max_iterations: Maximum SCA iterations
             convergence_threshold: Convergence threshold (relative change)
             step_size: Step size for convex combination (0, 1]
-            penalty_rho: Penalty parameter for unit-modulus constraint
+            penalty_rho: Deprecated compatibility argument; unused by this routine
             verbose: Print iteration progress
         """
         self.num_elements = num_elements
@@ -75,15 +52,15 @@ class SCAOptimizer:
         """
         Optimize RIS phase shifts using SCA.
         
-        The objective: max_θ |h_d + a^H θ|^2  s.t. |θ_n| = 1
-        where a_n = conj(h_ris_user_n) * h_bs_ris_n.
+        The objective: max_θ |h_d + a^T θ|^2  s.t. |θ_n| = 1
+        where a_n = h_ris_user_n * h_bs_ris_n.
         
         SCA approach:
         - Write f(θ) = |h_d + a^H θ|^2
         - At point θ^k, compute gradient ∇f(θ^k)
         - Surrogate: f̃(θ; θ^k) = f(θ^k) + 2 Re{∇f(θ^k)^H (θ - θ^k)}
         - Maximize surrogate subject to |θ_n| = 1
-        - Solution: θ_n^{k+1} = exp(j * angle(∇f_n(θ^k)))
+        - Solution: θ_n^{k+1} = exp(-j * angle(a_n * conj(h_eff)))
         
         Args:
             h_direct: BS-User direct channel
@@ -170,7 +147,7 @@ class SCAOptimizer:
             'converged': num_iters < self.max_iterations,
             'obj_history': obj_history,
             'num_elements': self.num_elements,
-            'method': 'SCA',
+            'method': 'SISO linear-surrogate control',
         }
     
     def batch_optimize(
@@ -208,7 +185,7 @@ class SCAOptimizer:
             iterations.append(result['iterations'])
         
         return {
-            'method': 'SCA',
+            'method': 'SISO linear-surrogate control',
             'avg_snr_db': float(np.mean(snrs)),
             'std_snr_db': float(np.std(snrs)),
             'median_snr_db': float(np.median(snrs)),
@@ -229,11 +206,15 @@ class SCAOptimizer:
         N = self.num_elements
         avg_iters = np.mean(self.iteration_counts) if self.iteration_counts else self.max_iterations
         return {
-            'method': 'SCA',
+            'method': 'SISO linear-surrogate control',
             'per_iteration_complexity': f'O(N) = O({N})',
             'avg_iterations': avg_iters,
             'total_complexity': f'O({avg_iters:.0f} * {N})',
             'total_flops_estimate': avg_iters * N * 10,  # ~10 ops per element per iter
-            'requires_centralized_csi': True,
+            'requires_centralized_csi': False,
             'online_capable': True,  # Can warm-start from previous solution
         }
+
+
+# Compatibility alias for historical scripts/result keys.
+SCAOptimizer = SISOPhaseSurrogate

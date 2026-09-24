@@ -1,0 +1,45 @@
+{
+  "inputs": [
+    {
+      "path": "results/pilot_architecture/summary.json",
+      "sha256": "f85c6b2215d90588af3eefec252ecc334eaaaf52a875f90f8626cdb55a07f5e6"
+    },
+    {
+      "path": "results/pilot_architecture/execution_manifest.json",
+      "sha256": "4334daa75e1cd45dc61f640aea61e7773cfd34758563f45b27c71b805505faf0"
+    },
+    {
+      "path": "results/pilot_architecture/seed_42.json",
+      "sha256": "06838a3489b834e9ae591fd273dadcfe64de35a9f49a0cea5ff6b7699a6cde8b"
+    },
+    {
+      "path": "results/pilot_architecture/seed_123.json",
+      "sha256": "69cbf5c702c9af52484bb5c8a674314df9d91ed47a745077b7ee5280440128d4"
+    },
+    {
+      "path": "results/pilot_architecture/seed_456.json",
+      "sha256": "859edc8284a9e579d98f4fef00e00e61deeefd28f1059f536b62afccda1a2a5f"
+    },
+    {
+      "path": "results/pilot_architecture/seed_789.json",
+      "sha256": "3ab668e61a13dfcfa22b6219ae6c0c8143ec7623e520c2bdf6ac9839abf23fda"
+    },
+    {
+      "path": "results/pilot_architecture/seed_1024.json",
+      "sha256": "37b7c5fb41f5e83b3be2984d12c2132b3642161b4d3a65181500e3d8fcb36747"
+    },
+    {
+      "path": "results/noc_corrected/results.json",
+      "sha256": "30e1724015e197e2706b13075531d5c87122a48caf48034655597c8ea017d5c2"
+    }
+  ],
+  "legacy_log_used": false,
+  "supplied_csi_gat_retrained": false,
+  "architecture_execution_runner": {
+    "path": "results/pilot_architecture/execution_source/run_pilot_ablation.py",
+    "sha256": "a2bee360cc55dd66b82914fb9e520bed60bbce9135785ad7697833f28cd6d4e5"
+  },
+  "exporter_sha256": "88926e0fa93230d3b1a732a5aeb98a680dbeba8ec319b5dde577f122fa8ba436",
+  "run_pilot_ablation.py_sha256": "cad00a93b48fd668fbfd194935cfa7670a180f3f29c41970fb885c29653d6ee1",
+  "run_noc_study.py_sha256": "9ef54dc443b129dbec89e825adf3f6745c19cfeb917ee91bbaa0804eb98fa264"
+}

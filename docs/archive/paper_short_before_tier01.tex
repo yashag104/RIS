@@ -1,0 +1,301 @@
+% =====================================================================
+% Fed-RIS (short version, ~5 pages, IEEE conference format).
+% Condensed from paper.tex; every number comes from
+% results/link_level/link_level_results.json or the full-scale
+% system-level suite in results/advanced_experiments/experiments.log.
+% =====================================================================
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{cite}
+\usepackage{booktabs}
+\usepackage{url}
+\usepackage{bm}
+\usepackage{xspace}
+
+\graphicspath{{results/figures/}{results/link_level/}}
+
+\newcommand{\fedris}{Fed-RIS\xspace}
+\newcommand{\dB}{\,dB\xspace}
+
+\begin{document}
+
+\title{Fed-RIS: Distributed Phase Optimization for Reconfigurable Intelligent Surfaces via On-Chip Federated Learning}
+
+% Double-blind submission. For the camera-ready version replace with:
+% \author{\IEEEauthorblockN{Yash Agrawal}
+% \IEEEauthorblockA{Birla Institute of Technology and Science, Pilani, India\\
+% p20240440@pilani.bits-pilani.ac.in}}
+\author{\IEEEauthorblockN{Anonymous Author(s)}
+\IEEEauthorblockA{Affiliation withheld for review}}
+
+\maketitle
+
+\begin{abstract}
+Large reconfigurable intelligent surfaces (RIS) need instantaneous channel-state information (CSI) to set their phases, yet pooling every element's CSI at a central controller and solving an iterative optimization in each coherence block scales poorly. We propose \fedris, which \emph{federates phase optimization across the tiles of a single surface}. A 1024-element RIS is split into 16 tiles of $8\times8$ elements; each tile trains a shared graph-attention phase predictor on its own CSI with a differentiable sum-rate objective, and only INT8 model deltas cross an on-chip Network-on-Chip (NoC)---raw CSI never leaves a tile, and inference is one forward pass per block. On identical 28\,GHz channels with a 30\dB-blocked direct path, \fedris reaches BER $10^{-3}$ \textbf{36.7\dB} earlier than the blocked link, saves \textbf{31.4\dB} of transmit power at 4\,bit/s/Hz, and lies within \textbf{1.3\dB} of the perfect-CSI bound. Under imperfect CSI it degrades least of all designs (3.2\dB vs.\ 5.1\dB for AO/SCA), 2-bit phase shifters cost only 0.82\dB in agreement with theory, and a Torus NoC with RingAllReduce cuts aggregation latency $6.4\times$ and energy by 56\%.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Reconfigurable intelligent surface, federated learning, graph attention network, network-on-chip, mmWave.
+\end{IEEEkeywords}
+
+%% ===================================================================
+\section{Introduction}
+%% ===================================================================
+
+Reconfigurable intelligent surfaces (RIS) reshape the radio channel with programmable, nearly passive reflecting elements~\cite{direnzo2020,basar2019}. At mmWave, where blockage can attenuate the direct path by tens of dB~\cite{rappaport2019}, an RIS offers a reflected route whose coherent gain grows as $O(N^2)$~\cite{wu2019joint}. Achieving it requires aligning every element with its cascaded channel.
+
+Model-based phase design---alternating optimization (AO)~\cite{wu2019joint}, SCA~\cite{guo2020}, ADMM~\cite{boyd2011} and SDR~\cite{luo2010}---needs full CSI at a central controller and an iterative solve in every coherence block (2.0--21.9\,ms in our measurements). Learned designs based on DRL~\cite{huang2020drl} and GNNs~\cite{shen2021gnn,eisen2020} reduce inference to a single forward pass but are trained on CSI pooled centrally. Federated learning (FL)~\cite{mcmahan2017,li2020fedprox,karimireddy2020} has been applied with users or devices as clients~\cite{yang2020ota,elbir2022}, whose outputs are independent and whose communication is counted in abstract bytes. A modular RIS, however, is itself a distributed system: each tile estimates only its own CSI slice and is linked to its peers by an on-chip interconnect~\cite{benini2002,dally2004}.
+
+\textbf{Contributions.} (C1)~\fedris is, to our knowledge, the first framework to federate phase optimization across the \emph{tiles of one metasurface}; the clients' outputs are physically summed, so training is per tile but scoring is over the full aperture. (C2)~A \emph{link-quality objective}: a differentiable, genie-normalized sum-rate with a $(\cos,\sin)$ output head, replacing MSE regression onto phase labels. (C3)~\emph{Hardware in the loop}: quantization, jitter and normalized CSI error are applied before scoring and validated against the sinc bound. (C4)~An \emph{interconnect-aware cost model} on a routed NoC, with a closed-form crossover against raw-CSI upload. (C5)~A \emph{link-level benchmark} of seven schemes on identical channel realizations.
+
+%% ===================================================================
+\section{System Model}
+%% ===================================================================
+
+A single-antenna 28\,GHz BS ($P_\text{t}=30$\,dBm) serves a user through an RIS of $N=1024$ elements arranged as $T=16$ tiles ($4\times4$) of $N_t=64$ elements ($8\times8$). The direct path suffers 30\dB blockage~\cite{rappaport2019}; noise is $\sigma^2=-90$\,dBm. The effective channel and received SNR are
+\begin{equation}
+h_\text{eff} = h_\text{d} + \sum_{t=1}^{T}\sum_{n=1}^{N_t} c_{t,n}\, e^{j\theta_{t,n}}, \qquad \gamma=\rho\,|h_\text{eff}|^2,
+\label{eq:heff}
+\end{equation}
+where $c_{t,n}$ is the cascaded BS--RIS--user coefficient of element $n$ in tile $t$ and $\rho=P_\text{t}/\sigma^2$ is the transmit SNR. Links are spatially correlated Rician ($K=10$\dB, correlation 0.7, 5 NLoS paths) with path-loss exponents 2.5 (RIS hops) and 3.5 (direct) and per-element aperture gain $4\pi A_e/\lambda^2$. The rate-optimal design is the MRC alignment $\theta^\star_{t,n}=\angle h_\text{d}-\angle c_{t,n}$, which needs perfect \emph{global} CSI and serves as an oracle bound. \fedris instead learns a shared mapping $f_{\bm w}:\hat{\bm c}_t\mapsto\bm\theta_t$ from each tile's noisy local estimate, without pooling CSI.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.78\textwidth]{system_architecture}
+\caption{\fedris architecture. (A)~28\,GHz scene with blocked direct path and a $4\times4$-tile, 1024-element RIS. (B)~Each tile trains the shared GAT predictor on local CSI; only INT8 deltas cross the Torus NoC (RingAllReduce). (C)~Phases are offset by $\angle h_\text{d}$, quantized, jittered, and scored on the \emph{true} channel.}
+\label{fig:arch}
+\end{figure*}
+
+%% ===================================================================
+\section{The \fedris Framework}
+%% ===================================================================
+
+\textbf{Features and predictor.} Each tile uses the real and imaginary parts of its cascaded and direct coefficients with per-block RMS normalization. The per-sample global phase $\angle h_\text{d}$ is removed from the target and re-added at application (Fig.~\ref{fig:arch}C); otherwise it swamps the per-element structure (label std 1.850\,rad vs.\ 1.814\,rad for pure noise). The predictor is a 3-layer graph attention network~\cite{velickovic2018} over the 4-neighbour $8\times8$ element grid (8 heads, width 256, per-element cascade projections, 315,906 parameters). It outputs $(\cos\theta_n,\sin\theta_n)$, avoiding the $0/2\pi$ wrap-around discontinuity.
+
+\textbf{Objective.} Each tile minimizes
+\begin{equation}
+\mathcal{L} = 1 - \frac{\sum_u w_u \log_2(1+\mathrm{SINR}_u)}{R_\text{genie}},
+\label{eq:loss}
+\end{equation}
+computed from~\eqref{eq:heff} with real arithmetic and normalized by the batch MRC rate $R_\text{genie}$ so that gradients do not vanish when $\mathrm{SINR}\ll1$.
+
+\textbf{Federation over the NoC.} In each of $R=20$ rounds, every tile runs $E=3$ local Adam epochs (lr $3\times10^{-4}$, batch 64) and sends its INT8-quantized update; FedAvg~\cite{mcmahan2017} forms $\bm w^{r+1}=\bm w^r+\sum_t \tfrac{n_t}{n}\Delta\bm w_t$ via RingAllReduce~\cite{patarasuk2009} on a 10\,Gb/s 2D Torus. At run time each tile computes $\bm\theta_t=f_{\bm w}(\hat{\bm c}_t)+\angle h_\text{d}$ in one $O(N)$ forward pass.
+
+\textbf{Impairments.} Predicted phases undergo $b$-bit quantization (theoretical loss $20\log_{10}\mathrm{sinc}(2^{-b})$~\cite{wu2020discrete}), Gaussian jitter $\sigma_\phi$, and CSI error $\hat{\bm c}=\bm c+\bm e$, $\bm e\sim\mathcal{CN}(\bm 0,\epsilon\,\mathbb{E}|c|^2\bm I)$. Normalizing by channel power is essential: with $|c|\sim10^{-10}$, an absolute variance erases the estimate, whereas $\epsilon\in[10^{-3},1]$ spans $1.7^\circ$--$45^\circ$ of phase error.
+
+\textbf{Cost crossover.} FL moves $2RP$ INT8 bytes per tile over training, while centralized training uploads $4SD$ FP32 bytes of raw CSI ($S$ samples of dimension $D$). Federation is cheaper only when
+\begin{equation}
+S > S^\star = 2RP/(4D) \approx 23{,}752 \ \text{samples/tile}
+\label{eq:crossover}
+\end{equation}
+for $R=20$, $P=315{,}906$ and $D=133$.
+
+%% ===================================================================
+\section{Evaluation Setup}
+%% ===================================================================
+
+All schemes design phases from the CSI they are entitled to and are scored on the \emph{same} 600 true channel realizations (seed 42); the solvers use the exact noisy estimate the learners see. Baselines: no RIS; random phases; AO~\cite{wu2019joint}; SCA~\cite{guo2020}; \emph{Centralized DL}, the identical network, loss and schedule trained on pooled data, so that it differs from \fedris only in data locality; and the perfect-CSI MRC bound. \fedris uses 600 training samples per tile. BER is computed semi-analytically (exact conditional AWGN error averaged over realizations) and cross-checked against symbol-level Monte-Carlo simulation.
+
+%% ===================================================================
+\section{Results}
+%% ===================================================================
+
+\begin{table*}[t]
+\centering
+\caption{Link-Level Comparison on 600 Identical Channel Realizations (1024 Elements, 28\,GHz, 30\dB Blockage). $\rho$: Transmit SNR Needed to Reach the Target (Lower Is Better).}
+\label{tab:main}
+\renewcommand{\arraystretch}{1.05}
+\footnotesize
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}lcccccccc@{}}
+\toprule
+\textbf{Scheme} & \textbf{CSI stays} & \textbf{Per-block} & \textbf{Array gain} & \textbf{$\rho$@$10^{-3}$} & \textbf{$\rho$@$10^{-3}$} & \textbf{SE @ $\rho$=99\dB} & \textbf{Power saving} & \textbf{Gap to} \\
+ & \textbf{local} & \textbf{cost} & \textbf{(dB)} & \textbf{QPSK (dB)} & \textbf{16-QAM (dB)} & \textbf{(bit/s/Hz)} & \textbf{@4\,b/s/Hz (dB)} & \textbf{\fedris (dB)} \\
+\midrule
+No RIS (blocked) & \checkmark & --- & 0.00 & 135.9 & --- & 0.16 & 0.0 & $+36.7$ \\
+Random phases & \checkmark & none & 0.65 & 136.9 & --- & 0.35 & 7.2 & $+37.7$ \\
+AO~\cite{wu2019joint} & $\times$ & 21.9\,ms solve & 14.80 & 98.0 & 104.6 & 5.23 & 33.2 & $-1.2$ \\
+SCA~\cite{guo2020} & $\times$ & 2.0\,ms solve & 14.85 & 98.0 & 104.6 & 5.24 & 33.3 & $-1.2$ \\
+Centralized DL & $\times$ & 1 fwd pass & 14.72 & 98.1 & 104.7 & 5.19 & 33.1 & $-1.1$ \\
+\textbf{\fedris (proposed)} & \checkmark & \textbf{1 fwd pass} & \textbf{12.88} & \textbf{99.2} & \textbf{105.8} & \textbf{4.64} & \textbf{31.4} & \textbf{0.0} \\
+Perfect-CSI MRC (bound) & --- & closed form & 14.91 & 97.9 & 104.5 & 5.26 & 33.3 & $-1.3$ \\
+\bottomrule
+\end{tabular}}\\[2pt]
+{\scriptsize ``---'' in the $\rho$ columns: target not reached within $\rho\in[88,142]$\dB. Array gain is relative to the blocked direct link.}
+\end{table*}
+
+\textbf{BER, rate and outage.} Table~\ref{tab:main} and Fig.~\ref{fig:ber} summarize the link-level results. \fedris reaches BER $10^{-3}$ (QPSK) at $\rho=99.2$\dB, \textbf{36.7\dB} before the blocked link and 37.7\dB before random phases, and only \textbf{1.3\dB} behind the perfect-CSI bound. The same 1.3\dB gap holds for 16-QAM, which the blocked link and random phases never reach. The 1.1\dB gap to Centralized DL is exactly the \emph{price of keeping CSI on-tile}. At $\rho=99$\dB, \fedris delivers 4.64\,bit/s/Hz, $29\times$ the blocked link and 88\% of the oracle rate, and at a 4\,bit/s/Hz target it saves \textbf{31.4\dB} of transmit power (oracle: 33.3\dB; random phases: 7.2\dB). For a 1\,bit/s/Hz outage threshold at $\rho=95$\dB, the blocked link is in outage 98.2\% of the time, whereas \fedris shows zero outage across all 600 realizations.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig1_ber_vs_snr}
+\caption{BER vs.\ transmit SNR for QPSK and 16-QAM. \fedris recovers 36.7\dB over the blocked link and lies 1.3\dB from the MRC bound.}
+\label{fig:ber}
+\end{figure}
+
+\textbf{Robustness to imperfect CSI.} Solvers treat the noisy estimate as exact, so they degrade fastest (Table~\ref{tab:robust}a, Fig.~\ref{fig:csi}). Over $\epsilon=0\rightarrow1$, AO and SCA lose \textbf{5.1\dB} of received SNR, Centralized DL 4.6\dB, and \fedris only \textbf{3.2\dB}. Its 1.9\dB perfect-CSI gap to AO thus closes completely at $\epsilon=1$ (13.0 vs.\ 13.0\dB), where its BER is also lower ($1.09\times10^{-2}$ vs.\ $1.13\times10^{-2}$). The learned predictor carries a channel prior that regularizes its response to estimation noise.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.82\textwidth]{fig5_csi_robustness}
+\caption{Robustness to CSI error: (a) BER at $\rho=99$\dB, (b) spectral efficiency, (c) BER waterfall at $\epsilon=1$. \fedris loses 3.2\dB over the sweep, vs.\ 5.1\dB for AO and SCA.}
+\label{fig:csi}
+\end{figure*}
+
+\begin{table}[t]
+\centering
+\caption{Robustness, Hardware and Scaling (Mean Received SNR / Loss in dB at $\rho=99$\dB)}
+\label{tab:robust}
+\renewcommand{\arraystretch}{1.05}
+\setlength{\tabcolsep}{3pt}
+\footnotesize
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+\multicolumn{7}{@{}l}{\textit{(a) Normalized CSI error $\epsilon$}} \\
+\textbf{Scheme} & \textbf{0} & \textbf{0.01} & \textbf{0.1} & \textbf{0.3} & \textbf{1} & \textbf{Loss} \\
+\midrule
+AO / SCA & 18.1/18.2 & 18.1 & 17.5 & 16.3 & 13.0/13.1 & 5.1 \\
+Centralized DL & 18.0 & 18.0 & 17.6 & 16.5 & 13.4 & 4.6 \\
+\textbf{\fedris} & \textbf{16.2} & \textbf{16.2} & \textbf{15.8} & \textbf{15.1} & \textbf{13.0} & \textbf{3.2} \\
+\midrule
+\multicolumn{7}{@{}l}{\textit{(b) Phase quantization loss}} \\
+ & \textbf{1-bit} & \textbf{2-bit} & \textbf{3-bit} & & & \\
+Theory $20\log_{10}\mathrm{sinc}(2^{-b})$ & $-3.92$ & $-0.91$ & $-0.22$ & & & \\
+MRC (measured) & $-3.40$ & $-0.84$ & $-0.21$ & & & \\
+\textbf{\fedris (measured)} & $\bm{-3.26}$ & $\bm{-0.82}$ & $\bm{-0.20}$ & & & \\
+\midrule
+\multicolumn{7}{@{}l}{\textit{(c) RMS phase jitter loss, \fedris}} \\
+ & $5^\circ$: $-0.03$ & $15^\circ$: $-0.27$ & $30^\circ$: $-1.07$ & & & \\
+\midrule
+\multicolumn{7}{@{}l}{\textit{(d) Array-gain scaling, active elements $N$}} \\
+ & \textbf{64} & \textbf{256} & \textbf{512} & \textbf{768} & \textbf{1024} & \\
+MRC (bound) & 3.8 & 10.5 & 16.9 & 17.6 & 18.2 & \\
+\textbf{\fedris} & \textbf{3.6} & \textbf{8.9} & \textbf{14.7} & \textbf{15.6} & \textbf{16.2} & \\
+Ideal $N^2$ law & 3.8 & 15.8 & 21.8 & 25.4 & 27.9 & \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\textbf{Hardware impairments.} The measured quantization losses track the sinc bound (Table~\ref{tab:robust}b), so the simulation is falsifiable against theory. \textbf{2-bit shifters are the practical knee} (0.82\dB). Jitter is second-order: 0.03\dB at $5^\circ$ and 1.07\dB at $30^\circ$.
+
+\textbf{Array-gain scaling.} From $N=256$ to $512$ all designs follow the $N^2$ law (MRC: $+6.4$\dB). Beyond 512 elements the gain saturates for \emph{every} design, including the oracle ($+1.3$\dB vs.\ $+6$\dB predicted), because peripheral tiles see much weaker cascaded channels (Table~\ref{tab:robust}d). This points to tile \emph{placement} as the lever. The gap of \fedris to MRC grows from 0.1\dB at $N=64$ to 2.0\dB at 1024, identifying cross-tile coherence as the main remaining headroom.
+
+\begin{table}[t]
+\centering
+\caption{Learning-System and On-Chip Cost (16 Tiles, 20 Rounds)}
+\label{tab:system}
+\renewcommand{\arraystretch}{1.05}
+\setlength{\tabcolsep}{3pt}
+\footnotesize
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{@{}llccc@{}}
+\toprule
+\multicolumn{5}{@{}l}{\textit{(a) Predictor ablation (system-level suite; relative ranking only)}} \\
+\textbf{Model} & & \textbf{Params} & \textbf{FL traffic (MB)} & \textbf{SNR (dB)} \\
+\midrule
+MLP & & 198,784 & 121.3 & 7.72 \\
+CNN + SE attention & & 130,114 & 79.4 & 8.08 \\
+Transformer & & 2,225,410 & 1358.3 & 8.28 \\
+\textbf{GAT (proposed)} & & \textbf{315,906} & \textbf{192.8} & \textbf{8.75} \\
+\midrule
+\multicolumn{5}{@{}l}{\textit{(b) NoC aggregation over full training}} \\
+\textbf{Topology} & \textbf{Protocol} & \textbf{Bytes (MB)} & \textbf{Latency (ms)} & \textbf{Energy ($\mu$J)} \\
+\midrule
+Mesh & ParamServer & 189.5 & 121.3 & 51.2 \\
+Torus & ParamServer & 189.5 & 80.9 & 38.8 \\
+Torus & AllReduce & 404.4 & 40.4 & 58.2 \\
+Torus & Gossip & 505.4 & 65.7 & 114.0 \\
+\textbf{Torus} & \textbf{RingAllReduce} & \textbf{189.5} & \textbf{18.96} & \textbf{22.7} \\
+\midrule
+\multicolumn{5}{@{}l}{\textit{(c) Traffic accounting (600 samples/tile)}} \\
+\multicolumn{3}{@{}l}{FL (INT8 deltas) / raw-CSI upload} & \multicolumn{2}{c}{192.8\,MB / 4.9\,MB ($39.6\times$)} \\
+\multicolumn{3}{@{}l}{Crossover $S^\star$, Eq.~\eqref{eq:crossover}} & \multicolumn{2}{c}{$\approx$23,752 samples/tile} \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\textbf{Learning system and NoC.} In the full-scale system-level suite (Table~\ref{tab:system}a), GAT outperforms MLP by 1.0\dB and a Transformer with $7\times$ more parameters by 0.5\dB. FedAvg, FedProx and SCAFFOLD agree within 0.07\dB (8.10/8.03/8.09\dB), because shared-scene tiles see near-IID data, so FedAvg is kept. On the NoC (Table~\ref{tab:system}b), the Torus cuts parameter-server latency by 33\% relative to a mesh, and RingAllReduce spreads the same 189.5\,MB over all links, finishing in \textbf{18.96\,ms} with \textbf{22.7\,$\mu$J}: \textbf{6.4$\times$} faster and \textbf{56\%} less energy than a mesh parameter server. AllReduce and Gossip move $2.1\times$ and $2.7\times$ more bytes.
+
+\textbf{Honest cost accounting.} At 600 samples per tile, FL moves $39.6\times$ more bytes than a one-time raw-CSI upload (Table~\ref{tab:system}c), and it becomes cheaper only above $S^\star\approx23{,}752$ samples per tile. The case for \fedris is therefore \emph{CSI locality}, \emph{robustness}, and \emph{latency}: one forward pass replaces a 2.0--21.9\,ms iterative solve that recurs in every coherence block, while training traffic is paid once.
+
+\textbf{Limitations.} With perfect CSI, closed-form MRC is optimal and \fedris trails it by 1.3\dB. The evaluation is limited to a single-antenna BS, a single user, and synthetic Rician channels.
+
+%% ===================================================================
+\section{Conclusion}
+%% ===================================================================
+
+\fedris federates RIS phase optimization across the tiles of one surface over an on-chip NoC. Raw CSI never leaves a tile, and the surface is configured in one forward pass per coherence block. On a 1024-element 28\,GHz surface it recovers 36.7\dB of link budget, saves 31.4\dB of transmit power, and lies 1.3\dB from the perfect-CSI bound. It degrades most gracefully under CSI error (3.2\dB vs.\ 5.1\dB for AO/SCA), tolerates 2-bit shifters at 0.82\dB, and aggregates $6.4\times$ faster with 56\% less energy on a Torus with RingAllReduce. Future work covers cross-tile coherence, multi-antenna and multi-user operation, ray-traced channels, and hardware prototyping.
+
+%% ===================================================================
+\begin{thebibliography}{99}
+\footnotesize
+
+\bibitem{direnzo2020}
+M.~Di~Renzo \emph{et~al.}, ``Smart radio environments empowered by reconfigurable intelligent surfaces: How it works, state of research, and the road ahead,'' \emph{IEEE J. Sel. Areas Commun.}, vol.~38, no.~11, pp.~2450--2525, Nov. 2020.
+
+\bibitem{basar2019}
+E.~Basar, M.~Di~Renzo, J.~de~Rosny, M.~Debbah, M.-S.~Alouini, and R.~Zhang, ``Wireless communications through reconfigurable intelligent surfaces,'' \emph{IEEE Access}, vol.~7, pp.~116753--116773, 2019.
+
+\bibitem{rappaport2019}
+T.~S.~Rappaport \emph{et~al.}, ``Wireless communications and applications above 100~GHz: Opportunities and challenges for 6G and beyond,'' \emph{IEEE Access}, vol.~7, pp.~78729--78757, 2019.
+
+\bibitem{wu2019joint}
+Q.~Wu and R.~Zhang, ``Intelligent reflecting surface enhanced wireless network via joint active and passive beamforming,'' \emph{IEEE Trans. Wireless Commun.}, vol.~18, no.~11, pp.~5394--5409, Nov. 2019.
+
+\bibitem{wu2020discrete}
+Q.~Wu and R.~Zhang, ``Beamforming optimization for wireless network aided by intelligent reflecting surface with discrete phase shifts,'' \emph{IEEE Trans. Commun.}, vol.~68, no.~3, pp.~1838--1851, Mar. 2020.
+
+\bibitem{guo2020}
+H.~Guo, Y.-C.~Liang, J.~Chen, and E.~G.~Larsson, ``Weighted sum-rate maximization for reconfigurable intelligent surface aided wireless networks,'' \emph{IEEE Trans. Wireless Commun.}, vol.~19, no.~5, pp.~3064--3076, May 2020.
+
+\bibitem{boyd2011}
+S.~Boyd, N.~Parikh, E.~Chu, B.~Peleato, and J.~Eckstein, ``Distributed optimization and statistical learning via the alternating direction method of multipliers,'' \emph{Found. Trends Mach. Learn.}, vol.~3, no.~1, pp.~1--122, 2011.
+
+\bibitem{luo2010}
+Z.-Q.~Luo, W.-K.~Ma, A.~M.-C.~So, Y.~Ye, and S.~Zhang, ``Semidefinite relaxation of quadratic optimization problems,'' \emph{IEEE Signal Process. Mag.}, vol.~27, no.~3, pp.~20--34, May 2010.
+
+\bibitem{huang2020drl}
+C.~Huang, R.~Mo, and C.~Yuen, ``Reconfigurable intelligent surface assisted multiuser MISO systems exploiting deep reinforcement learning,'' \emph{IEEE J. Sel. Areas Commun.}, vol.~38, no.~8, pp.~1839--1850, Aug. 2020.
+
+\bibitem{shen2021gnn}
+Y.~Shen, Y.~Shi, J.~Zhang, and K.~B.~Letaief, ``Graph neural networks for scalable radio resource management: Architecture design and theoretical analysis,'' \emph{IEEE J. Sel. Areas Commun.}, vol.~39, no.~1, pp.~101--115, Jan. 2021.
+
+\bibitem{eisen2020}
+M.~Eisen and A.~Ribeiro, ``Optimal wireless resource allocation with random edge graph neural networks,'' \emph{IEEE Trans. Signal Process.}, vol.~68, pp.~2977--2991, 2020.
+
+\bibitem{velickovic2018}
+P.~Veli\v{c}kovi\'{c}, G.~Cucurull, A.~Casanova, A.~Romero, P.~Li\`{o}, and Y.~Bengio, ``Graph attention networks,'' in \emph{Proc. ICLR}, 2018.
+
+\bibitem{mcmahan2017}
+B.~McMahan, E.~Moore, D.~Ramage, S.~Hampson, and B.~A.~y~Arcas, ``Communication-efficient learning of deep networks from decentralized data,'' in \emph{Proc. AISTATS}, 2017, pp.~1273--1282.
+
+\bibitem{li2020fedprox}
+T.~Li, A.~K.~Sahu, M.~Zaheer, M.~Sanjabi, A.~Talwalkar, and V.~Smith, ``Federated optimization in heterogeneous networks,'' in \emph{Proc. MLSys}, 2020.
+
+\bibitem{karimireddy2020}
+S.~P.~Karimireddy, S.~Kale, M.~Mohri, S.~Reddi, S.~Stich, and A.~T.~Suresh, ``SCAFFOLD: Stochastic controlled averaging for federated learning,'' in \emph{Proc. ICML}, 2020, pp.~5132--5143.
+
+\bibitem{yang2020ota}
+K.~Yang, T.~Jiang, Y.~Shi, and Z.~Ding, ``Federated learning via over-the-air computation,'' \emph{IEEE Trans. Wireless Commun.}, vol.~19, no.~3, pp.~2022--2035, Mar. 2020.
+
+\bibitem{elbir2022}
+A.~M.~Elbir and S.~Coleri, ``Federated learning for channel estimation in conventional and RIS-assisted massive MIMO,'' \emph{IEEE Trans. Wireless Commun.}, vol.~21, no.~6, pp.~4255--4268, Jun. 2022.
+
+\bibitem{benini2002}
+L.~Benini and G.~De~Micheli, ``Networks on chips: A new SoC paradigm,'' \emph{Computer}, vol.~35, no.~1, pp.~70--78, Jan. 2002.
+
+\bibitem{dally2004}
+W.~J.~Dally and B.~Towles, \emph{Principles and Practices of Interconnection Networks}. Morgan Kaufmann, 2004.
+
+\bibitem{patarasuk2009}
+P.~Patarasuk and X.~Yuan, ``Bandwidth optimal all-reduce algorithms for clusters of workstations,'' \emph{J. Parallel Distrib. Comput.}, vol.~69, no.~2, pp.~117--124, 2009.
+
+\end{thebibliography}
+
+\end{document}

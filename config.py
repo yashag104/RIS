@@ -221,8 +221,10 @@ class Config:
 
     # ============ Communication Parameters ============
     PACKET_SIZE_BYTES = 4  # Size of float32 in bytes (local computation)
-    COMM_BYTES_PER_PARAM = 1  # INT8 quantized transmission (1 byte/param)
-    NOC_BANDWIDTH_GBPS = 10  # Network-on-Chip bandwidth
+    COMM_BYTES_PER_PARAM = 4  # Actual float32 payload; no implemented INT8 codec
+    NOC_LINK_WIDTH_BITS = 128
+    NOC_CLOCK_GHZ = 1.0  # Assumed scenario, not a synthesized clock
+    NOC_BANDWIDTH_GBPS = NOC_LINK_WIDTH_BITS * NOC_CLOCK_GHZ
     TARGET_NOC_UTILIZATION = 0.8  # Target max utilization (<80%)
     # Wall-clock period of one FL round, i.e. how often the RIS controller
     # re-optimises its phase configuration. NoC bandwidth utilization is the
@@ -232,7 +234,7 @@ class Config:
     FL_ROUND_PERIOD_S = 0.1
 
     # ============ NoC Topology Configuration ============
-    # Torus: ~33% fewer hops than Mesh via wrap-around links [Dally & Towles, 2004]
+    # Logical topology; diameter alone does not determine loaded latency.
     NOC_TOPOLOGY = "Torus"
     # RingAllReduce: bandwidth-optimal aggregation [Patarasuk & Yuan, JPDC 2009]
     NOC_PROTOCOL = "RingAllReduce"

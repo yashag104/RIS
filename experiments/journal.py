@@ -169,7 +169,7 @@ class JournalExperimentsMixin:
                 results.append(result)
                 
                 self.logger.info(f"  Latency: {fl_metrics['total_latency_us']:.2f} us")
-                self.logger.info(f"  Energy: {fl_metrics['total_energy_nj']:.2f} nJ")
+                self.logger.info(f"  Energy: {fl_metrics['total_energy_nj']} nJ")
                 self.logger.info(f"  Diameter: {topo_info['diameter']}")
                 
             except Exception as e:
@@ -224,7 +224,7 @@ class JournalExperimentsMixin:
                     
                     self.logger.info(f"  Total bytes: {metrics['total_bytes']:,}")
                     self.logger.info(f"  Latency: {metrics['total_latency_us']:.2f} us")
-                    self.logger.info(f"  Energy: {metrics['total_energy_nj']:.2f} nJ")
+                    self.logger.info(f"  Energy: {metrics['total_energy_nj']} nJ")
                     
                 except Exception as e:
                     self.logger.info(f"  Error: {e}")
@@ -465,7 +465,7 @@ class JournalExperimentsMixin:
                         comm_energy_nj = comm_metrics['energy_nj']
                     except Exception:
                         comm_latency_us = n_tiles * 10
-                        comm_energy_nj = n_tiles * 100
+                        comm_energy_nj = None
                     
                     # Energy per pixel
                     pixel_power = actual_pixels * n_tiles * 0.015  # W
@@ -490,7 +490,7 @@ class JournalExperimentsMixin:
                         'pixel_density_per_m2': actual_pixels * n_tiles / area,
                         'avg_snr_db': float(avg_snr),
                         'comm_latency_us': float(comm_latency_us),
-                        'comm_energy_nj': float(comm_energy_nj),
+                        'comm_energy_nj': None if comm_energy_nj is None else float(comm_energy_nj),
                         'pixel_power_w': float(pixel_power),
                         'composite_score': float(score),
                     }

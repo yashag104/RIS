@@ -516,14 +516,7 @@ class ExperimentBase:
         }
 
     def _calculate_noc_metrics(self, result):
-        """Network-on-Chip metrics from the cycle-level NoC contention model.
-
-        Latency, energy and link utilization come from ``NoCSimulator``, which
-        routes every model transfer over the configured topology and prices the
-        round by its most heavily loaded link. Dynamic power is the simulated
-        interconnect energy divided by the simulated aggregation time, so it is
-        derived from the traffic rather than fitted to it.
-        """
+        """Analytical serialization estimate; circuit energy/power are unknown."""
         from src.noc_simulator import NoCSimulator
 
         num_tiles = result.get('num_tiles', self.config.NUM_TILES)
@@ -542,20 +535,11 @@ class ExperimentBase:
         round_noc = sim.simulate_fl_round(model_size_bytes, self.config.NOC_PROTOCOL)
 
         avg_latency_us = round_noc['latency_us']
-        aggregation_time_s = round_noc['latency_ns'] * 1e-9
-
-        # Interconnect switching power over the aggregation window
-        dynamic_power_mw = (
-            round_noc['energy_j'] / aggregation_time_s * 1000
-            if aggregation_time_s > 0 else 0.0
-        )
-        static_power_mw = num_tiles * self.config.IDLE_POWER_TILE * 1000
-        total_power_mw = static_power_mw + dynamic_power_mw
-
         return {
-            'total_power_mw': total_power_mw,
-            'static_power_mw': static_power_mw,
-            'dynamic_power_mw': dynamic_power_mw,
+            'total_power_mw': None,
+            'static_power_mw': None,
+            'dynamic_power_mw': None,
+            'power_status': 'no calibrated circuit model',
             'avg_latency_us': avg_latency_us,
             'noc_utilization': round_noc['utilization'],
             'noc_congestion_ratio': round_noc['congestion_ratio'],

@@ -305,7 +305,7 @@ class FederatedExperimentsMixin:
 
                 results.append(result)
 
-                self.logger.info(f"  Power: {result['total_power_mw']:.2f} mW")
+                self.logger.info(f"  Power: {result['total_power_mw']} mW")
                 self.logger.info(f"  Latency: {result['avg_latency_us']:.2f} us")
         finally:
             self.config.NUM_TILES = original_tiles

@@ -29,3 +29,5 @@ results/experiments_smoke_*.json
 
 # Output of `run_link_level.py --quick`: a pipeline check, not a result.
 results/link_level_quick/
+results/link_level_corrected_quick/
+results/pilot_limited_quick/

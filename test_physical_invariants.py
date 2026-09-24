@@ -34,36 +34,36 @@ def test_noc_utilization_never_exceeds_one():
             assert 0.0 <= u <= 1.0 + 1e-9, f"{topo}/{proto}: utilization {u}"
 
 
-def test_noc_latency_and_energy_positive():
-    """Latency and energy are positive and finite for every configuration."""
+def test_noc_latency_positive_and_uncalibrated_energy_missing():
+    """Positive traffic costs time; missing calibration cannot imply energy."""
     for topo in TOPOLOGIES:
         for proto in PROTOCOLS:
             sim = NoCSimulator(num_tiles=16, topology=topo, bandwidth_gbps=10.0)
             m = sim.simulate_fl_round(606_750, proto)
             assert m['latency_us'] > 0 and np.isfinite(m['latency_us'])
-            assert m['energy_j'] > 0 and np.isfinite(m['energy_j'])
+            assert m['energy_j'] is None and m['energy_status'] == 'uncalibrated'
             assert m['congestion_ratio'] >= 1.0 - 1e-9, (
                 f"{topo}/{proto}: max link load below the mean is impossible")
 
 
-def test_noc_topology_ordering():
-    """Torus beats Mesh on parameter-server latency via its wrap-around links.
-
-    This is the claim the paper cites Dally & Towles for; if the contention
-    model stops reproducing it, the claim is no longer supported.
-    """
-    lat = {}
-    for topo in ['Mesh', 'Torus']:
-        sim = NoCSimulator(num_tiles=16, topology=topo, bandwidth_gbps=10.0)
-        lat[topo] = sim.simulate_fl_round(606_750, 'ParameterServer')['latency_us']
-    assert lat['Torus'] < lat['Mesh'], lat
+def test_parameter_server_is_endpoint_limited():
+    values = []
+    for topo in TOPOLOGIES:
+        sim = NoCSimulator(16, topo)
+        r = sim.simulate_fl_round(600_000, 'ParameterServer')
+        values.append(r['serialization_ns'])
+        assert 'ejection:0' in r['phase_bottlenecks'][0]
+        assert 'injection:0' in r['phase_bottlenecks'][1]
+    assert np.allclose(values, 2*15*600_000*8/128)
 
 
-def test_ring_allreduce_is_bandwidth_optimal():
-    """RingAllReduce has the lowest aggregation latency of the four protocols."""
-    sim = NoCSimulator(num_tiles=16, topology='Torus', bandwidth_gbps=10.0)
-    lat = {p: sim.simulate_fl_round(606_750, p)['latency_us'] for p in PROTOCOLS}
-    assert min(lat, key=lat.get) == 'RingAllReduce', lat
+def test_ring_allreduce_preserves_payload():
+    sim = NoCSimulator(16, 'Torus')
+    for payload in (1, 17, 606_750):
+        r = sim.simulate_fl_round(payload, 'RingAllReduce')
+        assert r['total_bytes'] == 2*15*payload
+        assert r['exact_collective']
+    assert not sim.simulate_fl_round(100, 'Gossip')['exact_collective']
 
 
 def _sample_channels(n=60, blockage_db=None):
