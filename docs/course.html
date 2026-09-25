@@ -194,6 +194,18 @@ code{
 .note.warn .lab{color:var(--signal)}
 .note.dead{background:var(--bad-soft);border-color:color-mix(in srgb,var(--bad) 30%,transparent)}
 .note.dead .lab{color:var(--bad)}
+.verdict{
+  background:var(--surface);border:1px solid var(--rule);
+  border-left:3px solid var(--signal);border-radius:4px;
+  padding:17px 19px;margin:18px 0 22px;
+}
+.verdict .lab{
+  font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.13em;
+  text-transform:uppercase;display:block;margin-bottom:8px;font-weight:600;color:var(--signal);
+}
+.verdict p{margin:0;font-family:Spectral,Georgia,serif;font-size:1.06rem;line-height:1.6;max-width:none}
+.verdict p + p{margin-top:11px}
+p.q{color:var(--ink-3);font-style:italic;margin:-4px 0 14px}
 
 /* ---------- status chips ---------- */
 .chip{
@@ -715,135 +727,255 @@ hr.sep{border:0;border-top:1px solid var(--rule);margin:34px 0}
 <!-- ============================ L7 ============================ -->
 <section id="l7">
   <div class="lec-head"><span class="lec-num">LECTURE 07</span></div>
-  <h2>Every result, and what each one means</h2>
-  <p class="lec-sub">These are the numbers going into the paper. All are regenerated from the corrected simulator with five-seed intervals and hash-manifested inputs.</p>
+  <h2>Reading the results</h2>
+  <p class="lec-sub">Six experiments. For each one: what happened in plain language, whether that is a narrow result or a decisive one, what it tells you about the thing being tested, what it tells you about everything it was tested against, and what it does not settle.</p>
 
-  <h3>Experiment 1 &mdash; Supplied-CSI diagnostic</h3>
-  <p><em>Question:</em> given channel estimates handed to it, does the closed form work and is it really local? <em>Why it matters:</em> it establishes the separability result as a measurement rather than an argument.</p>
+  <div class="note key">
+    <span class="lab">How to read a margin in this project</span>
+    <p>A number on its own means nothing. What matters is the <em>range</em> it sits in. In the pilot experiment the whole prize is the distance between doing nothing (no surface) and the best any deployable scheme achieves. Everything else should be read as a fraction of that distance &mdash; the way you read a league table by points off the top, not by raw points.</p>
+  </div>
+
+  <!-- ===== 1 ===== -->
+  <h3>Experiment 1 &mdash; Does the closed form actually work, and is it really local?</h3>
+
+  <div class="verdict">
+    <span class="lab">What happened</span>
+    <p>Four different methods were given channel estimates and asked to set the phases. A simple closed-form formula, an iterative gradient optimizer, a surrogate optimizer, and a cheating oracle that reads the true channel. <strong>All four produced the same answer.</strong> Not similar &mdash; the same, to two decimal places, at every aperture size and every noise level tested.</p>
+  </div>
+
+  <p>The instinct on seeing four methods tie is to think the experiment was insensitive. It was not. The same experiment separates "surface on" from "surface off" by a wide, unambiguous margin &mdash; roughly a twenty-seven-fold increase in received power, which is the difference between a link that drops and a link that works. The measurement has plenty of resolution. It simply found nothing to resolve among the four methods.</p>
+
+  <p>When a sophisticated iterative solver, a one-line formula, and an oracle that cheats all land on the same result, you have not learned that your solver is good. You have learned that <strong>the problem has one forced answer</strong>. It is a league where every team finishes on identical points and identical goal difference &mdash; which tells you the fixtures were never really contested.</p>
+
+  <h4>What it says about the surface</h4>
+  <p>The hardware is doing real work. Phase alignment converts a blocked link into a working one, and that gain is entirely attributable to the physics of coherent combining, not to any cleverness in the algorithm. If you are writing about what an RIS buys you, this is the number that matters.</p>
+
+  <h4>What it says about algorithm research in this setting</h4>
+  <p>There is none to do. Any paper proposing a better phase-design algorithm for a single transmitter and single receiver with known channels is proposing an improvement on a quantity that has no headroom. The closed form is not a strong baseline that might eventually be beaten &mdash; it is the ceiling, provably (Lecture 02) and now measurably.</p>
+
+  <h4>What it does not settle</h4>
+  <p>Nothing here speaks to multiple users. With interference the objective stops being separable, the four methods would no longer tie, and this entire argument dissolves. That is the honest boundary of the claim.</p>
 
   <div class="tw">
     <table>
-      <caption><b>Supplied-CSI</b> &mdash; channel power gain (dB), 5 seeds, 95% Student-<em>t</em> intervals. <span class="u">Source: results/tier01_report/tables.tex</span></caption>
-      <thead><tr><th>Scheme</th><th>Gain (dB)</th><th>Note</th></tr></thead>
+      <caption>Reference &mdash; supplied-CSI channel power gain (dB), 5 seeds. <span class="u">results/tier01_report/tables.tex</span></caption>
+      <thead><tr><th>Scheme</th><th>Gain (dB)</th></tr></thead>
       <tbody>
-        <tr class="dim"><td>No RIS (blocked)</td><td>&minus;106.61 &plusmn; 0.81</td><td class="u">reference floor</td></tr>
-        <tr class="dim"><td>Random phases</td><td>&minus;106.50 &plusmn; 0.80</td><td class="u">surface present, useless</td></tr>
-        <tr class="hi best"><td>Local noisy-CSI MRC</td><td>&minus;92.33 &plusmn; 0.31</td><td class="u">closed form, tile-local</td></tr>
-        <tr><td>Projected-gradient control</td><td>&minus;92.35 &plusmn; 0.31</td><td class="u">iterative, converges to same</td></tr>
-        <tr><td>Surrogate control</td><td>&minus;92.36 &plusmn; 0.31</td><td class="u">iterative, converges to same</td></tr>
-        <tr class="best"><td>Perfect-CSI bound</td><td>&minus;92.33 &plusmn; 0.31</td><td class="u">oracle</td></tr>
+        <tr class="dim"><td>No RIS (blocked)</td><td>&minus;106.61 &plusmn; 0.81</td></tr>
+        <tr class="dim"><td>Random phases</td><td>&minus;106.50 &plusmn; 0.80</td></tr>
+        <tr class="hi best"><td>Local noisy-CSI MRC</td><td>&minus;92.33 &plusmn; 0.31</td></tr>
+        <tr><td>Projected-gradient control</td><td>&minus;92.35 &plusmn; 0.31</td></tr>
+        <tr><td>Surrogate control</td><td>&minus;92.36 &plusmn; 0.31</td></tr>
+        <tr class="best"><td>Perfect-CSI bound</td><td>&minus;92.33 &plusmn; 0.31</td></tr>
       </tbody>
     </table>
   </div>
 
-  <p><strong>Reading:</strong> local MRC equals the oracle to two decimal places. The two iterative solvers spend many iterations arriving at the same answer the closed form gives immediately. The surface itself is worth 14.3 dB; the choice of algorithm is worth 0.00 dB. <span class="chip ok">Separability confirmed</span></p>
+  <!-- ===== 2 ===== -->
+  <h3>Experiment 2 &mdash; How badly does bad channel knowledge hurt?</h3>
 
-  <h3>Experiment 2 &mdash; Estimation-error robustness</h3>
-  <p><em>Question:</em> how does each scheme degrade as supplied estimates get noisier? <em>Why it matters:</em> the original paper claimed the federated model was uniquely robust. It was not &mdash; it simply started worse and so had less to lose.</p>
-
-  <div class="tw">
-    <table>
-      <caption><b>Mean received SNR (dB) vs normalized CSI error &epsilon;</b>, seed 42</caption>
-      <thead><tr><th>Scheme</th><th>&epsilon;=0</th><th>0.01</th><th>0.1</th><th>0.3</th><th>1.0</th></tr></thead>
-      <tbody>
-        <tr class="hi"><td>Local MRC</td><td>27.70</td><td>27.65</td><td>27.29</td><td>26.76</td><td>25.74</td></tr>
-        <tr><td>Projected gradient</td><td>27.68</td><td>27.63</td><td>27.28</td><td>26.76</td><td>25.74</td></tr>
-        <tr class="best"><td>Oracle (perfect CSI)</td><td>27.70</td><td>27.70</td><td>27.70</td><td>27.70</td><td>27.70</td></tr>
-        <tr class="dim"><td>No RIS</td><td>13.37</td><td>13.37</td><td>13.37</td><td>13.37</td><td>13.37</td></tr>
-      </tbody>
-    </table>
+  <div class="verdict">
+    <span class="lab">What happened</span>
+    <p>The channel estimate was progressively corrupted until the error carried as much power as the signal itself &mdash; the point where half of what you think you know is wrong. The closed form <strong>gave up less than two decibels</strong> of the roughly fourteen it had gained. It kept about six-sevenths of its advantage while operating on half-garbage information.</p>
   </div>
 
-  <p><strong>Reading:</strong> graceful degradation &mdash; only 1.96 dB lost when error power equals signal power. The corrected work reports absolute SNR and fraction-of-oracle-power rather than percentage drops, precisely so that "degraded less because it was already worse" cannot masquerade as robustness. <span class="chip no">Original robustness claim withdrawn</span></p>
-
-  <h3>Experiment 3 &mdash; The passive pilot experiment (headline)</h3>
-  <p><em>Question:</em> with only M probe responses, does a learned prior beat classical estimation, and does federating that prior help? <em>Why it matters:</em> this is the paper's central claim.</p>
-
-  <div class="tw">
-    <table>
-      <caption><b>M = 16 probes</b>, P<sub>t</sub> = 30 dBm, 5 seeds. Net rate is pilot-adjusted. <span class="u">Source: results/pilot_limited/summary.json</span></caption>
-      <thead><tr><th>Scheme</th><th>SNR (dB)</th><th>Net rate</th><th>Frac. oracle</th><th>Gap to local linear</th></tr></thead>
-      <tbody>
-        <tr class="dim"><td>Perfect-CSI oracle</td><td>27.67</td><td>8.388</td><td>1.0000</td><td class="u">not deployable</td></tr>
-        <tr class="dim"><td>Full-probe LS + MRC <span class="u">(1025 probes)</span></td><td>25.18</td><td>3.277</td><td>0.3155</td><td class="u">+0.256</td></tr>
-        <tr class="hi best"><td>LMMSE + MRC</td><td>14.62</td><td>3.251</td><td>0.0581</td><td>+0.230</td></tr>
-        <tr class="best"><td>Local linear + MRC</td><td>14.36</td><td>3.022</td><td>0.0559</td><td>0.000</td></tr>
-        <tr><td>Best observed probe</td><td>13.77</td><td>2.649</td><td>0.0492</td><td>&minus;0.373</td></tr>
-        <tr><td>Local models (no federation)</td><td>13.66</td><td>2.462</td><td>0.0482</td><td>&minus;0.560</td></tr>
-        <tr><td>Centralized (total-step budget)</td><td>13.82</td><td>2.403</td><td>0.0497</td><td>&minus;0.618</td></tr>
-        <tr><td>Centralized (client-step budget)</td><td>13.76</td><td>2.371</td><td>0.0492</td><td>&minus;0.651</td></tr>
-        <tr><td><strong>FedAvg</strong> (validation selected)</td><td>13.69</td><td>2.351</td><td>0.0485</td><td>&minus;0.671</td></tr>
-        <tr><td>FedAvg, 5 rounds</td><td>13.58</td><td>2.300</td><td>0.0476</td><td>&minus;0.722</td></tr>
-        <tr><td>FedAvg, 1 round</td><td>13.51</td><td>2.219</td><td>0.0466</td><td>&minus;0.803</td></tr>
-        <tr class="dim"><td>No RIS</td><td>13.39</td><td>2.060</td><td>0.0454</td><td>&minus;0.961</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <div class="tw">
-    <table>
-      <caption><b>M = 64 probes</b> &mdash; four times the observations, same conclusion</caption>
-      <thead><tr><th>Scheme</th><th>SNR (dB)</th><th>Net rate</th><th>Gap to local linear</th></tr></thead>
-      <tbody>
-        <tr class="hi best"><td>LMMSE + MRC</td><td>16.34</td><td>3.984</td><td>+0.418</td></tr>
-        <tr class="best"><td>Local linear + MRC</td><td>15.56</td><td>3.566</td><td>0.000</td></tr>
-        <tr><td>Best observed probe</td><td>13.91</td><td>2.727</td><td>&minus;0.839</td></tr>
-        <tr><td>Local models (no federation)</td><td>13.75</td><td>2.527</td><td>&minus;1.039</td></tr>
-        <tr><td>Centralized (total-step budget)</td><td>14.01</td><td>2.406</td><td>&minus;1.154</td></tr>
-        <tr><td><strong>FedAvg</strong></td><td>13.78</td><td>2.324</td><td>&minus;1.243</td></tr>
-        <tr class="dim"><td>No RIS</td><td>13.39</td><td>2.060</td><td>&minus;1.506</td></tr>
-      </tbody>
-    </table>
-  </div>
+  <p>The reason is structural and worth understanding, because it drives the rest of the project. Phase alignment across a thousand elements is an <em>averaging</em> operation. An error in your estimate of one element's channel rotates that one element slightly out of step. One element out of 1024, contributing a thousandth of the total amplitude, mis-rotated. The aperture absorbs it. Errors do not compound across elements; they wash out.</p>
 
   <div class="note dead">
-    <span class="lab">The headline finding &mdash; a negative result</span>
-    <p>FedAvg loses to <em>every</em> control, including ones that require no training at all. It is beaten by best-probe selection (which costs one integer of feedback), by an independently fitted per-tile ridge regression, and by centralized training at both matched budgets. It barely clears no-RIS.</p>
-    <p>Worse for the federation thesis specifically: <strong>local models beat FedAvg</strong> at both budgets (2.462 vs 2.351 at M=16; 2.527 vs 2.324 at M=64). Averaging across tiles actively hurts. And going from 16 to 64 probes <em>widens</em> the gap from &minus;0.671 to &minus;1.243 &mdash; more information helps the classical estimators and does not help the network.</p>
+    <span class="lab">Why this is bad news for the learning thesis</span>
+    <p>Robustness is only valuable where fragility exists. If the simple method had been brittle under noisy estimates, there would be an obvious opening: build something smarter that holds up better. But the simple method is <em>already</em> robust, almost by construction. There is no fragility for a learned method to repair.</p>
+    <p>This closes the second-most-plausible argument for the original thesis. The first was "federation saves communication" (Lecture 02 and Experiment 6 close that). The second was "learning is more robust." Neither survives.</p>
   </div>
 
-  <h3>Experiment 4 &mdash; Architecture diagnostic</h3>
-  <p><em>Question:</em> was the failure specific to the MLP? <em>Why it matters:</em> it closes the most obvious escape route from the negative result.</p>
+  <h4>The claim that was withdrawn, and why it was wrong-headed</h4>
+  <p>The original paper reported that the federated model "degraded most gracefully" &mdash; it lost less performance across the noise sweep than the classical solvers did. That was arithmetically true and analytically worthless. The federated model started roughly two decibels behind and everything converged toward the same floor, so of course it had less to give up.</p>
+  <p>A team that finishes tenth every single season has remarkably consistent form. Consistency at a low level is not a virtue, and measuring only the <em>change</em> between seasons rather than the <em>position</em> hides that. Reporting percentage degradation without absolute performance is the same mistake. The corrected work reports absolute received SNR and fraction-of-oracle-power precisely so this cannot happen again.</p>
 
   <div class="tw">
     <table>
-      <caption><b>Four architectures</b>, identical data/budget: M=16, 500 pooled Adam updates, 5 seeds. <span class="u">Source: results/tier2_report/tables.tex</span></caption>
-      <thead><tr><th>Model</th><th>Parameters</th><th>SNR (dB)</th><th>Net rate</th><th>Paired gap to MLP</th></tr></thead>
+      <caption>Reference &mdash; mean received SNR (dB) vs normalized estimate error &epsilon;, seed 42</caption>
+      <thead><tr><th>Scheme</th><th>&epsilon;=0</th><th>0.1</th><th>0.3</th><th>1.0</th></tr></thead>
       <tbody>
-        <tr><td>MLP (width 128 &times; 2)</td><td>37,632</td><td>13.732</td><td>2.364</td><td>0.000</td></tr>
-        <tr><td>GAT (compact)</td><td>62,850</td><td>14.111</td><td>2.208</td><td>&minus;0.156 &plusmn; 0.054</td></tr>
-        <tr><td>CNN + squeeze-excite</td><td>29,730</td><td>14.044</td><td>2.431</td><td>+0.067 &plusmn; 0.075</td></tr>
-        <tr><td>Transformer</td><td>294,530</td><td>13.772</td><td>2.294</td><td>&minus;0.070 &plusmn; 0.104</td></tr>
+        <tr class="hi"><td>Local MRC</td><td>27.70</td><td>27.29</td><td>26.76</td><td>25.74</td></tr>
+        <tr><td>Projected gradient</td><td>27.68</td><td>27.28</td><td>26.76</td><td>25.74</td></tr>
+        <tr class="best"><td>Oracle (perfect CSI)</td><td>27.70</td><td>27.70</td><td>27.70</td><td>27.70</td></tr>
+        <tr class="dim"><td>No RIS</td><td>13.37</td><td>13.37</td><td>13.37</td><td>13.37</td></tr>
       </tbody>
     </table>
   </div>
 
-  <p><strong>Reading:</strong> all four land between 2.21 and 2.43 bit/s/Hz &mdash; every one of them below best-probe's 2.649 and well below local linear's 3.022. A ten-fold parameter range changes essentially nothing. The failure is not architectural. <span class="chip ok">Escape route closed</span></p>
+  <!-- ===== 3 ===== -->
+  <h3>Experiment 3 &mdash; The headline: can a learned prior beat classical estimation, and does federating it help?</h3>
+
+  <div class="verdict">
+    <span class="lab">What happened</span>
+    <p>Eleven schemes competed on identical measurements. <strong>The neural networks finished last</strong> &mdash; below a linear regression, below a heuristic that requires no training whatsoever, and barely above switching the surface off. The federated version finished below the non-federated version of the same network.</p>
+    <p>The schemes sorted themselves almost perfectly by <em>how little machinery they use</em>. Statistics beat heuristics beat learning, in that order.</p>
+  </div>
+
+  <h4>Putting the margin in proportion</h4>
+  <p>The whole prize in this experiment &mdash; the distance between doing nothing and the best result any deployable scheme achieved &mdash; is about 1.2 bit/s/Hz. Against that range:</p>
+  <ul>
+    <li>The best classical estimator captures essentially <strong>all</strong> of it.</li>
+    <li>A ridge regression fitted independently on each tile, with no communication at all, captures about <strong>four-fifths</strong>.</li>
+    <li>Picking whichever probe you already measured happened to work best captures about <strong>half</strong>.</li>
+    <li>The federated network captures about <strong>a quarter</strong>.</li>
+  </ul>
+  <p>So this is not a narrow loss to be explained away by tuning. The federated model sits closer to doing nothing at all than to doing the job well. In league terms it is not finishing second &mdash; it is finishing in the relegation places while the free option wins the title.</p>
+
+  <h4>The single most damning fact in the project</h4>
+  <p>Everyone was then given four times as many measurements. Watch what each scheme did with the extra information:</p>
+  <ul>
+    <li>The statistical estimator <strong>improved substantially</strong>. It used the information.</li>
+    <li>The per-tile regression <strong>improved substantially</strong>. It used the information.</li>
+    <li>The probe-picking heuristic improved <strong>slightly</strong>, which is what you would expect from a scheme that only picks a maximum from a longer list.</li>
+    <li>The federated network <strong>got marginally worse</strong>.</li>
+  </ul>
+
+  <div class="note dead">
+    <span class="lab">What that means, stated bluntly</span>
+    <p>A method that does not improve when you give it four times more information is not learning. This is not "the network learned a weak prior." It is evidence the network is not extracting the structure at all &mdash; it is producing something roughly independent of its input.</p>
+    <p>A striker who scores the same whether you give him five chances or twenty is not having bad luck. Something is wrong with the striker.</p>
+  </div>
+
+  <h4>Why federating made it worse, not merely useless</h4>
+  <p>This is the most technically interesting inference available here. The non-federated version &mdash; each tile training its own model alone &mdash; beat the federated version at both measurement budgets. Averaging the tiles' models <em>degraded</em> them.</p>
+  <p>That is initially surprising. On a contiguous surface every tile sees nearly the same statistics, so averaging sixteen models should be roughly like averaging sixteen noisy copies of the same thing, which normally helps. The likely mechanism is that neural networks have internal symmetries: two networks can implement similar functions using completely different internal arrangements of weights. Average two such networks and you land somewhere between two valid solutions, which is not itself a valid solution &mdash; the way the average of two good routes between cities can run through a lake.</p>
+  <p>The specific suspect in this implementation is the optimizer state reset at each round, which is disclosed in the setup and recorded in every result file. Either way, the inference stands: <strong>the aggregation step is not neutral here, it is actively harmful</strong>, which is the opposite of what the framework was proposed to deliver.</p>
+
+  <h4>The result I under-sold before: what full-probe estimation reveals</h4>
+  <p>One scheme spends everything on measurement &mdash; it probes exhaustively until the channel is nearly solved. Its raw channel knowledge is far and away the best on offer, close to the oracle's, roughly ten decibels ahead of every competitor.</p>
+  <p>And after you charge it for the pilots it spent, <strong>it ties with a scheme that used sixteen probes</strong>.</p>
+  <p>This is the clearest demonstration in the whole project that <em>the accounting is the result</em>. Report received signal quality alone and exhaustive probing wins by a landslide; you would recommend it without hesitation. Charge it honestly for the half of every transmission block it consumed and the advantage vanishes entirely.</p>
+  <p>The useful inference for a system designer: at these budgets, buying more channel knowledge is worth it right up until the overhead eats the gain, and the crossover sits somewhere between sixteen probes and a thousand. A sixteen-probe statistical estimator already operates near that sweet spot. That is a genuine engineering finding, and it only exists because pilots were charged.</p>
+
+  <h4>What this does not settle</h4>
+  <p>It does not prove learning cannot help with under-determined channel acquisition in general. It shows that <em>this</em> learner, on <em>this</em> observation model, did not &mdash; and, per the four-times-more-data result, did not appear to learn at all. Whether that is a statement about the problem or about the implementation is exactly what Experiment 4 tries and partly fails to settle.</p>
+
+  <div class="tw">
+    <table>
+      <caption>Reference &mdash; <b>M = 16 probes</b>, 5 seeds, pilot-adjusted net rate (bit/s/Hz). <span class="u">results/pilot_limited/summary.json</span></caption>
+      <thead><tr><th>Scheme</th><th>SNR (dB)</th><th>Net rate</th><th>Share of prize</th></tr></thead>
+      <tbody>
+        <tr class="dim"><td>Perfect-CSI oracle <span class="u">(cheats)</span></td><td>27.67</td><td>8.388</td><td class="u">&mdash;</td></tr>
+        <tr class="dim"><td>Full-probe LS <span class="u">(1025 probes)</span></td><td>25.18</td><td>3.277</td><td class="u">102%</td></tr>
+        <tr class="hi best"><td>LMMSE + MRC</td><td>14.62</td><td>3.251</td><td>100%</td></tr>
+        <tr class="best"><td>Local linear + MRC <span class="u">(no comms)</span></td><td>14.36</td><td>3.022</td><td>81%</td></tr>
+        <tr><td>Best observed probe <span class="u">(no training)</span></td><td>13.77</td><td>2.649</td><td>49%</td></tr>
+        <tr><td>Local models <span class="u">(no federation)</span></td><td>13.66</td><td>2.462</td><td>34%</td></tr>
+        <tr><td>Centralized network</td><td>13.82</td><td>2.403</td><td>29%</td></tr>
+        <tr><td><strong>FedAvg</strong></td><td>13.69</td><td>2.351</td><td>24%</td></tr>
+        <tr class="dim"><td>No RIS</td><td>13.39</td><td>2.060</td><td>0%</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="tw">
+    <table>
+      <caption>Reference &mdash; <b>M = 64 probes</b>. The column that matters is the last one: who used the extra information.</caption>
+      <thead><tr><th>Scheme</th><th>Net rate @16</th><th>Net rate @64</th><th>Change</th></tr></thead>
+      <tbody>
+        <tr class="hi best"><td>LMMSE + MRC</td><td>3.251</td><td>3.984</td><td>+0.733</td></tr>
+        <tr class="best"><td>Local linear + MRC</td><td>3.022</td><td>3.566</td><td>+0.544</td></tr>
+        <tr><td>Best observed probe</td><td>2.649</td><td>2.727</td><td>+0.078</td></tr>
+        <tr><td>Local models</td><td>2.462</td><td>2.527</td><td>+0.065</td></tr>
+        <tr><td>Centralized network</td><td>2.403</td><td>2.406</td><td>+0.003</td></tr>
+        <tr><td><strong>FedAvg</strong></td><td>2.351</td><td>2.324</td><td><strong>&minus;0.027</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ===== 4 ===== -->
+  <h3>Experiment 4 &mdash; Was it just a bad choice of network?</h3>
+
+  <div class="verdict">
+    <span class="lab">What happened</span>
+    <p>The entire model was swapped out, four ways &mdash; a plain network, a convolutional one, a graph-attention one, and a transformer &mdash; across a ten-fold range of size, on identical data with an identical training budget. <strong>The result did not move.</strong> All four landed in a band narrower than the gap separating the best of them from a training-free heuristic.</p>
+  </div>
+
+  <p>You changed the whole front three, changed the formation, and the scoreline stayed the same. At that point you stop blaming the players.</p>
+
+  <p>The obvious defence of a failed learning result is "you picked the wrong architecture" &mdash; often followed by "try attention," which here is the graph-attention model, and it finished <em>below</em> the plain network. The most parameter-heavy model, ten times the size of the smallest, finished in the middle. There is no architecture-shaped explanation left standing.</p>
 
   <div class="note warn">
-    <span class="lab">The honest caveat &mdash; and the remaining risk</span>
-    <p>All four models shared one harness, one objective, one budget. A bug in the <em>shared</em> pipeline would also produce exactly this pattern. Validation loss moves only 0.5520&rarr;0.5361 over 90 rounds &mdash; about 3% relative. Until a positive control shows the pipeline can learn when the information <em>is</em> sufficient, "federation does not help" and "the learner never learned" remain indistinguishable. This is the single most important open item; see Lecture 10.</p>
+    <span class="lab">The part I must not overstate</span>
+    <p>All four models ran through the same data pipeline, the same objective and the same budget. If something in that <em>shared</em> machinery is broken, all four would fail in exactly this way &mdash; identically, regardless of architecture.</p>
+    <p>So this experiment is consistent with "learning does not help here" and <em>equally</em> consistent with "the training is broken." It cannot tell them apart. It eliminates one alternative explanation; it does not establish the conclusion.</p>
+    <p>The supporting worry is that the training loss barely moves over the whole run &mdash; a few percent across a hundred rounds. That is what a model failing to fit looks like.</p>
   </div>
 
-  <h3>Experiment 5 &mdash; Interconnect sensitivity</h3>
-  <p>Covered in Lecture 08. In summary: with a parameter server, every topology costs 5.645 ms because the bottleneck is the server's own port, not the network diameter.</p>
+  <p>This is the reason the remaining experiment in Lecture 10 is not optional housekeeping. Until a run shows this pipeline <em>can</em> learn when the information is sufficient, an informed reader is entitled to read the entire negative result as a bug report.</p>
 
-  <h3>Experiment 6 &mdash; Communication accounting</h3>
   <div class="tw">
     <table>
-      <caption>Endpoint payload accounting, M=16, seed 42. <span class="u">Source: results/tier01_report/accounting_audit.json</span></caption>
-      <thead><tr><th>Quantity</th><th>Bytes</th></tr></thead>
+      <caption>Reference &mdash; four architectures, identical data and budget, 5 seeds. <span class="u">results/tier2_report/tables.tex</span></caption>
+      <thead><tr><th>Model</th><th>Parameters</th><th>Net rate</th></tr></thead>
       <tbody>
-        <tr><td>Common receiver feedback (train + validation)</td><td>6,662,400</td></tr>
-        <tr class="hi"><td>Additional upload for centralized training</td><td>0</td></tr>
-        <tr><td>Data delivery to tiles for distributed training</td><td>8,294,400</td></tr>
-        <tr class="best"><td>Federated model exchange</td><td>346,816,512</td></tr>
-        <tr><td>Local models / local MRC model exchange</td><td>0</td></tr>
+        <tr><td>CNN + squeeze-excite</td><td>29,730</td><td>2.431</td></tr>
+        <tr><td>MLP</td><td>37,632</td><td>2.364</td></tr>
+        <tr><td>Transformer</td><td>294,530</td><td>2.294</td></tr>
+        <tr><td>GAT (compact)</td><td>62,850</td><td>2.208</td></tr>
+        <tr class="hi"><td><em>Training-free best probe</em></td><td class="u">0</td><td><em>2.649</em></td></tr>
       </tbody>
     </table>
   </div>
 
-  <p><strong>Reading:</strong> the crucial entry is the zero. In a passive architecture the controller <em>already receives</em> the receiver feedback, so centralized training needs no extra upload at all. Federation's model exchange is 26&ndash;150&times; the size of the entire pooled training set, and it buys negative performance. The original paper's "federation preserves privacy and saves traffic" argument has no surviving leg. <span class="chip no">Communication argument withdrawn</span></p>
+  <!-- ===== 5 ===== -->
+  <h3>Experiment 5 &mdash; Does the on-chip network topology matter?</h3>
+
+  <div class="verdict">
+    <span class="lab">What happened</span>
+    <p>Seven network topologies were tested, from a simple ring to a hypercube. Under the standard parameter-server scheme, <strong>all seven cost exactly the same</strong> &mdash; identical to four decimal places. The network you build makes no difference at all.</p>
+  </div>
+
+  <p>The reason is a queue at a single door. Under a parameter server every client must send its update to one designated node, so the traffic funnels through that node's own port. You can build whatever road network you like; if everyone has to pass through one turnstile, the roads are irrelevant. Topology only starts to matter once you switch to a scheme that spreads traffic across all links instead of concentrating it at one.</p>
+
+  <h4>The counter-intuitive part</h4>
+  <p>Once traffic <em>is</em> spread out, the ranking inverts against intuition. A plain ring &mdash; the topology with the <em>longest</em> worst-case path &mdash; comes out fastest. A hypercube, with one of the shortest, comes out near the bottom.</p>
+  <p>The inference is that the usual headline metric for an interconnect, network diameter, is measuring the wrong thing for this workload. Diameter tells you the longest journey any single packet takes. But these are large bulk transfers, and what actually sets the time is the <strong>busiest link</strong>, not the longest path. A ring uses few links but loads every one of them evenly; a hypercube offers more links but loads them unevenly. Even beats short.</p>
+  <p>This directly contradicts the original paper, which attributed its speedups to a reduced diameter. The corrected accounting shows the mechanism it claimed was not the mechanism operating.</p>
+
+  <h4>What this is worth, and what it is not</h4>
+  <p>It is a conditional calculation under stated assumptions about link width, clock and router pipeline. There is no synthesized circuit behind it, no technology node, no area, no power, no cycle-accurate validation. It is a useful sensitivity study and it is explicitly not a hardware result &mdash; which is why the manuscript no longer claims one.</p>
+
+  <!-- ===== 6 ===== -->
+  <h3>Experiment 6 &mdash; What does federation actually cost, and what does it save?</h3>
+
+  <div class="verdict">
+    <span class="lab">What happened</span>
+    <p>The full communication audit produced one entry that settles the argument: the extra data a centralized controller would need to upload is <strong>zero bytes</strong>. Meanwhile federation moves model updates amounting to tens to hundreds of times the size of the entire training set.</p>
+  </div>
+
+  <p>The original motivation was that federation avoids shipping raw measurements to a central point. But in a passive architecture the measurements are made by the <em>receiver</em> and fed back to the controller &mdash; that is the only way any of this works. The controller therefore already holds everything it needs before training begins. There is no upload to avoid.</p>
+
+  <p>So the framework pays a very large communication bill to avoid a cost that was never going to be charged, and receives worse performance in exchange. You sold your best player to cover a transfer fee that did not exist.</p>
+
+  <h4>The privacy argument, for completeness</h4>
+  <p>The remaining defence of federation is usually privacy: keep the sensitive data local. That argument needs an adversary, and here there is none. All sixteen tiles are panels of one surface, owned by one operator, wired to one controller. Keeping data on-tile protects it from nobody. This is stated plainly in the manuscript rather than left implied.</p>
+
+  <hr class="sep">
+
+  <!-- ===== FIGURES ===== -->
+  <h3>How to read the figures</h3>
+  <p>The paper carries figures as well as tables, and a figure is worth including only if its <em>shape</em> says something a number cannot. Here is what to look at in each, and what the shape means.</p>
+
+  <h4>Pilot comparison &mdash; the main figure</h4>
+  <p>Horizontal bars, one per scheme, with error whiskers. Read it in three moves. First, find the oracle bar and note how far above everything else it sits &mdash; that vertical gap is the acquisition problem, and its size is the justification for the whole research question. Second, find the "no RIS" bar at the bottom; everything between those two is the contested ground. Third, notice where the neural bars fall in that contested ground: near the bottom, with the training-free and no-communication schemes above them. The story of the figure is the <em>ordering</em>, not any individual bar length.</p>
+  <p>The whiskers matter too. Where two bars' whiskers overlap heavily, the paper does not claim a difference. Where the gap is several whisker-widths &mdash; as it is between the classical estimators and every network &mdash; the ranking is real and not a seed accident.</p>
+
+  <h4>Validation curves &mdash; the most honest figure in the set</h4>
+  <p>Training loss against round. What you want to see in a healthy learning curve is a steep early drop followed by a flattening &mdash; the model finding structure, then running out of structure to find. What this figure actually shows is a curve that is nearly flat from the start, drifting down by a few percent over a hundred rounds.</p>
+  <p>That shape is the visual form of the "four times more data changed nothing" result. It is the figure a sceptical reader will go to first, and it is the one that most needs the positive control to sit beside it. A second curve on the same axes, from a run where the information <em>is</em> sufficient, showing a proper drop, would turn this figure from a liability into the strongest evidence in the paper.</p>
+
+  <h4>Array-gain scaling &mdash; the figure that proves the simulator is sound</h4>
+  <p>Received power against number of active elements, with a straight reference line for the theoretical law. The entire point is that the measured curve lies <em>on</em> the line. In the old broken simulator it bent away and flattened; the flattening was read as a physical discovery about tile placement and written up as a contribution. It was a bug.</p>
+  <p>So this figure is not reporting a finding &mdash; it is reporting the absence of one, which is exactly what you want from a validation figure. When you present it, the line to use is: this is the sanity check that caught the geometry error, and it is now clean.</p>
+
+  <h4>Estimate-error robustness &mdash; a figure to present carefully</h4>
+  <p>Performance against increasing estimate corruption. The shape is a gentle downward slope for every method that knows the channel, and a flat line for the oracle. The temptation, which the original paper gave in to, is to compare <em>slopes</em> and declare whichever falls least the most robust. Do not read it that way. Read the vertical position first and the slope second, because a scheme that starts low has little left to lose, and its flat slope is a symptom of weakness, not strength.</p>
+
+  <h4>Interconnect sensitivity</h4>
+  <p>Latency per topology, two bars each for the two collective schemes. The visual payoff is that one group of bars is perfectly level &mdash; all seven topologies identical &mdash; while the other group varies by a factor of four. That flatness is the finding: it shows at a glance that the bottleneck is not in the network, and it makes the point faster than any table could.</p>
 </section>
 
 <!-- ============================ L8 ============================ -->
