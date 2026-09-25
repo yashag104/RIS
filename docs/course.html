@@ -307,6 +307,11 @@ hr.sep{border:0;border-top:1px solid var(--rule);margin:34px 0}
       <span><b>HEAD</b> 4c8c445</span>
     </div>
   </div>
+    <div class="note dead" style="margin-top:26px">
+      <span class="lab">Status update &mdash; 2026-09-25</span>
+      <p>The positive control described in Lecture 10 <strong>has since been run, and the learner failed it.</strong> With complete information the neural predictors were beaten by a linear ridge regression on identical inputs, while an algebraic inverse of those same inputs attains the oracle exactly. Every neural result in Lecture 07 is therefore a measurement of a defective component and cannot support a claim about learning or federation.</p>
+      <p>The classical results are unaffected and strengthen. See <a href="RESULTS_REPORT.md">RESULTS_REPORT.md</a> for the per-result verdicts and <code>paper_benchmark.tex</code> for the paper built from the sound subset.</p>
+    </div>
 </header>
 
 <nav class="toc">
@@ -1091,11 +1096,12 @@ hr.sep{border:0;border-top:1px solid var(--rule);margin:34px 0}
   <p class="lec-sub">Current state: Tier 0, 1 and 2 corrections complete and verified; 75 tests passing; all results regenerated with five-seed intervals and hash manifests; everything committed and pushed at 4c8c445.</p>
 
   <ol class="steps">
-    <li><b>Positive control &mdash; the decisive experiment</b>
-      Run the pilot pipeline at a budget where the information <em>is</em> sufficient, and check whether the learner approaches local MRC. If it does, the negative result is safe and you have a figure proving the pipeline works. If it does not, training is broken and the conclusion is not yet supported. Judge on <code>fraction_of_oracle_power</code>, not net rate &mdash; 1025 probes out of 2048 symbols halves net rate for reasons unrelated to learning.
-      <span class="cmd">.venv/bin/python run_pilot_limited.py --pilot-counts 1025 \
-  --seeds 42 123 456 --rounds 100 --threads 1 \
-  --output results/pilot_positive_control</span>
+    <li><b>Positive control &mdash; done, and it failed</b>
+      Run at full information (1025 probes for 1024 elements, a determined system). The neural predictors reached under six per cent of oracle power; a per-tile <em>linear</em> ridge regression on the same inputs reached nine and a half per cent, and classical least squares reached thirty-two. An algebraic inverse of the identical features attains the oracle in the network's own 32-bit precision, so the information was provably sufficient. Diagnosis: each tile's predictor must realize roughly 130 real linear functionals of its input through a 128-unit hidden layer &mdash; the bottleneck is narrower than the map it must represent, which is why extra probes changed nothing.
+      <span class="cmd"># next: widen past the required rank, then repeat
+.venv/bin/python run_pilot_limited.py --pilot-counts 1025 \
+  --seeds 42 123 456 --rounds 100 --hidden-dim 512 \
+  --output results/pilot_capacity_repair</span>
     </li>
     <li><b>Corrected-geometry GAT &mdash; the last open Tier 1 item</b>
       The supplied-CSI table still has no neural rows, and the original 315,906-parameter GAT was never retrained under corrected geometry. The path works (exercised in quick mode, produces all eleven schemes); it has simply never been run at full five-seed scale. Expensive on CPU.
