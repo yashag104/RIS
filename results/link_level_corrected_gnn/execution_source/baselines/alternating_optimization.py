@@ -1,0 +1,253 @@
+"""Projected phase-gradient ascent for a supplied-channel SISO objective.
+
+This is not Wu and Zhang's joint active/passive MISO algorithm. There is no
+active beamformer to alternate with. The SISO optimum is local closed-form
+phase alignment; this iterative routine is only a numerical control.
+"""
+
+
+import numpy as np
+
+from utils.logger import logger
+
+
+class ProjectedGradientAscent:
+    """Normalized gradient ascent on received power with wrapped phases."""
+    
+    def __init__(
+        self,
+        num_elements: int,
+        max_iterations: int = 100,
+        lr_phase: float = 0.5,
+        convergence_threshold: float = 1e-4,
+        verbose: bool = False
+    ):
+        """
+        Args:
+            num_elements: Number of RIS reflecting elements
+            max_iterations: Maximum gradient iterations
+            lr_phase: Step size in radians for the normalised phase gradient
+                ascent. The gradient is unit-normalised, so this is an
+                absolute angular step, not a scale-dependent learning rate.
+            convergence_threshold: Stop when SNR improvement < threshold (dB)
+            verbose: Print iteration progress
+        """
+        self.num_elements = num_elements
+        self.max_iterations = max_iterations
+        self.lr_phase = lr_phase
+        self._lr_phase_initial = lr_phase
+        self.convergence_threshold = convergence_threshold
+        self.verbose = verbose
+        
+    def optimize_phases(
+        self,
+        h_direct: np.ndarray,
+        h_ris_user: np.ndarray,
+        h_bs_ris: np.ndarray,
+        noise_power: float,
+        initial_phases: np.ndarray = None
+    ) -> tuple[np.ndarray, list[float]]:
+        """
+        Optimize the SISO phase vector with normalized gradient steps.
+        
+        Args:
+            h_direct: BS-User direct channel (complex scalar or vector)
+            h_ris_user: RIS-User channel (complex vector, shape: [N])
+            h_bs_ris: BS-RIS channel (complex vector, shape: [N])
+            noise_power: Noise power
+            initial_phases: Initial phase configuration (if None, random init)
+            
+        Returns:
+            optimal_phases: Optimized phase shifts in [0, 2π], shape: [N]
+            snr_history: SNR value at each iteration (in dB)
+        """
+        N = self.num_elements
+        
+        # Initialize phases randomly if not provided
+        if initial_phases is None:
+            phases = np.random.uniform(0, 2 * np.pi, N)
+        else:
+            phases = initial_phases.copy()
+        
+        snr_history = []
+        prev_snr = -np.inf
+        # Step size is annealed within a run, so reset it per realisation.
+        self.lr_phase = self._lr_phase_initial
+        
+        for iteration in range(self.max_iterations):
+            # Evaluate the current SISO effective channel.
+            # Effective channel: h_eff = h_direct + h_ris_user^H @ Theta @ h_bs_ris.
+            # Theta is diagonal, so the triple product is a plain weighted sum;
+            # materialising the N x N diagonal made this O(N^2) in time and
+            # memory, which dominates the whole sweep once N reaches 1024.
+            h_cascade = np.sum(np.conj(h_ris_user) * np.exp(1j * phases) * h_bs_ris)
+            h_eff = h_direct + h_cascade
+            
+            # Compute SNR
+            signal_power = np.abs(h_eff) ** 2
+            snr_linear = signal_power / noise_power
+            snr_db = 10 * np.log10(snr_linear + 1e-10)
+            snr_history.append(snr_db)
+            
+            # Check convergence. A fixed-size normalised step can overshoot
+            # near the optimum, so shrink the step before declaring convergence
+            # rather than stopping at the first non-improving iteration.
+            if iteration > 0:
+                snr_improvement = snr_db - prev_snr
+                if snr_improvement < self.convergence_threshold:
+                    self.lr_phase *= 0.5
+                    if self.lr_phase < 1e-3:
+                        if self.verbose:
+                            logger.info(
+                                f"Projected gradient stopped at iteration {iteration}, SNR = {snr_db:.2f} dB")
+                        break
+
+            prev_snr = snr_db
+            
+            # Update the only optimization variables: element phases
+            # Gradient of SNR w.r.t. phase θ_n:
+            # ∂SNR/∂θ_n ∝ 2 * Re{conj(y) * j * exp(jθ_n) * conj(h_ris_user[n]) * h_bs_ris[n]}
+            # where y = h_direct + Σ exp(jθ_k) * conj(h_ris_user[k]) * h_bs_ris[k]
+            
+            # Gradient of |h_eff|^2 with respect to each phase, in closed form:
+            #   d|h|^2/dtheta_n = 2 Re{conj(h_eff) * j * a_n * exp(j theta_n)}
+            # where a_n is the cascaded coefficient of element n. Vectorised
+            # over n; the previous per-element loop recomputed the sum over all
+            # other elements N times per iteration to reach the same value.
+            a = np.conj(h_ris_user) * h_bs_ris
+            gradient = 2 * np.real(
+                np.conj(h_eff) * 1j * a * np.exp(1j * phases))
+
+            # Normalise the step. The raw gradient scales with the channel
+            # power, of order 1e-20 for these cascaded mmWave links, so an
+            # absolute learning rate leaves the phases essentially unchanged
+            # and AO finishes no better than its random initialisation. A
+            # unit-norm step makes progress independent of that scale.
+            grad_norm = np.linalg.norm(gradient)
+            if grad_norm < 1e-30:
+                break
+            phases = phases + self.lr_phase * gradient / grad_norm
+            
+            # Project back to [0, 2π]
+            phases = np.mod(phases, 2 * np.pi)
+            
+            if self.verbose and iteration % 10 == 0:
+                logger.info(f"Iteration {iteration}: SNR = {snr_db:.2f} dB")
+        
+        return phases, snr_history
+    
+    def batch_optimize(
+        self,
+        channel_samples: list[dict],
+        noise_power: float
+    ) -> dict:
+        """
+        Run projected gradient on multiple channel realizations.
+        
+        Args:
+            channel_samples: List of channel sample dicts with keys:
+                - 'h_direct': Direct channel
+                - 'h_ris_user': RIS-user channel
+                - 'h_bs_ris': BS-RIS channel
+            noise_power: Noise power
+            
+        Returns:
+            Dictionary with performance metrics. Every optimizer in
+            ``baselines`` returns this same dict shape so that the comparison
+            experiment can treat them uniformly.
+        """
+        num_samples = len(channel_samples)
+        all_phases = np.zeros((num_samples, self.num_elements))
+        all_snrs = []
+        convergence_iters = []
+        
+        for i, sample in enumerate(channel_samples):
+            phases, snr_history = self.optimize_phases(
+                h_direct=sample['h_direct'],
+                h_ris_user=sample['h_ris_user'],
+                h_bs_ris=sample['h_bs_ris'],
+                noise_power=noise_power
+            )
+            
+            all_phases[i] = phases
+            all_snrs.append(snr_history[-1])
+            convergence_iters.append(len(snr_history))
+        
+        metrics = {
+            'avg_snr_db': np.mean(all_snrs),
+            'std_snr_db': np.std(all_snrs),
+            'min_snr_db': np.min(all_snrs),
+            'max_snr_db': np.max(all_snrs),
+            'avg_convergence_iters': np.mean(convergence_iters),
+            'total_iterations': sum(convergence_iters)
+        }
+        
+        return metrics
+    
+    def compute_complexity(self) -> dict[str, float]:
+        """
+        Estimate computational complexity.
+        
+        Returns:
+            complexity: Dictionary with complexity metrics
+        """
+        N = self.num_elements
+        
+        # Linear vector operations per update; this is a rough operation proxy.
+        flops_per_iteration = 10 * N
+        expected_iterations = self.max_iterations * 0.5  # Assume 50% convergence
+        total_flops = flops_per_iteration * expected_iterations
+        
+        return {
+            'flops_per_iteration': flops_per_iteration,
+            'expected_iterations': expected_iterations,
+            'total_flops': total_flops,
+            'complexity_class': f"O(N·I) where N={N}, I={expected_iterations}"
+        }
+
+
+def compare_with_random_init(
+    ao: ProjectedGradientAscent,
+    h_direct: np.ndarray,
+    h_ris_user: np.ndarray,
+    h_bs_ris: np.ndarray,
+    noise_power: float,
+    num_trials: int = 10
+) -> dict:
+    """
+    Test sensitivity to random initialization.
+    
+    Finite-step gradient ascent can depend on initialization. This function runs multiple trials
+    with different random initializations and reports statistics.
+    """
+    all_results = []
+    
+    for trial in range(num_trials):
+        phases, snr_history = ao.optimize_phases(
+            h_direct, h_ris_user, h_bs_ris, noise_power
+        )
+        all_results.append({
+            'final_snr': snr_history[-1],
+            'iterations': len(snr_history),
+            'phases': phases
+        })
+    
+    final_snrs = [r['final_snr'] for r in all_results]
+    
+    # Find best trial
+    best_idx = np.argmax(final_snrs)
+    worst_idx = np.argmin(final_snrs)
+    
+    return {
+        'best_snr_db': final_snrs[best_idx],
+        'worst_snr_db': final_snrs[worst_idx],
+        'avg_snr_db': np.mean(final_snrs),
+        'std_snr_db': np.std(final_snrs),
+        'snr_range_db': final_snrs[best_idx] - final_snrs[worst_idx],
+        'best_phases': all_results[best_idx]['phases'],
+        'num_trials': num_trials
+    }
+
+
+# Compatibility alias for historical scripts/result keys; no AO attribution.
+AlternatingOptimization = ProjectedGradientAscent

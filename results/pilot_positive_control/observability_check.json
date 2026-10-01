@@ -1,0 +1,48 @@
+{
+  "scope": "noiseless algebraic round-trip only; not a learned or deployable result",
+  "seed": 42,
+  "codebook_seed": 2024,
+  "samples": 8,
+  "M": 1025,
+  "N": 1024,
+  "rank": 1025,
+  "condition_number": 9434.530327454448,
+  "singular_value_min": 0.006738067434424044,
+  "singular_value_max": 63.57050155850683,
+  "relative_channel_reconstruction_error": 3.213353238606499e-13,
+  "scores": {
+    "oracle": {
+      "mean_received_snr_db": 26.39938187898583,
+      "spectral_efficiency": 8.345025566568928,
+      "net_spectral_efficiency": 4.168438063769538,
+      "ber_qpsk": 5.409843460842327e-38,
+      "outage_2bps_hz": 0.0,
+      "fraction_of_oracle_power": 1.0000000009616847,
+      "pilots_per_block": 1025
+    },
+    "float64_probe_inverse": {
+      "mean_received_snr_db": 26.39938187898583,
+      "spectral_efficiency": 8.345025566568928,
+      "net_spectral_efficiency": 4.168438063769538,
+      "ber_qpsk": 5.409843460842172e-38,
+      "outage_2bps_hz": 0.0,
+      "fraction_of_oracle_power": 1.000000000961685,
+      "pilots_per_block": 1025
+    },
+    "float32_feature_inverse": {
+      "mean_received_snr_db": 26.399381876532424,
+      "spectral_efficiency": 8.345025565542045,
+      "net_spectral_efficiency": 4.168438063256597,
+      "ber_qpsk": 5.409843565306344e-38,
+      "outage_2bps_hz": 0.0,
+      "fraction_of_oracle_power": 1.0000000002475522,
+      "pilots_per_block": 1025
+    }
+  },
+  "source_sha256": {
+    "/mnt/c/Users/hp/RIS/check_pilot_observability.py": "11cfeb1fe6dadecc88af93fb48caeace6618350fd24a7763be90b43b76b3ccaa",
+    "src/pilot_probing.py": "09fab33c5de5ced70cb0229d243486a4f41a5ba19bc8609c5769626147447e88",
+    "src/surface_channel.py": "74136f1a10b769407a9491d706975acb52cdecb7e3fdf990245ecc363e1ab8cb",
+    "run_pilot_limited.py": "441299edd46438480738844798a4424c816ab9549e9c2496a3d0251342931628"
+  }
+}

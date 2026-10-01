@@ -1,0 +1,800 @@
+"""Core helpers shared by all RIS experiments."""
+
+"""Shared imports for the RIS experiment package."""
+
+import datetime
+import json
+import os
+
+import numpy as np
+import torch
+from torch.utils.data import DataLoader
+
+from models.ris_net import create_model
+from src.client import RISClient
+from src.dataset_utils import (
+    create_non_iid_datasets,
+    create_test_dataset,
+    validate_dataset_collection,
+    validate_dataset_feature_dim,
+)
+from utils.metrics import *
+from utils.metrics import dbm_to_watts
+from utils.plotting import *
+
+from .logging_utils import (
+    configure_experiment_logging,
+    get_experiment_logger,
+    resolve_log_level,
+)
+
+
+class ExperimentBase:
+    def __init__(self, config):
+        self.config = config
+        self.results_dir = os.path.join(config.RESULTS_DIR, 'advanced_experiments')
+        os.makedirs(self.results_dir, exist_ok=True)
+        configure_experiment_logging(
+            self.results_dir,
+            level=resolve_log_level(config),
+        )
+        self.logger = get_experiment_logger(self.__class__.__name__)
+
+    def _run_single_fl_experiment(self, config_overrides=None, datasets=None):
+        """
+        Run standard FL experiment with current config and optional overrides.
+
+        Args:
+            config_overrides: Dictionary of config parameters to override for this run only
+            datasets: Optional ``(train_datasets, test_dataset)`` pair. Pass one
+                when this run is compared against other arms, so all arms are
+                scored on the same channel realisations.
+        """
+        from main import evaluate_baselines, train_federated
+        
+        # Create a temporary config modification
+        original_values = {}
+        if config_overrides:
+            for k, v in config_overrides.items():
+                if hasattr(self.config, k):
+                    original_values[k] = getattr(self.config, k)
+                    setattr(self.config, k, v)
+        
+        try:
+            # Ensure all required output directories exist.
+            # (setup_directories() is only called in main(), not here, so we
+            # must create them explicitly to avoid "Parent directory does not
+            # exist" errors when saving checkpoints mid-training.)
+            for _dir in [
+                self.config.MODELS_DIR,
+                self.config.RESULTS_DIR,
+                self.config.DATA_DIR,
+                getattr(self.config, 'PLOTS_DIR', 'plots/'),
+                getattr(self.config, 'METRICS_DIR', 'metrics/'),
+            ]:
+                os.makedirs(_dir, exist_ok=True)
+
+            # Create datasets (re-create if params changed that affect data)
+            # For efficiency, we could cache them, but for robustness, we re-create
+            if datasets is None:
+                train_datasets, _tile_positions = create_non_iid_datasets(self.config, self.config.NUM_TILES)
+                test_dataset = create_test_dataset(self.config)
+            else:
+                train_datasets, test_dataset = datasets
+            validate_dataset_collection(
+                train_datasets,
+                test_dataset,
+                self.config,
+                expected_num_tiles=self.config.NUM_TILES,
+            )
+
+            # Evaluate baselines
+            baselines = evaluate_baselines(self.config, test_dataset)
+
+            # Train
+            server, clients, round_metrics = train_federated(self.config, train_datasets, test_dataset)
+
+            # Extract key metrics
+            test_loader = DataLoader(test_dataset, batch_size=self.config.BATCH_SIZE, shuffle=False)
+            clients[0].set_model_weights(server.get_global_weights())
+            final_eval = clients[0].evaluate(test_loader)
+            final_snr = clients[0].compute_snr_improvement(test_dataset, num_samples=200)
+
+            convergence = server.get_convergence_metrics()
+            comm_summary = server.get_communication_summary()
+
+            # Federated fairness: how evenly the single global model serves the
+            # different regions of the room, measured on HELD-OUT data.
+            #
+            # An earlier version scored each client on its own TRAINING set.
+            # That rewards overfitting to a narrow slice, and under the spatial
+            # partition it inverted the result: the most heterogeneous setting
+            # gave each tile a small easy neighbourhood, so per-client accuracy
+            # went UP and spread went DOWN exactly where fairness should have
+            # degraded. Partitioning the held-out test set by nearest tile keeps
+            # the data unseen and still asks a per-region question.
+            global_weights = server.get_global_weights()
+            clients[0].set_model_weights(global_weights)
+            per_region_accuracy = self._per_region_accuracy(clients[0], test_dataset)
+
+            result = {
+                'convergence_round': convergence.get('converged_round', self.config.FL_ROUNDS),
+                'converged': convergence.get('converged', False),
+                'final_loss': final_eval['loss'],
+                'final_snr': final_snr['snr_optimized_ris_mean'],
+                'snr_gain': final_snr['snr_gain_over_no_ris'],
+                'phase_error_deg': np.rad2deg(final_eval['phase_error_mean']),
+                'total_communication_kb': comm_summary['total_kilobytes'],
+                'total_energy_mj': sum([m.get('total_energy', 0) * 1000 for m in round_metrics]),
+                'final_accuracy': final_eval['accuracy_30deg'],
+                'round_metrics': round_metrics,
+                'baselines': baselines,
+                'per_region_accuracy': per_region_accuracy,
+                'global_weights': server.get_global_weights() # Return weights for wrappers
+            }
+
+            if len(per_region_accuracy) >= 2:
+                from utils.metrics import calculate_fairness_index
+                fairness = calculate_fairness_index(per_region_accuracy)
+                result['fairness_index'] = float(fairness['jains_index'])
+                result['fairness_details'] = {
+                    k: float(v) for k, v in fairness.items()
+                }
+            
+            # Add quantization metadata if applicable
+            if hasattr(self.config, 'PHASE_QUANTIZATION_BITS'):
+                result['quantization_bits'] = self.config.PHASE_QUANTIZATION_BITS
+                
+            return result
+            
+        finally:
+            # Restore original config values
+            for k, v in original_values.items():
+                setattr(self.config, k, v)
+
+    def _run_fl_with_quantization(self, quant_config):
+        """Run FL with phase quantization"""
+        bits = quant_config['bits']
+        if bits == 'continuous':
+            bits = 0
+            
+        # Run real experiment with quantization enabled in config
+        # RISClient will pick this up and apply quantization during evaluation
+        result = self._run_single_fl_experiment(config_overrides={'PHASE_QUANTIZATION_BITS': bits})
+        return result
+
+    def _run_fl_with_compression(self, bits):
+        """Run FL with model weight compression"""
+        # First run standard training
+        result = self._run_single_fl_experiment()
+        
+        # Now simulate compression on the global model for evaluation
+        from models.ris_net import create_model
+        
+        # Create test dataset for re-evaluation
+        test_dataset = create_test_dataset(self.config)
+        validate_dataset_feature_dim(test_dataset, self.config, "compression test_dataset")
+        test_loader = DataLoader(test_dataset, batch_size=self.config.BATCH_SIZE, shuffle=False)
+        
+        # Load weights into a temporary model
+        temp_model = create_model(self.config.MODEL_TYPE, test_dataset.get_input_dim(),
+                                self.config.ELEMENTS_PER_TILE, config=self.config)
+        temp_model.to(self.config.DEVICE)
+        
+        # Real compression simulation: Quantize weights
+        self.logger.info(f"  Compressing model to {bits}-bit...")
+        global_weights = result['global_weights']
+        quantized_weights = {}
+        
+        for name, param in global_weights.items():
+            # Skip non-floating point params (like long integers)
+            if 'int' in str(param.dtype) or 'long' in str(param.dtype):
+                quantized_weights[name] = param
+                continue
+                
+            # Determine range
+            w_min = param.min().item()
+            w_max = param.max().item()
+            
+            # 2^bits levels
+            levels = 2 ** bits
+            step = (w_max - w_min) / (levels - 1)
+            
+            if step == 0:
+                quantized_weights[name] = param
+            else:
+                # Quantize: q = round((w - min) / step) * step + min
+                w_q = torch.round((param - w_min) / step) * step + w_min
+                quantized_weights[name] = w_q
+        
+        # Load quantized weights
+        temp_model.load_state_dict(quantized_weights)
+        
+        # Evaluate real performance degradation
+        # We need a client to run evaluation logic
+        # Re-use the first client but with global test set
+        temp_client = RISClient(0, temp_model, None, self.config) # Dataset not needed for pure eval with loader
+        
+        metrics = temp_client.evaluate(test_loader)
+        
+        # Also compute SNR
+        # We need the dataset for compute_snr_improvement
+        snr_metrics = temp_client.compute_snr_improvement(test_dataset, num_samples=200)
+        
+        result['accuracy_degradation'] = result['final_accuracy'] - metrics['accuracy_30deg']
+        result['final_snr'] = snr_metrics['snr_optimized_ris_mean']
+        result['final_accuracy'] = metrics['accuracy_30deg']
+
+        # Update communication cost
+        compression_ratio = 32 / bits
+        result['total_communication_kb'] /= compression_ratio
+
+        # Be explicit about what was actually measured. Training ran in full
+        # precision and quantization was applied once, to the final global
+        # model; the communication figure above is the analytic cost of sending
+        # that model at `bits` precision. It is NOT a measurement of quantizing
+        # every round's update, which compounds error across rounds and would
+        # degrade accuracy more. Claiming the latter from this number would
+        # overstate the result.
+        result['compression_mode'] = 'post_training'
+        result['compression_trained_in_precision_bits'] = 32
+        result['communication_kb_is_analytic'] = True
+
+        return result
+
+    def _run_fl_with_mobility(self, speed_mps):
+        """Run FL with user mobility"""
+        # 1. Train model on initial positions
+        result = self._run_single_fl_experiment()
+        
+        # 2. Evaluate on shifted positions to simulate movement
+        if speed_mps > 0:
+            self.logger.info(f"  Simulating mobility: {speed_mps} m/s...")
+            # Jakes' Model for temporal correlation
+            # rho = J0(2 * pi * fd * tau)
+            # fd = v / lambda
+            # tau = time elapsed (assume 100ms processing delay + flight time?)
+            # Let's assume evaluation happens "time_delta" seconds after CSI acquisition
+            time_delta = 0.05 # 50ms (typical 5G frame/processing delay)
+            
+            # Jakes' model: the temporal autocorrelation of a Rayleigh channel
+            # after time_delta is J0(2*pi*f_d*time_delta), the zeroth-order
+            # Bessel function of the FIRST kind. scipy is a hard requirement
+            # (requirements.txt), so use it directly rather than guessing.
+            #
+            # This previously called np.i0 (the MODIFIED Bessel I0, a different
+            # function that grows without bound) and discarded the result, then
+            # fell back to the small-argument expansion 1 - x^2/4 clamped at
+            # zero, which is wrong once the argument leaves the small-x regime
+            # -- exactly where fast mobility puts it.
+            from scipy.special import j0
+
+            fd = speed_mps / self.config.WAVELENGTH
+            correlation = float(j0(2 * np.pi * fd * time_delta))
+
+            # Generate "aged" test dataset
+            # h_new = rho * h_old + sqrt(1 - rho^2) * noise
+            test_dataset = create_test_dataset(self.config)
+            validate_dataset_feature_dim(test_dataset, self.config, "mobility test_dataset")
+            
+            aged_snrs = []
+            
+            # Use the trained model (from result) to predict on NEW channels
+            # But the model sees OLD CSI (features).
+            # Scenario: User moves, but we use OLD CSI to predict phase.
+            # This measures "CSI out-datedness"
+            
+            # Retrieve model
+            # We need to reconstruct the model state. 
+            # We assume 'result' implies we have the model.
+            # We need to reload the weights.
+            model = create_model(self.config.MODEL_TYPE, test_dataset.get_input_dim(),
+                               self.config.ELEMENTS_PER_TILE, config=self.config)
+            model.load_state_dict(result['global_weights']) 
+            model.to(self.config.DEVICE)
+            model.eval()
+            
+            # Evaluate:
+            # Input: OLD features (at t=0)
+            # Channel: NEW channel (at t=delta)
+            # This measures robustness to mobility
+            
+            noise_power = dbm_to_watts(self.config.NOISE_POWER_DBM)
+            tx_power = dbm_to_watts(self.config.TX_POWER_DBM)
+            
+            for i in range(min(200, len(test_dataset))):
+                 features, _ = test_dataset[i]
+                 
+                 # 1. Predict phases based on OLD features
+                 with torch.no_grad():
+                     pred_phases = model(features.unsqueeze(0).to(self.config.DEVICE)).cpu().numpy().flatten()
+                 
+                 # 2. Get OLD channel
+                 metadata = test_dataset.metadata[i]
+                 h_direct = metadata['H_direct'][0]
+                 h_ris = metadata['H_ris'][0] # (elements,)
+                 h_bs_ris = metadata['h_bs_ris']
+
+                 # 3. Generate NEW channel (Jakes model)
+                 # Add noise to represent aging
+                 # Complex Gaussian noise
+                 noise_direct = (np.random.randn(*h_direct.shape) + 1j * np.random.randn(*h_direct.shape)) / np.sqrt(2)
+                 noise_ris = (np.random.randn(*h_ris.shape) + 1j * np.random.randn(*h_ris.shape)) / np.sqrt(2)
+
+                 # h_new = rho * h + sqrt(1-rho^2) * independent_h
+                 # The innovation term must carry the same POWER as the
+                 # channel it replaces, so scale by the RMS magnitude.
+                 # np.mean(|h|) underestimates that for a fading channel
+                 # (~0.89x for Rayleigh), quietly shrinking the aging effect.
+                 gain_direct = np.sqrt(np.mean(np.abs(h_direct) ** 2))
+                 gain_ris = np.sqrt(np.mean(np.abs(h_ris) ** 2))
+
+                 h_direct_new = correlation * h_direct + np.sqrt(1 - correlation**2) * noise_direct * gain_direct
+                 h_ris_new = correlation * h_ris + np.sqrt(1 - correlation**2) * noise_ris * gain_ris
+
+                 # 4. Compute SNR with OLD phases but NEW channel
+                 # h_bs_ris is quasi-static (BS and RIS are fixed), not aged
+                 h_cascade_new = h_ris_new * h_bs_ris
+                 h_total = h_direct_new + np.sum(h_cascade_new * np.exp(1j * pred_phases))
+                 signal = tx_power * np.abs(h_total) ** 2
+                 snr = 10 * np.log10(signal / noise_power)
+                 aged_snrs.append(snr)
+            
+            result['tracking_error'] = 1.0 - correlation
+            result['doppler_hz'] = float(fd)
+            # Jakes' 50%-correlation coherence time, T_c ~ 9 / (16*pi*f_d).
+            # Derived from the Doppler spread rather than assumed.
+            #
+            # This slot used to hold `5 + speed_mps * 2`, a straight line in the
+            # user's speed that was never measured and was plotted as though it
+            # were. Coherence time is the quantity that figure was reaching for:
+            # how long the CSI a round is trained on stays valid.
+            result['coherence_time_ms'] = float(9.0 / (16.0 * np.pi * fd) * 1e3)
+            result['csi_age_ms'] = float(time_delta * 1e3)
+            result['final_snr'] = np.mean(aged_snrs)
+        else:
+            # Static case: no mobility, perfect tracking
+            result['tracking_error'] = 0.0
+            result['doppler_hz'] = 0.0
+            result['coherence_time_ms'] = float('inf')
+            result['csi_age_ms'] = 0.0
+
+        return result
+
+    def _run_fl_with_pilots(self, pilot_config):
+        """Run FL with different pilot strategies (Simulated Overhead)"""
+        result = self._run_single_fl_experiment()
+
+        pilots_per_round = pilot_config['pilots_per_round']
+        
+        # Calculate overhead based on real convergence rounds
+        num_rounds = result['convergence_round']
+        total_pilots = pilots_per_round * num_rounds
+        overhead_bits = total_pilots * 16  # Assume 16 bits per pilot
+        
+        result['total_pilots'] = total_pilots
+        result['overhead_bits'] = overhead_bits
+        result['overhead_kb'] = overhead_bits / (8 * 1024)
+        
+        return result
+
+    def _run_centralized_experiment(self, datasets=None):
+        """Run centralized learning (All data at server).
+
+        Args:
+            datasets: Optional ``(train_datasets, test_dataset)`` pair. Pass one
+                when this arm is being compared against others so every arm is
+                scored on the same channel realisations.
+        """
+        from baselines.centralized_learning import CentralizedRIS
+        from models.ris_net import create_model
+
+        # Create datasets
+        if datasets is None:
+            train_datasets, _tile_positions = create_non_iid_datasets(self.config, self.config.NUM_TILES)
+            test_dataset = create_test_dataset(self.config)
+        else:
+            train_datasets, test_dataset = datasets
+
+        input_dim = validate_dataset_collection(
+            train_datasets,
+            test_dataset,
+            self.config,
+            expected_num_tiles=self.config.NUM_TILES,
+        )
+        cent_model = create_model(self.config.MODEL_TYPE, input_dim, self.config.ELEMENTS_PER_TILE, config=self.config)
+
+        centralized = CentralizedRIS(cent_model, self.config)
+        cent_metrics = centralized.train_centralized(
+            tile_datasets=train_datasets,
+            epochs=self.config.LOCAL_EPOCHS * self.config.FL_ROUNDS
+        )
+
+        # Evaluate. Reuse RISClient so accuracy, phase error and SNR are
+        # computed by exactly the same code that scores the federated arm --
+        # this arm used to return final_snr=0 and final_accuracy=0 placeholders,
+        # which made the whole FL-vs-centralized figure unreadable.
+        test_loader = DataLoader(test_dataset, batch_size=self.config.BATCH_SIZE, shuffle=False)
+        eval_client = RISClient(0, centralized.get_model(), train_datasets[0], self.config)
+        cent_eval = eval_client.evaluate(test_loader)
+        cent_snr = eval_client.compute_snr_improvement(test_dataset, num_samples=200)
+
+        # Communication: all raw data
+        total_samples = sum(len(d) for d in train_datasets)
+        raw_data_bytes = total_samples * (input_dim + self.config.ELEMENTS_PER_TILE) * 4
+
+        return {
+            'convergence_round': cent_metrics['total_epochs'],
+            # Test loss from the shared evaluation path, NOT cent_metrics'
+            # training loss -- the federated and local-only arms both report
+            # the held-out circular phase MSE, and mixing a training loss into
+            # the same column made centralized look ~70x better than it is.
+            'final_loss': cent_eval['loss'],
+            'train_loss': cent_metrics['final_loss'],
+            'final_snr': cent_snr['snr_optimized_ris_mean'],
+            'snr_gain': cent_snr['snr_gain_over_no_ris'],
+            'phase_error_deg': np.rad2deg(cent_eval['phase_error_mean']),
+            'total_communication_kb': raw_data_bytes / 1024,
+            'final_accuracy': cent_eval['accuracy_30deg'],
+            # Centralized training runs the same total epoch budget on one
+            # machine; price it with the same per-epoch figure used elsewhere.
+            'total_energy_mj': cent_metrics['total_epochs'] * 0.5,
+        }
+
+    def _run_local_only_experiment(self, datasets=None):
+        """Run local-only learning (no aggregation).
+
+        Args:
+            datasets: Optional ``(train_datasets, test_dataset)`` pair, shared
+                with the other arms of a comparison.
+        """
+        from models.ris_net import create_model
+
+        # Create datasets
+        if datasets is None:
+            train_datasets, _tile_positions = create_non_iid_datasets(self.config, self.config.NUM_TILES)
+            test_dataset = create_test_dataset(self.config)
+        else:
+            train_datasets, test_dataset = datasets
+        test_loader = DataLoader(test_dataset, batch_size=self.config.BATCH_SIZE, shuffle=False)
+
+        input_dim = validate_dataset_collection(
+            train_datasets,
+            test_dataset,
+            self.config,
+            expected_num_tiles=self.config.NUM_TILES,
+        )
+        
+        # Train isolated clients
+        final_snrs = []
+        final_accs = []
+        final_losses = []
+        snr_gains = []
+
+        total_epochs = self.config.FL_ROUNDS * self.config.LOCAL_EPOCHS
+        
+        # We simulate all clients running in parallel
+        for i, dataset in enumerate(train_datasets):
+            model = create_model(self.config.MODEL_TYPE, input_dim, self.config.ELEMENTS_PER_TILE, 
+                               hidden_dim=self.config.HIDDEN_DIM, num_layers=self.config.NUM_LAYERS, 
+                               dropout=self.config.DROPOUT, config=self.config)
+            client = RISClient(i, model, dataset, self.config)
+            
+            # Train full duration
+            client.train_local_model(epochs=total_epochs)
+            
+            # Evaluate this client's model on global test set
+            # (In reality, local only models rarely generalize well globally, this captures that)
+            metrics = client.evaluate(test_loader)
+            snr_metrics = client.compute_snr_improvement(test_dataset, num_samples=50)
+            
+            final_accs.append(metrics['accuracy_30deg'])
+            final_snrs.append(snr_metrics['snr_optimized_ris_mean'])
+            final_losses.append(metrics['loss'])
+            snr_gains.append(snr_metrics['snr_gain_over_no_ris'])
+
+        # Each tile trains alone for the same total epoch budget, so the energy
+        # is the per-tile federated cost without the aggregation traffic.
+        # Reporting 0 here previously made local-only look free.
+        energy_mj = (
+            len(train_datasets) * total_epochs
+            * getattr(self.config, 'ENERGY_PER_EPOCH_MJ', 0.5)
+        )
+
+        return {
+             'convergence_round': self.config.FL_ROUNDS,
+             'final_loss': float(np.mean(final_losses)),
+             'final_snr': float(np.mean(final_snrs)),
+             'snr_gain': float(np.mean(snr_gains)),
+             'total_communication_kb': 0,
+             'final_accuracy': float(np.mean(final_accs)),
+             'total_energy_mj': energy_mj,
+             # Genuinely per-client here: local-only trains a separate model
+             # per tile, so these are different models, not one global model
+             # scored on different regions.
+             'per_client_model_accuracy': [float(a) for a in final_accs],
+        }
+
+    def _calculate_noc_metrics(self, result):
+        """Analytical serialization estimate; circuit energy/power are unknown."""
+        from src.noc_simulator import NoCSimulator
+
+        num_tiles = result.get('num_tiles', self.config.NUM_TILES)
+        num_rounds = max(len(result.get('round_metrics', [])), 1)
+        comm_kb = result['total_communication_kb']
+
+        # Bytes actually exchanged per FL round (both directions, all tiles)
+        bytes_per_round = comm_kb * 1024 / num_rounds
+        model_size_bytes = max(int(bytes_per_round / max(2 * num_tiles, 1)), 1)
+
+        sim = NoCSimulator(
+            num_tiles=num_tiles,
+            topology=self.config.NOC_TOPOLOGY,
+            bandwidth_gbps=self.config.NOC_BANDWIDTH_GBPS,
+        )
+        round_noc = sim.simulate_fl_round(model_size_bytes, self.config.NOC_PROTOCOL)
+
+        avg_latency_us = round_noc['latency_us']
+        return {
+            'total_power_mw': None,
+            'static_power_mw': None,
+            'dynamic_power_mw': None,
+            'power_status': 'no calibrated circuit model',
+            'avg_latency_us': avg_latency_us,
+            'noc_utilization': round_noc['utilization'],
+            'noc_congestion_ratio': round_noc['congestion_ratio'],
+            'noc_energy_nj_per_round': round_noc['energy_nj'],
+            'noc_aggregate_throughput_gbps': round_noc['aggregate_throughput_gbps'],
+            'noc_topology': self.config.NOC_TOPOLOGY,
+            'noc_protocol': self.config.NOC_PROTOCOL,
+        }
+
+    def _per_region_accuracy(self, eval_client, test_dataset):
+        """Accuracy of one model on each tile's neighbourhood of the test set.
+
+        Splits the held-out samples by which tile is nearest the user, then
+        scores the same global model on each split. Regions with too few samples
+        to be meaningful are skipped.
+
+        Returns a list of per-region accuracies, one per populated region.
+        """
+        from torch.utils.data import Subset
+
+        from src.dataset_utils import tile_positions_for
+
+        metadata = getattr(test_dataset, 'metadata', None)
+        if not metadata:
+            return []
+
+        tiles = np.asarray(tile_positions_for(self.config, self.config.NUM_TILES))[:, :2]
+        user_xy = np.array(
+            [np.atleast_2d(m['user_positions'])[0, :2] for m in metadata],
+            dtype=np.float64,
+        )
+        # nearest tile index per test sample
+        dist = np.linalg.norm(user_xy[:, None, :] - tiles[None, :, :], axis=2)
+        nearest = np.argmin(dist, axis=1)
+
+        # A region needs enough held-out samples for its accuracy to mean
+        # anything, but the floor must not scale with BATCH_SIZE: at 16 tiles a
+        # reduced run has ~12 samples per region and every region was skipped,
+        # which left the fairness metric undefined.
+        min_samples = 10
+        accuracies = []
+        for t in range(len(tiles)):
+            idx = np.flatnonzero(nearest == t)
+            if len(idx) < min_samples:
+                continue
+            loader = DataLoader(
+                Subset(test_dataset, idx.tolist()),
+                batch_size=self.config.BATCH_SIZE,
+                shuffle=False,
+            )
+            accuracies.append(float(eval_client.evaluate(loader)['accuracy_30deg']))
+        return accuracies
+
+    def _save_experiment_results(self, experiment_name, results):
+        """Save experiment results to file"""
+        save_path = os.path.join(self.results_dir, f'{experiment_name}_results.json')
+
+        class NumpyEncoder(json.JSONEncoder):
+            def default(self, obj):
+                if isinstance(obj, (np.integer,)):
+                    return int(obj)
+                if isinstance(obj, (np.floating,)):
+                    return float(obj)
+                if isinstance(obj, np.ndarray):
+                    return obj.tolist()
+                if isinstance(obj, (np.bool_,)):
+                    return bool(obj)
+                return super().default(obj)
+
+        # Filter out non-serializable objects
+        def make_serializable(obj):
+            if isinstance(obj, dict):
+                return {k: make_serializable(v) for k, v in obj.items()
+                        if not hasattr(v, '__module__') or isinstance(v, (dict, list, np.ndarray))}
+            elif isinstance(obj, list):
+                return [make_serializable(item) for item in obj]
+            elif isinstance(obj, (np.floating,)):
+                return float(obj)
+            elif isinstance(obj, (np.integer,)):
+                return int(obj)
+            elif isinstance(obj, np.ndarray):
+                return obj.tolist()
+            elif isinstance(obj, (str, int, float, bool, type(None))):
+                return obj
+            else:
+                return str(obj)  # Fallback: convert to string
+
+        # Per-sample prediction dumps are kept in memory for plotting but must
+        # not be persisted: they are (test_samples x elements) floats for every
+        # round of every configuration, which is what made these result files
+        # reach hundreds of megabytes. Nothing reads them back from disk.
+        BULK_KEYS = ('predictions', 'labels', 'global_weights')
+
+        def prune_bulk(obj):
+            if isinstance(obj, dict):
+                return {k: prune_bulk(v) for k, v in obj.items() if k not in BULK_KEYS}
+            if isinstance(obj, list):
+                return [prune_bulk(v) for v in obj]
+            return obj
+
+        clean_results = prune_bulk(make_serializable(results))
+
+        # Record the settings the run actually used. Without this a reduced
+        # smoke-test run (--quick drops to 5 rounds and 200 samples) produces
+        # files indistinguishable from a full run, and its figures can reach a
+        # paper unnoticed. is_reduced_run marks anything below the configured
+        # defaults so the provenance is explicit in the artifact itself.
+        cfg = self.config
+        provenance = {
+            'fl_rounds': cfg.FL_ROUNDS,
+            'local_epochs': cfg.LOCAL_EPOCHS,
+            'train_samples': cfg.TRAIN_SAMPLES,
+            'test_samples': cfg.TEST_SAMPLES,
+            'num_tiles': cfg.NUM_TILES,
+            'num_users': cfg.NUM_USERS,
+            'elements_per_tile': cfg.ELEMENTS_PER_TILE,
+            'model_type': cfg.MODEL_TYPE,
+            'aggregation_method': getattr(cfg, 'AGGREGATION_METHOD', None),
+            'noc_topology': cfg.NOC_TOPOLOGY,
+            'noc_protocol': cfg.NOC_PROTOCOL,
+            'direct_link_blockage_db': getattr(cfg, 'DIRECT_LINK_BLOCKAGE_DB', None),
+            # Config defines SEED (and RANDOM_SEEDS for campaigns); there is no
+            # RANDOM_SEED attribute, so this silently recorded null on every run
+            # and made a seeded suite look unseeded.
+            'base_seed': getattr(cfg, 'SEED', None),
+            'experiment_seed': getattr(cfg, '_ACTIVE_EXPERIMENT_SEED', None),
+            'is_reduced_run': bool(
+                cfg.FL_ROUNDS < 20 or cfg.TRAIN_SAMPLES < 2000
+            ),
+            # These are the config DEFAULTS at save time, not necessarily what
+            # any given row used. Experiments that sweep a parameter restore it
+            # before results are saved, so a swept value never appears here --
+            # read the per-row field instead (e.g. 'alpha', 'csi_variance',
+            # 'non_iid_enabled' on the individual result entries).
+            'default_non_iid_enabled': getattr(cfg, 'NON_IID_ENABLED', False),
+            'default_non_iid_alpha': getattr(cfg, 'NON_IID_ALPHA', None),
+            'default_csi_error_variance': getattr(cfg, 'CSI_ERROR_VARIANCE', None),
+            'swept_values_are_per_row': True,
+            'saved_at': datetime.datetime.now().isoformat(timespec='seconds'),
+        }
+
+        payload = {'provenance': provenance, 'results': clean_results}
+
+        with open(save_path, 'w', encoding='utf-8') as f:
+            json.dump(payload, f, indent=4, cls=NumpyEncoder)
+
+        if provenance['is_reduced_run']:
+            self.logger.warning(
+                f"  {experiment_name}: REDUCED RUN "
+                f"({cfg.FL_ROUNDS} rounds, {cfg.TRAIN_SAMPLES} train samples). "
+                "Not suitable for publication figures."
+            )
+        self.logger.info(f"\n[OK] Results saved to {save_path}")
+
+
+    # Plotting methods will be added next...
+
+    def _plot_local_epochs_analysis(self, results):
+        """Plot local epochs experiment results"""
+        from utils.plotting_advanced import plot_local_epochs_analysis
+        plot_local_epochs_analysis(results, self.results_dir)
+
+    def _plot_quantization_analysis(self, results):
+        """Plot quantization experiment results"""
+        from utils.plotting_advanced import plot_quantization_analysis
+        plot_quantization_analysis(results, self.results_dir)
+
+    def _plot_compression_analysis(self, results):
+        """Plot compression experiment results"""
+        from utils.plotting_advanced import plot_compression_analysis
+        plot_compression_analysis(results, self.results_dir)
+
+    def _plot_mobility_analysis(self, results):
+        """Plot mobility experiment results"""
+        from utils.plotting_advanced import plot_mobility_analysis
+        plot_mobility_analysis(results, self.results_dir)
+
+    def _plot_noniid_analysis(self, results):
+        """Plot non-IID experiment results"""
+        from utils.plotting_advanced import plot_noniid_analysis
+        plot_noniid_analysis(results, self.results_dir)
+
+    def _plot_pilot_analysis(self, results):
+        """Plot pilot overhead experiment results"""
+        from utils.plotting_advanced import plot_pilot_analysis
+        plot_pilot_analysis(results, self.results_dir)
+
+    def _plot_noc_analysis(self, results):
+        """Plot NoC experiment results"""
+        from utils.plotting_advanced import plot_noc_traffic_analysis
+        plot_noc_traffic_analysis(results, self.results_dir)
+
+    def _plot_approach_comparison(self, results):
+        """Plot FL vs Centralized comparison"""
+        from utils.plotting_advanced import plot_approach_comparison
+        plot_approach_comparison(results, self.results_dir)
+
+    # ==================== NEW EXPERIMENTS ====================
+
+    def _plot_baseline_comparison(self, results):
+        """Plot baseline comparison using publication-quality plotting module."""
+        from utils.plotting_advanced import plot_baseline_comparison
+        plot_baseline_comparison(results, self.results_dir)
+
+    def _plot_multiuser_comparison(self, results):
+        """Plot multi-user MIMO comparison using publication-quality plotting module."""
+        from utils.plotting_advanced import plot_multiuser_comparison
+        plot_multiuser_comparison(results, self.results_dir)
+
+    def _plot_fl_algorithms(self, results):
+        """Plot FL algorithms comparison (Exp 11)."""
+        from utils.plotting_advanced import plot_fl_algorithms_comparison
+        plot_fl_algorithms_comparison(results, self.results_dir)
+
+    def _plot_architectures(self, results):
+        """Plot model architectures comparison (Exp 12)."""
+        from utils.plotting_advanced import plot_architecture_comparison
+        plot_architecture_comparison(results, self.results_dir)
+
+    def _plot_csi_robustness(self, results):
+        """Plot CSI robustness analysis (Exp 13)."""
+        from utils.plotting_advanced import plot_csi_robustness
+        plot_csi_robustness(results, self.results_dir)
+
+    def _plot_topology_comparison(self, results):
+        """Plot topology comparison (Exp 14)."""
+        from utils.plotting_advanced import plot_topology_comparison
+        plot_topology_comparison(results, self.results_dir)
+
+    def _plot_protocol_comparison(self, results):
+        """Plot protocol comparison (Exp 15)."""
+        from utils.plotting_advanced import plot_protocol_comparison
+        plot_protocol_comparison(results, self.results_dir)
+
+    def _plot_optimization_comparison(self, results):
+        """Plot optimization techniques comparison (Exp 16)."""
+        from utils.plotting_advanced import plot_optimization_comparison
+        plot_optimization_comparison(results, self.results_dir)
+
+    def _plot_golden_ratio(self, results):
+        """Plot tile-pixel golden ratio analysis (Exp 17)."""
+        from utils.plotting_advanced import plot_golden_ratio_analysis
+        plot_golden_ratio_analysis(results, self.results_dir)
+
+    def _plot_duty_cycling(self, results):
+        """Plot duty cycling analysis (Exp 18)."""
+        from utils.plotting_advanced import plot_duty_cycling_analysis
+        plot_duty_cycling_analysis(results, self.results_dir)
+
+    def _plot_dataset_comparison(self, results):
+        """Plot dataset comparison (Exp 19)."""
+        from utils.plotting_advanced import plot_dataset_comparison
+        plot_dataset_comparison(results, self.results_dir)
+
+    def _plot_phase_quantization(self, results):
+        """Plot phase quantization analysis (Exp 20)."""
+        from utils.plotting_advanced import plot_phase_quantization_detailed
+        plot_phase_quantization_detailed(results, self.results_dir)

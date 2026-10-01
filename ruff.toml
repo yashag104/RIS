@@ -1,0 +1,4 @@
+# Saved results include immutable execution-time source snapshots. Even an
+# explicit `ruff check --fix results/...` must not modify provenance evidence.
+extend-exclude = ["results/"]
+force-exclude = true

@@ -857,6 +857,9 @@ if __name__ == "__main__":
                         help='Run specific experiment (1-6)')
     
     args = parser.parse_args()
+
+    from legacy_quarantine import require_legacy_opt_in
+    require_legacy_opt_in("tile_pixel_experiments.py")
     
     if args.experiment:
         experiments = TilePixelExperiments(Config)

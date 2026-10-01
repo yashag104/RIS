@@ -1,0 +1,15 @@
+{
+  "status": "running",
+  "started_utc": "2026-09-24T04:59:16.973559+00:00",
+  "command": "run_link_level.py --model GNN --rounds 100 --threads 1",
+  "seeds": [
+    42,
+    123,
+    456,
+    789,
+    1024
+  ],
+  "tool_session_id": 64275,
+  "log": "/tmp/ris-corrected-gat.log",
+  "completion_evidence_required": "five complete seed result JSON files and aggregate summary; progress files alone are not evidence"
+}

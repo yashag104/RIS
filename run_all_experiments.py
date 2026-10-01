@@ -240,6 +240,9 @@ def main():
                         help='Custom results directory')
     args = parser.parse_args()
 
+    from legacy_quarantine import require_legacy_opt_in
+    require_legacy_opt_in("run_all_experiments.py")
+
     if args.quick:
         apply_quick_mode()
 

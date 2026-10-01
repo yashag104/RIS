@@ -92,13 +92,42 @@ def _log_ber_axis(ax, floor=BER_FLOOR):
     ax.grid(True, which="both", ls="--", lw=0.35, alpha=0.3)
 
 
+# --------------------------------------------------------------------------
+# X-axis convention.
+#
+# Curves are swept over transmit power, but the axis is labelled with the
+# received SNR that the perfect-CSI reference design attains at that transmit
+# power. The two differ by the constant reference channel gain, so this is a
+# relabelling of one common axis -- every curve keeps its shape and the
+# comparison between schemes is unchanged. It is NOT each scheme's own received
+# SNR: plotting a scheme against its own realized SNR would collapse all
+# schemes onto one curve, since BER is a function of realized SNR alone.
+# --------------------------------------------------------------------------
+SNR_AXIS_LABEL = r"Reference received SNR (dB)"
+SNR_AXIS_LIMITS = (-5.0, 25.0)
+
+
+def _ref_snr(results, blk):
+    """Sweep axis in dB of received SNR at the perfect-CSI reference design."""
+    gains = results.get("mean_gain_db") or {}
+    ref = gains.get("genie", gains.get("local_mrc"))
+    if ref is None:                      # fall back to transmit power in dBm
+        return np.array(blk["rho_db"]) + results["meta"]["noise_power_dbm"]
+    return np.array(blk["rho_db"]) + ref
+
+
+def _apply_snr_axis(ax):
+    ax.set_xlabel(SNR_AXIS_LABEL)
+    ax.set_xlim(*SNR_AXIS_LIMITS)
+
+
 # ==========================================================================
 # Figure 1 — BER vs transmit SNR
 # ==========================================================================
 
 def plot_ber_vs_snr(results, save_path):
     blk = results["ber_vs_snr"]
-    rho = np.array(blk["rho_db"]) + results["meta"]["noise_power_dbm"]
+    rho = _ref_snr(results, blk)
     mods = [m for m in ("QPSK", "16QAM") if m in blk["modulations"]]
 
     fig, axes = plt.subplots(1, len(mods), figsize=(7.16, 3.2), sharey=True)
@@ -112,7 +141,7 @@ def plot_ber_vs_snr(results, save_path):
         ax.axhline(1e-3, color="#999999", lw=0.6, ls="-", zorder=1)
         ax.text(rho[1], 1.3e-3, r"BER $=10^{-3}$", fontsize=6, color="#777777")
         _log_ber_axis(ax)
-        ax.set_xlabel(r"Transmit power $P_t$ (dBm)")
+        _apply_snr_axis(ax)
         ax.set_title(f"({'ab'[i]}) {mod}", fontsize=9, loc="left")
 
 
@@ -127,7 +156,7 @@ def plot_ber_vs_snr(results, save_path):
 
 def plot_spectral_efficiency(results, save_path):
     blk = results["spectral_efficiency"]
-    rho = np.array(blk["rho_db"]) + results["meta"]["noise_power_dbm"]
+    rho = _ref_snr(results, blk)
     se = blk["spectral_efficiency"]
 
     fig, (a1, a2) = plt.subplots(1, 2, figsize=(7.16, 3.2))
@@ -135,7 +164,7 @@ def plot_spectral_efficiency(results, save_path):
     for key in ORDER:
         if key in se:
             _plot_scheme(a1, rho, np.array(se[key]), key)
-    a1.set_xlabel(r"Transmit power $P_t$ (dBm)")
+    _apply_snr_axis(a1)
     a1.set_ylabel("Ergodic spectral efficiency (bit/s/Hz)")
     a1.set_title("(a) Achievable rate", fontsize=9, loc="left")
 
@@ -185,7 +214,7 @@ def plot_spectral_efficiency(results, save_path):
 
 def plot_outage(results, save_path):
     blk = results["outage"]
-    rho = np.array(blk["rho_db"]) + results["meta"]["noise_power_dbm"]
+    rho = _ref_snr(results, blk)
     thresholds = [f"{t:g}" for t in blk["thresholds_bps_hz"]]
     show = thresholds[:2] if len(thresholds) >= 2 else thresholds
 
@@ -206,7 +235,7 @@ def plot_outage(results, save_path):
         ax.set_yscale("log")
         ax.set_ylim(floor * 0.6, 1.3)
         ax.grid(True, which="both", ls="--", lw=0.35, alpha=0.3)
-        ax.set_xlabel(r"Transmit power $P_t$ (dBm)")
+        _apply_snr_axis(ax)
         ax.set_title(f"({'ab'[i]}) $R_{{th}} = {th}$ bit/s/Hz", fontsize=9, loc="left")
 
 
@@ -227,7 +256,7 @@ def plot_outage(results, save_path):
 
 def plot_hardware_impairments(results, save_path):
     blk = results["hardware_impairments"]
-    rho = np.array(blk["rho_db"]) + results["meta"]["noise_power_dbm"]
+    rho = _ref_snr(results, blk)
     scheme = "fed_ris" if "fed_ris" in blk["quantization"] else "local_mrc"
     quant = blk["quantization"][scheme]
     quant_bound = blk["quantization"]["genie"]
@@ -242,7 +271,7 @@ def plot_hardware_impairments(results, save_path):
                               np.nan, quant[k]["ber_qpsk"]), color=c, lw=1.4,
                 marker="o", markevery=5, markersize=3.5, label=k)
     _log_ber_axis(a1)
-    a1.set_xlabel(r"Transmit power $P_t$ (dBm)")
+    _apply_snr_axis(a1)
     a1.set_ylabel("BER (QPSK)")
     a1.set_title("(a) Phase quantization", fontsize=9, loc="left")
     _style_legend(a1, loc="lower left", fontsize=6.2)
@@ -254,7 +283,7 @@ def plot_hardware_impairments(results, save_path):
                 marker="s", markevery=5, markersize=3.5,
                 label=rf"$\sigma_\phi$ = {k.replace('deg', '')}$^\circ$")
     _log_ber_axis(a2)
-    a2.set_xlabel(r"Transmit power $P_t$ (dBm)")
+    _apply_snr_axis(a2)
     a2.set_title("(b) RIS phase jitter", fontsize=9, loc="left")
     _style_legend(a2, loc="lower left", fontsize=6.2)
 
@@ -293,8 +322,8 @@ def plot_csi_robustness(results, save_path):
     if not blk:
         return
     var = np.array(blk["csi_error_variances"])
-    rho = np.array(blk["rho_db"]) + results["meta"]["noise_power_dbm"]
-    op = blk["operating_rho_db"] + results["meta"]["noise_power_dbm"]
+    rho = _ref_snr(results, blk)
+    op = blk["operating_rho_db"] + (results.get("mean_gain_db") or {}).get("genie", results["meta"]["noise_power_dbm"])
 
     fig, (a1, a2, a3) = plt.subplots(1, 3, figsize=(7.16, 3.0))
 
@@ -307,7 +336,7 @@ def plot_csi_robustness(results, save_path):
     _log_ber_axis(a1)
     a1.set_xlabel(r"CSI error variance $\sigma_e^2$")
     a1.set_ylabel("BER (QPSK)")
-    a1.set_title(rf"(a) BER at $P_t$ = {op:g} dBm", fontsize=9, loc="left")
+    a1.set_title(rf"(a) BER at reference SNR = {op:.0f} dB", fontsize=9, loc="left")
 
     se = blk["spectral_efficiency_at_operating_point"]
     for key in ORDER:
@@ -326,7 +355,7 @@ def plot_csi_robustness(results, save_path):
         if key in curves:
             _plot_scheme(a3, rho, curves[key], key, mask_floor=True)
     _log_ber_axis(a3)
-    a3.set_xlabel(r"Transmit power $P_t$ (dBm)")
+    _apply_snr_axis(a3)
     a3.set_title(rf"(c) Waterfall at $\sigma_e^2$ = {worst}", fontsize=9, loc="left")
 
     _shared_legend(fig, [a2], ncol=4, y=0.005)

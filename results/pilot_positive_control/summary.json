@@ -1,0 +1,458 @@
+{
+  "schema": "passive-feedback-v1",
+  "groups": {
+    "M1025_Pt30": {
+      "seeds": [
+        42,
+        123,
+        456
+      ],
+      "scores": {
+        "no_ris": {
+          "mean_received_snr_db": {
+            "mean": 13.70606283631516,
+            "ci95_half_width": 0.7792189149752635,
+            "n_seeds": 3
+          },
+          "spectral_efficiency": {
+            "mean": 2.032227154887052,
+            "ci95_half_width": 0.11341063595771482,
+            "n_seeds": 3
+          },
+          "net_spectral_efficiency": {
+            "mean": 2.032227154887052,
+            "ci95_half_width": 0.11341063595771482,
+            "n_seeds": 3
+          },
+          "ber_qpsk": {
+            "mean": 0.12265939620409665,
+            "ci95_half_width": 0.006663312744690573,
+            "n_seeds": 3
+          },
+          "fraction_of_oracle_power": {
+            "mean": 0.045323228727656185,
+            "ci95_half_width": 0.005710669893649696,
+            "n_seeds": 3
+          },
+          "snr_gap_to_local_linear_mrc_db": {
+            "mean": -4.158791846933652,
+            "ci95_half_width": 0.9499710152911389,
+            "n_seeds": 3
+          },
+          "net_rate_gap_to_local_linear_mrc": {
+            "mean": -0.24945990912912586,
+            "ci95_half_width": 0.22744728919945378,
+            "n_seeds": 3
+          }
+        },
+        "random_max": {
+          "mean_received_snr_db": {
+            "mean": 14.414209762466157,
+            "ci95_half_width": 0.6516104005001669,
+            "n_seeds": 3
+          },
+          "spectral_efficiency": {
+            "mean": 3.013145269125856,
+            "ci95_half_width": 0.08131345295797379,
+            "n_seeds": 3
+          },
+          "net_spectral_efficiency": {
+            "mean": 1.5051013722244877,
+            "ci95_half_width": 0.04061702264453467,
+            "n_seeds": 3
+          },
+          "ber_qpsk": {
+            "mean": 0.032725478567793065,
+            "ci95_half_width": 0.0030785925357194963,
+            "n_seeds": 3
+          },
+          "fraction_of_oracle_power": {
+            "mean": 0.05246009259164217,
+            "ci95_half_width": 0.0056298751112626895,
+            "n_seeds": 3
+          },
+          "snr_gap_to_local_linear_mrc_db": {
+            "mean": -3.450644920782656,
+            "ci95_half_width": 0.8659800794018421,
+            "n_seeds": 3
+          },
+          "net_rate_gap_to_local_linear_mrc": {
+            "mean": -0.77658569179169,
+            "ci95_half_width": 0.1464319217182393,
+            "n_seeds": 3
+          }
+        },
+        "lmmse_mrc": {
+          "mean_received_snr_db": {
+            "mean": 23.109486601362164,
+            "ci95_half_width": 0.24212192704753605,
+            "n_seeds": 3
+          },
+          "spectral_efficiency": {
+            "mean": 6.339113369963452,
+            "ci95_half_width": 0.21406415724375358,
+            "n_seeds": 3
+          },
+          "net_spectral_efficiency": {
+            "mean": 3.166461414781549,
+            "ci95_half_width": 0.10692755510759754,
+            "n_seeds": 3
+          },
+          "ber_qpsk": {
+            "mean": 2.508205947322699e-05,
+            "ci95_half_width": 3.168585556297496e-05,
+            "n_seeds": 3
+          },
+          "fraction_of_oracle_power": {
+            "mean": 0.2534379783417349,
+            "ci95_half_width": 0.013286950145757495,
+            "n_seeds": 3
+          },
+          "snr_gap_to_local_linear_mrc_db": {
+            "mean": 5.244631918113353,
+            "ci95_half_width": 0.5289242450310082,
+            "n_seeds": 3
+          },
+          "net_rate_gap_to_local_linear_mrc": {
+            "mean": 0.8847743507653707,
+            "ci95_half_width": 0.04368040038091033,
+            "n_seeds": 3
+          }
+        },
+        "local_linear_mrc": {
+          "mean_received_snr_db": {
+            "mean": 17.86485468324881,
+            "ci95_half_width": 0.7131852718849142,
+            "n_seeds": 3
+          },
+          "spectral_efficiency": {
+            "mean": 4.567834904306092,
+            "ci95_half_width": 0.23374433634429848,
+            "n_seeds": 3
+          },
+          "net_spectral_efficiency": {
+            "mean": 2.2816870640161775,
+            "ci95_half_width": 0.11675803519541865,
+            "n_seeds": 3
+          },
+          "ber_qpsk": {
+            "mean": 0.0028058330865643865,
+            "ci95_half_width": 0.0023933312649777423,
+            "n_seeds": 3
+          },
+          "fraction_of_oracle_power": {
+            "mean": 0.09594206385186839,
+            "ci95_half_width": 0.000854000504833984,
+            "n_seeds": 3
+          },
+          "snr_gap_to_local_linear_mrc_db": {
+            "mean": 0.0,
+            "ci95_half_width": 0.0,
+            "n_seeds": 3
+          },
+          "net_rate_gap_to_local_linear_mrc": {
+            "mean": 0.0,
+            "ci95_half_width": 0.0,
+            "n_seeds": 3
+          }
+        },
+        "full_probe_ls_mrc": {
+          "mean_received_snr_db": {
+            "mean": 25.434794722240678,
+            "ci95_half_width": 0.39811407092329565,
+            "n_seeds": 3
+          },
+          "spectral_efficiency": {
+            "mean": 6.6071153845198145,
+            "ci95_half_width": 0.1683076389841175,
+            "n_seeds": 3
+          },
+          "net_spectral_efficiency": {
+            "mean": 3.3003315617010593,
+            "ci95_half_width": 0.08407163802771121,
+            "n_seeds": 3
+          },
+          "ber_qpsk": {
+            "mean": 3.479873059745404e-05,
+            "ci95_half_width": 5.036448254511628e-05,
+            "n_seeds": 3
+          },
+          "fraction_of_oracle_power": {
+            "mean": 0.3199378899562914,
+            "ci95_half_width": 0.012934402408735666,
+            "n_seeds": 3
+          },
+          "snr_gap_to_local_linear_mrc_db": {
+            "mean": 7.569940038991859,
+            "ci95_half_width": 0.9815046077814042,
+            "n_seeds": 3
+          },
+          "net_rate_gap_to_local_linear_mrc": {
+            "mean": 1.0186444976848816,
+            "ci95_half_width": 0.05461387848502693,
+            "n_seeds": 3
+          }
+        },
+        "oracle_mrc": {
+          "mean_received_snr_db": {
+            "mean": 27.842825558199536,
+            "ci95_half_width": 0.3015240112035351,
+            "n_seeds": 3
+          },
+          "spectral_efficiency": {
+            "mean": 8.418758106150959,
+            "ci95_half_width": 0.11042061439054612,
+            "n_seeds": 3
+          },
+          "net_spectral_efficiency": {
+            "mean": 8.418758106150959,
+            "ci95_half_width": 0.11042061439054612,
+            "n_seeds": 3
+          },
+          "ber_qpsk": {
+            "mean": 6.0029537199123584e-18,
+            "ci95_half_width": 2.4083397854808696e-17,
+            "n_seeds": 3
+          },
+          "fraction_of_oracle_power": {
+            "mean": 1.0000000032372123,
+            "ci95_half_width": 7.625343012769292e-09,
+            "n_seeds": 3
+          },
+          "snr_gap_to_local_linear_mrc_db": {
+            "mean": 9.977970874950724,
+            "ci95_half_width": 0.836891530626355,
+            "n_seeds": 3
+          },
+          "net_rate_gap_to_local_linear_mrc": {
+            "mean": 6.137071042134782,
+            "ci95_half_width": 0.049823033662031994,
+            "n_seeds": 3
+          }
+        },
+        "fed_1round": {
+          "mean_received_snr_db": {
+            "mean": 13.808679564385502,
+            "ci95_half_width": 0.6533577808555755,
+            "n_seeds": 3
+          },
+          "spectral_efficiency": {
+            "mean": 2.2116036642338184,
+            "ci95_half_width": 0.1495790109258137,
+            "n_seeds": 3
+          },
+          "net_spectral_efficiency": {
+            "mean": 1.1047219475152326,
+            "ci95_half_width": 0.07471646883647819,
+            "n_seeds": 3
+          },
+          "ber_qpsk": {
+            "mean": 0.10427934759147568,
+            "ci95_half_width": 0.005470410097393165,
+            "n_seeds": 3
+          },
+          "fraction_of_oracle_power": {
+            "mean": 0.04638863839808932,
+            "ci95_half_width": 0.00666405591181248,
+            "n_seeds": 3
+          },
+          "snr_gap_to_local_linear_mrc_db": {
+            "mean": -4.056175118863311,
+            "ci95_half_width": 0.949646241827101,
+            "n_seeds": 3
+          },
+          "net_rate_gap_to_local_linear_mrc": {
+            "mean": -1.1769651165009452,
+            "ci95_half_width": 0.19057686611751146,
+            "n_seeds": 3
+          }
+        },
+        "fed_5round": {
+          "mean_received_snr_db": {
+            "mean": 13.924512792798245,
+            "ci95_half_width": 0.6831665516032348,
+            "n_seeds": 3
+          },
+          "spectral_efficiency": {
+            "mean": 2.287231364803046,
+            "ci95_half_width": 0.20480356073022069,
+            "n_seeds": 3
+          },
+          "net_spectral_efficiency": {
+            "mean": 1.1424988702116776,
+            "ci95_half_width": 0.10230177862647255,
+            "n_seeds": 3
+          },
+          "ber_qpsk": {
+            "mean": 0.09925665801476476,
+            "ci95_half_width": 0.004180336112534435,
+            "n_seeds": 3
+          },
+          "fraction_of_oracle_power": {
+            "mean": 0.047490720582414325,
+            "ci95_half_width": 0.008132277456342152,
+            "n_seeds": 3
+          },
+          "snr_gap_to_local_linear_mrc_db": {
+            "mean": -3.9403418904505707,
+            "ci95_half_width": 0.9788908540913942,
+            "n_seeds": 3
+          },
+          "net_rate_gap_to_local_linear_mrc": {
+            "mean": -1.1391881938045,
+            "ci95_half_width": 0.21894909205353796,
+            "n_seeds": 3
+          }
+        },
+        "fed_ris": {
+          "mean_received_snr_db": {
+            "mean": 14.825457991246438,
+            "ci95_half_width": 0.20445150776707888,
+            "n_seeds": 3
+          },
+          "spectral_efficiency": {
+            "mean": 2.64364244533108,
+            "ci95_half_width": 0.0498826930791036,
+            "n_seeds": 3
+          },
+          "net_spectral_efficiency": {
+            "mean": 1.3205303816277807,
+            "ci95_half_width": 0.024916989755821916,
+            "n_seeds": 3
+          },
+          "ber_qpsk": {
+            "mean": 0.07975337196522932,
+            "ci95_half_width": 0.007462967394613217,
+            "n_seeds": 3
+          },
+          "fraction_of_oracle_power": {
+            "mean": 0.05701075367832353,
+            "ci95_half_width": 0.0013162945117430906,
+            "n_seeds": 3
+          },
+          "snr_gap_to_local_linear_mrc_db": {
+            "mean": -3.0393966920023754,
+            "ci95_half_width": 0.6343665118685828,
+            "n_seeds": 3
+          },
+          "net_rate_gap_to_local_linear_mrc": {
+            "mean": -0.9611566823883972,
+            "ci95_half_width": 0.09203607475146164,
+            "n_seeds": 3
+          }
+        },
+        "centralized_client_budget": {
+          "mean_received_snr_db": {
+            "mean": 14.385521822985874,
+            "ci95_half_width": 0.6712724606293216,
+            "n_seeds": 3
+          },
+          "spectral_efficiency": {
+            "mean": 2.4842809050048973,
+            "ci95_half_width": 0.14016227056657568,
+            "n_seeds": 3
+          },
+          "net_spectral_efficiency": {
+            "mean": 1.2409274247168016,
+            "ci95_half_width": 0.07001269667461278,
+            "n_seeds": 3
+          },
+          "ber_qpsk": {
+            "mean": 0.08791487456849428,
+            "ci95_half_width": 0.00393137927652264,
+            "n_seeds": 3
+          },
+          "fraction_of_oracle_power": {
+            "mean": 0.051741683282993806,
+            "ci95_half_width": 0.006027473053056413,
+            "n_seeds": 3
+          },
+          "snr_gap_to_local_linear_mrc_db": {
+            "mean": -3.47933286026294,
+            "ci95_half_width": 1.0989963285763555,
+            "n_seeds": 3
+          },
+          "net_rate_gap_to_local_linear_mrc": {
+            "mean": -1.0407596392993759,
+            "ci95_half_width": 0.18125060084879702,
+            "n_seeds": 3
+          }
+        },
+        "centralized_dl": {
+          "mean_received_snr_db": {
+            "mean": 14.802018937905009,
+            "ci95_half_width": 0.6692435226900271,
+            "n_seeds": 3
+          },
+          "spectral_efficiency": {
+            "mean": 2.6097822180444297,
+            "ci95_half_width": 0.051710603883418936,
+            "n_seeds": 3
+          },
+          "net_spectral_efficiency": {
+            "mean": 1.3036168012985605,
+            "ci95_half_width": 0.025830052623407092,
+            "n_seeds": 3
+          },
+          "ber_qpsk": {
+            "mean": 0.08362938131443555,
+            "ci95_half_width": 0.005183547571493953,
+            "n_seeds": 3
+          },
+          "fraction_of_oracle_power": {
+            "mean": 0.05637411374067471,
+            "ci95_half_width": 0.0027659784779755885,
+            "n_seeds": 3
+          },
+          "snr_gap_to_local_linear_mrc_db": {
+            "mean": -3.0628357453438046,
+            "ci95_half_width": 1.1067668090900014,
+            "n_seeds": 3
+          },
+          "net_rate_gap_to_local_linear_mrc": {
+            "mean": -0.9780702627176173,
+            "ci95_half_width": 0.12663225647057755,
+            "n_seeds": 3
+          }
+        },
+        "local_only": {
+          "mean_received_snr_db": {
+            "mean": 15.607821603822876,
+            "ci95_half_width": 0.44010395332946345,
+            "n_seeds": 3
+          },
+          "spectral_efficiency": {
+            "mean": 3.5835187597728075,
+            "ci95_half_width": 0.1413673833820495,
+            "n_seeds": 3
+          },
+          "net_spectral_efficiency": {
+            "mean": 1.7900096148669835,
+            "ci95_half_width": 0.07061466464835779,
+            "n_seeds": 3
+          },
+          "ber_qpsk": {
+            "mean": 0.030626953317229966,
+            "ci95_half_width": 0.005971610547027444,
+            "n_seeds": 3
+          },
+          "fraction_of_oracle_power": {
+            "mean": 0.07113781671258798,
+            "ci95_half_width": 0.0031385394230154435,
+            "n_seeds": 3
+          },
+          "snr_gap_to_local_linear_mrc_db": {
+            "mean": -2.257033079425939,
+            "ci95_half_width": 0.3455279936671221,
+            "n_seeds": 3
+          },
+          "net_rate_gap_to_local_linear_mrc": {
+            "mean": -0.49167744914919426,
+            "ci95_half_width": 0.09217808770494082,
+            "n_seeds": 3
+          }
+        }
+      }
+    }
+  }
+}

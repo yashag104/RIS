@@ -12,8 +12,11 @@ Use the project virtual environment (or install `requirements.txt`). Run from th
 # Full contiguous 16-tile classical audit: five seeds, 600 test scenes per seed
 .venv/bin/python run_link_level.py --skip-training --output results/link_level_tier2
 
-# Passive pilot experiment: five seeds, M=16 and 64, up to 300 FL rounds
-.venv/bin/python run_pilot_limited.py
+# Stored passive study: five seeds, M=16 and 64, initial 100-round cap
+.venv/bin/python run_pilot_limited.py --rounds 100 --output results/pilot_limited
+
+# Only the two M=64 cases that exhausted the initial budget were extended
+.venv/bin/python run_pilot_limited.py --pilot-counts 64 --seeds 123 456 --rounds 300 --output results/pilot_limited_extended
 
 # Five-seed pilot architecture diagnostic: shared data, 500 updates/model
 .venv/bin/python run_pilot_ablation.py
@@ -30,6 +33,12 @@ Use the project virtual environment (or install `requirements.txt`). Run from th
 ```
 
 `--quick` on either runner writes separate smoke artifacts. These cannot replace a full run. `--seed` / `--seeds` restrict the seed set on the supplied-CSI runner; `--seeds` does so on the pilot runner. Single-seed output has no confidence interval. Set `MPLCONFIGDIR=/tmp/ris-matplotlib` if your home config directory is read-only.
+
+The explicit 100-round command above reproduces the stored base study. The
+pilot runner's default is 300 rounds; invoking it without flags is a different
+budget protocol. The exporter replaces only exhausted base cases and verifies
+that each extension reproduces the original validation trajectory. Extensions
+restart from the same initialization and seed; they are not warm-started runs.
 
 The original GAT can be retrained under corrected geometry with `run_link_level.py --model GNN --rounds 100`. Both centralized update budgets and unfederated local models are included. This is expensive on CPU and is not required to establish the exact SISO closed form. Pilot results use a separately identified width-128 MLP; they do not validate the old GAT claims.
 
@@ -50,3 +59,14 @@ The new architecture diagnostic and analytical interconnect sweep are reported i
 NoC latency is a conditional bottleneck-serialization estimate; technology-node, cycle-accurate, area, power, and energy claims are withdrawn. No Noxim validation or circuit implementation is claimed. The manuscript uses a generic IEEE journal layout and is positioned as wireless-systems simulation, with venue scope notes in the Tier 2 audit. It has not been compiled or checked against a selected venue's page limit.
 
 Other experiment entry points (`main.py`, `run_all_experiments.py`, legacy system-level suites) remain historical research tools and are not manuscript evidence.
+
+Legacy command-line entry points (`main.py`, `run_all_experiments.py`, and
+`tile_pixel_experiments.py`) refuse execution by default. An intentional
+historical rerun requires `RIS_ALLOW_LEGACY_GEOMETRY=1` and still emits a warning.
+The legacy result directories carry `SUPERSEDED.md` markers. This opt-in does
+not validate their old geometry or make their results manuscript evidence.
+
+`ruff.toml` excludes `results/` with `force-exclude=true`, including when a file
+inside that directory is passed explicitly. Execution-source snapshots are
+immutable evidence and must never be reformatted or lint-fixed. Remaining
+legacy lint findings are separate from the clean active correction modules.

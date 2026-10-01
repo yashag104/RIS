@@ -549,6 +549,8 @@ def save_results(config, server, clients, all_round_metrics, baselines, test_dat
 
 def main():
     """Main execution function"""
+    from legacy_quarantine import require_legacy_opt_in
+    require_legacy_opt_in("main.py")
     # Configure logging from Config
     setup_logging(
         level=getattr(Config, "LOG_LEVEL", "INFO"),

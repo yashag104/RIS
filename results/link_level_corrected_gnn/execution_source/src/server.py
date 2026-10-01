@@ -1,0 +1,475 @@
+"""
+Base Station Server - Federated Aggregation Logic
+Coordinates federated learning across RIS tiles
+"""
+
+import copy
+from collections import OrderedDict
+from typing import Any
+
+import numpy as np
+import torch
+
+from utils.logger import logger
+
+
+class FederatedServer:
+    """
+    Base Station that aggregates models from RIS tiles
+    """
+
+    def __init__(self, global_model, config):
+        """Initialise the federated learning server.
+
+        Args:
+            global_model: The shared global PyTorch model whose weights will be
+                broadcast to clients and updated by aggregation each round.
+            config: :class:`~config.Config` instance supplying aggregation
+                method, device, and communication settings.
+        """
+        self.global_model = global_model
+        self.config = config
+        self.device = config.DEVICE
+
+        # Move model to device
+        self.global_model.to(self.device)
+
+        # Tracking metrics
+        self.round_metrics = []
+        self.aggregation_method = getattr(config, 'AGGREGATION_METHOD', 'FedAvg')
+
+        # Communication metrics
+        self.total_bytes_received = 0
+        self.total_bytes_sent = 0
+        self.round_latencies = []
+
+        # SCAFFOLD: global control variate
+        self.scaffold_c_global = {
+            name: torch.zeros_like(param)
+            for name, param in global_model.named_parameters()
+        }
+
+    def aggregate_weights_fedavg(self, client_weights: list[dict], client_sizes: list[int]) -> dict:
+        """
+        FedAvg: Weighted average of client models
+
+        Args:
+            client_weights: List of client model state dicts
+            client_sizes: List of dataset sizes for each client
+
+        Returns:
+            Aggregated model weights
+        """
+        # Calculate weights based on dataset sizes
+        total_size = sum(client_sizes)
+        weights = [size / total_size for size in client_sizes]
+
+        # Initialize aggregated weights with first client
+        aggregated_weights = OrderedDict()
+
+        for key in client_weights[0]:
+            # Skip non-floating-point buffers (e.g. GNN edge_index)
+            if client_weights[0][key].is_floating_point():
+                aggregated_weights[key] = sum(
+                    w * client_weights[i][key] for i, w in enumerate(weights)
+                )
+            else:
+                # Non-float buffers (topology, indices) are identical across
+                # clients — copy unchanged from the first client.
+                aggregated_weights[key] = client_weights[0][key].clone()
+
+        return aggregated_weights
+
+    def aggregate_weights_fedprox(self, client_weights: list[dict], client_sizes: list[int], mu: float = 0.01) -> dict:
+        """
+        FedProx: FedAvg with proximal term (useful for non-IID)
+
+        Args:
+            client_weights: List of client model state dicts
+            client_sizes: List of dataset sizes
+            mu: Proximal term coefficient
+
+        Returns:
+            Aggregated model weights
+        """
+        # Get current global weights
+        global_weights = self.global_model.state_dict()
+
+        # FedAvg aggregation
+        aggregated_weights = self.aggregate_weights_fedavg(client_weights, client_sizes)
+
+        # Add proximal term (only for floating-point parameters)
+        for key in aggregated_weights:
+            if aggregated_weights[key].is_floating_point():
+                aggregated_weights[key] = (
+                    aggregated_weights[key] + mu * global_weights[key]
+                ) / (1 + mu)
+
+        return aggregated_weights
+
+    def aggregate_weights_scaffold(self, client_weights: list[dict], client_sizes: list[int], c_deltas: list[dict]) -> dict:
+        """
+        SCAFFOLD: FedAvg + control variate correction
+        
+        Karimireddy et al., "SCAFFOLD: Stochastic Controlled Averaging
+        for Federated Learning," ICML 2020.
+
+        Args:
+            client_weights: List of client model state dicts
+            client_sizes: List of dataset sizes
+            c_deltas: List of control variate deltas from clients
+
+        Returns:
+            Aggregated model weights
+        """
+        # Standard FedAvg aggregation of model weights
+        aggregated_weights = self.aggregate_weights_fedavg(client_weights, client_sizes)
+
+        # Update global control variate
+        num_clients = len(c_deltas)
+        for name in self.scaffold_c_global:
+            delta_sum = torch.zeros_like(self.scaffold_c_global[name])
+            for c_delta in c_deltas:
+                if name in c_delta:
+                    delta_sum += c_delta[name]
+            self.scaffold_c_global[name] += delta_sum / num_clients
+
+        return aggregated_weights
+
+    def aggregate_weights(self, client_weights: list[dict], client_sizes: list[int], **kwargs) -> dict:
+        """
+        Main aggregation function - routes to specific method
+
+        Args:
+            client_weights: List of client model state dicts
+            client_sizes: List of dataset sizes for each client
+            **kwargs: Additional args (e.g., c_deltas for SCAFFOLD)
+
+        Returns:
+            Aggregated model weights
+        """
+        if self.aggregation_method == "FedAvg":
+            return self.aggregate_weights_fedavg(client_weights, client_sizes)
+        elif self.aggregation_method == "FedProx":
+            return self.aggregate_weights_fedprox(client_weights, client_sizes)
+        elif self.aggregation_method == "SCAFFOLD":
+            c_deltas = kwargs.get('c_deltas', [])
+            return self.aggregate_weights_scaffold(client_weights, client_sizes, c_deltas)
+        else:
+            raise ValueError(f"Unknown aggregation method: {self.aggregation_method}")
+
+    def broadcast_model(self, clients: list) -> None:
+        """
+        Send global model to all clients.
+        Also sets FedProx reference and SCAFFOLD controls.
+
+        Args:
+            clients: List of RISClient objects
+        """
+        global_weights = self.global_model.state_dict()
+
+        # Calculate communication cost (INT8 quantized transmission)
+        model_size = sum(p.numel() for p in self.global_model.parameters())
+        comm_bytes_per_param = getattr(self.config, 'COMM_BYTES_PER_PARAM', 1)
+        bytes_per_client = model_size * comm_bytes_per_param
+        total_bytes = bytes_per_client * len(clients)
+        self.total_bytes_sent += total_bytes
+
+        # Broadcast to all clients
+        for client in clients:
+            client.set_model_weights(copy.deepcopy(global_weights))
+            
+            # FedProx: set global reference for proximal term
+            if self.aggregation_method == 'FedProx':
+                client.set_global_reference(global_weights)
+            
+            # SCAFFOLD: send global control variate
+            if self.aggregation_method == 'SCAFFOLD':
+                client.set_scaffold_controls(self.scaffold_c_global)
+
+        if self.config.VERBOSE:
+            logger.info(f"  [Server] Broadcasted model to {len(clients)} clients "
+                  f"({total_bytes / 1024:.2f} KB total)")
+
+    @staticmethod
+    def _client_signal_strength(client) -> float:
+        """Mean cascaded-channel power seen by a tile, used to drive sleep decisions.
+
+        Returns 1.0 when the tile exposes no channel metadata, which keeps the
+        tile awake rather than silently dropping it from training.
+        """
+        dataset = getattr(client, 'dataset', None)
+        metadata = getattr(dataset, 'metadata', None)
+        if not metadata:
+            return 1.0
+
+        # Sample a handful of realizations rather than the whole set; the mean is
+        # stable well before the full dataset and this runs every round.
+        sample = metadata[:min(32, len(metadata))]
+        powers = []
+        for md in sample:
+            try:
+                h_cascade = md['H_ris'][0] * md['h_bs_ris']
+            except (KeyError, IndexError, TypeError):
+                return 1.0
+            powers.append(float(np.mean(np.abs(h_cascade) ** 2)))
+
+        return float(np.mean(powers)) if powers else 1.0
+
+    def aggregate_round(self, clients: list, round_num: int) -> dict[str, Any]:
+        """
+        Execute one round of federated learning.
+        Supports FedAvg, FedProx, and SCAFFOLD.
+
+        Args:
+            clients: List of RISClient objects
+            round_num: Current round number
+
+        Returns:
+            Dictionary with round metrics
+        """
+        logger.info(f"\n{'='*60}")
+        logger.info(f"Round {round_num + 1}/{self.config.FL_ROUNDS} [{self.aggregation_method}]")
+        logger.info(f"{'='*60}")
+
+        # Step 0: Sleep scheduling. Tiles seeing weak signal skip the round
+        # entirely -- they are not broadcast to, do not train, and do not upload,
+        # so the energy and communication savings show up in the round metrics.
+        # Signal strength is normalised across the cohort each round so the
+        # threshold is scale-free with respect to absolute path loss.
+        sleeping_clients: list = []
+        participating = clients
+        if any(getattr(c, 'sleep_enabled', False) for c in clients):
+            strengths = [self._client_signal_strength(c) for c in clients]
+            peak = max(strengths) if strengths else 0.0
+            for client, strength in zip(clients, strengths):
+                client.update_sleep_state((strength / peak) if peak > 0 else 1.0)
+
+            # Periodically wake everyone. Channel statistics are near-static, so
+            # without this the same tiles sleep forever from the first check.
+            wake_interval = getattr(self.config, 'SLEEP_FORCED_WAKE_INTERVAL', 0)
+            if wake_interval and round_num % wake_interval == 0:
+                for client in clients:
+                    client.force_wake()
+
+            participating = [c for c in clients if c.should_participate()]
+
+            # Enforce a participation floor by waking the strongest sleepers,
+            # so aggregation never collapses onto one tile's data distribution.
+            min_ratio = getattr(self.config, 'SLEEP_MIN_PARTICIPATION_RATIO', 0.0)
+            min_participants = max(1, int(np.ceil(min_ratio * len(clients))))
+            if len(participating) < min_participants:
+                asleep = [
+                    (s, i) for i, (c, s) in enumerate(zip(clients, strengths))
+                    if not c.should_participate()
+                ]
+                for _, idx in sorted(asleep, reverse=True)[:min_participants - len(participating)]:
+                    clients[idx].force_wake()
+                participating = [c for c in clients if c.should_participate()]
+
+            sleeping_clients = [c for c in clients if not c.should_participate()]
+
+            if sleeping_clients:
+                logger.info(
+                    f"[Sleep] {len(sleeping_clients)}/{len(clients)} tiles asleep: "
+                    f"{[c.client_id for c in sleeping_clients]}"
+                )
+
+        # Step 1: Broadcast current global model (+ FedProx/SCAFFOLD state)
+        self.broadcast_model(participating)
+
+        # Calculate broadcast size (for metrics)
+        model_size = sum(p.numel() for p in self.global_model.parameters())
+        comm_bytes_per_param = getattr(self.config, 'COMM_BYTES_PER_PARAM', 1)
+        bytes_per_client = model_size * comm_bytes_per_param
+        bytes_downloaded_total = bytes_per_client * len(participating)
+
+        # Step 2: Local training on each participating client
+        client_metrics = []
+        client_weights = []
+        client_sizes = []
+        old_weights_list = []  # For SCAFFOLD
+        c_deltas = []  # For SCAFFOLD
+
+        for client in participating:
+            # Store weights before training (for SCAFFOLD)
+            if self.aggregation_method == 'SCAFFOLD':
+                old_weights_list.append(client.get_model_weights())
+
+            logger.debug(f"\n[Client {client.client_id}] Starting local training...")
+            metrics = client.train_local_model(self.config.LOCAL_EPOCHS)
+            client_metrics.append(metrics)
+
+            # Collect weights
+            new_weights = client.get_model_weights()
+            client_weights.append(new_weights)
+            client_sizes.append(len(client.dataset))
+
+            # SCAFFOLD: compute control variate update
+            if self.aggregation_method == 'SCAFFOLD' and old_weights_list:
+                num_steps = self.config.LOCAL_EPOCHS * max(len(client.dataset) // self.config.BATCH_SIZE, 1)
+                c_delta = client.compute_scaffold_update(
+                    old_weights_list[-1], new_weights,
+                    self.config.LEARNING_RATE, num_steps
+                )
+                c_deltas.append(c_delta)
+
+        # Step 3: Aggregate weights at server
+        logger.info(f"\n[Server] Aggregating weights from {len(participating)} clients...")
+        aggregated_weights = self.aggregate_weights(
+            client_weights, client_sizes, c_deltas=c_deltas
+        )
+
+        # Calculate communication cost for uploads (INT8 quantized)
+        bytes_uploaded_total = model_size * comm_bytes_per_param * len(participating)
+        self.total_bytes_received += bytes_uploaded_total
+
+        # Step 4: Update global model
+        self.global_model.load_state_dict(aggregated_weights)
+
+        # Compile round metrics
+        round_metric = {
+            'round': round_num,
+            'aggregation_method': self.aggregation_method,
+            'avg_client_loss': np.mean([m['avg_loss'] for m in client_metrics]),
+            'max_client_loss': np.max([m['avg_loss'] for m in client_metrics]),
+            'min_client_loss': np.min([m['avg_loss'] for m in client_metrics]),
+            'total_samples': sum([m['samples_processed'] for m in client_metrics]),
+            'total_energy': sum([m['energy_consumed'] for m in client_metrics]),
+            'bytes_uploaded': bytes_uploaded_total,
+            'bytes_downloaded': bytes_downloaded_total,
+            'total_bytes': bytes_uploaded_total + bytes_downloaded_total,
+            'num_participating': len(participating),
+            'num_sleeping': len(sleeping_clients),
+            'sleeping_client_ids': [c.client_id for c in sleeping_clients],
+            'client_metrics': client_metrics
+        }
+
+        self.round_metrics.append(round_metric)
+
+        # Print summary
+        logger.info(f"\n[Round {round_num + 1} Summary]")
+        logger.info(f"  Avg Loss: {round_metric['avg_client_loss']:.6f}")
+        logger.info(f"  Total Energy: {round_metric['total_energy']:.6f} J")
+        logger.info(f"  Communication: {round_metric['total_bytes'] / 1024:.2f} KB")
+
+        return round_metric
+
+    def get_global_model(self) -> "torch.nn.Module":
+        """Return the global model"""
+        return self.global_model
+
+    def get_global_weights(self) -> dict:
+        """Return global model weights"""
+        return self.global_model.state_dict()
+
+    def get_communication_summary(self) -> dict[str, Any]:
+        """
+        Get summary of communication costs
+
+        Returns:
+            Dictionary with communication metrics
+        """
+        total_bytes = self.total_bytes_received + self.total_bytes_sent
+
+        # Time to move one round's traffic across the NoC at full rate. Despite
+        # the legacy 'avg_packet_latency_*' keys below, this is NOT a per-packet
+        # latency -- there is no packet size or hop count in it. It is identical
+        # to min_feasible_round_period_s. The real per-packet model lives in
+        # src.noc_simulator.
+        bandwidth_bytes_per_sec = self.config.NOC_BANDWIDTH_GBPS * 1e9 / 8
+        avg_round_transfer = (
+            (total_bytes / len(self.round_metrics)) / bandwidth_bytes_per_sec
+            if self.round_metrics else 0
+        )
+
+        # Energy for communication
+        energy_communication = total_bytes * 8 * self.config.ENERGY_PER_BIT
+
+        num_rounds = max(len(self.round_metrics), 1)
+        transmission_time = (total_bytes * 8) / (self.config.NOC_BANDWIDTH_GBPS * 1e9)
+
+        # Utilization is the fraction of each FL round period that the NoC spends
+        # transmitting model updates. The round period is an explicit configured
+        # assumption (Config.FL_ROUND_PERIOD_S), not an implicit 1 s. The value is
+        # reported unclamped: a result above 1.0 means the model traffic cannot
+        # fit inside the configured round period and the configuration is
+        # infeasible, which must be surfaced rather than hidden.
+        round_period_s = getattr(self.config, 'FL_ROUND_PERIOD_S', 0.1)
+        total_available_time = num_rounds * round_period_s
+        bandwidth_utilization = (
+            transmission_time / total_available_time if total_available_time > 0 else 0.0
+        )
+        min_round_period_s = transmission_time / num_rounds
+
+        summary = {
+            'total_bytes_received': self.total_bytes_received,
+            'total_bytes_sent': self.total_bytes_sent,
+            'total_bytes': total_bytes,
+            'total_kilobytes': total_bytes / 1024,
+            'total_megabytes': total_bytes / (1024 * 1024),
+            'avg_bytes_per_round': total_bytes / len(self.round_metrics) if self.round_metrics else 0,
+            'avg_round_transfer_sec': avg_round_transfer,
+            'avg_round_transfer_ms': avg_round_transfer * 1000,
+            # Deprecated aliases for the same quantity (see comment above).
+            'avg_packet_latency_sec': avg_round_transfer,
+            'avg_packet_latency_ms': avg_round_transfer * 1000,
+            'energy_communication_joules': energy_communication,
+            'bandwidth_utilization': bandwidth_utilization,
+            'fl_round_period_s': round_period_s,
+            'min_feasible_round_period_s': min_round_period_s,
+            'is_oversubscribed': bandwidth_utilization > 1.0,
+            'noc_transmission_time_s': transmission_time,
+        }
+
+        return summary
+
+    def get_convergence_metrics(self) -> dict[str, Any]:
+        """
+        Analyze convergence behavior
+
+        Returns:
+            Convergence metrics
+        """
+        if not self.round_metrics:
+            return {}
+
+        losses = [m['avg_client_loss'] for m in self.round_metrics]
+
+        # Find convergence point (when loss stabilizes).
+        # The detector needs a 10-round window, so a run shorter than that can
+        # never report convergence. `converged` says whether the criterion was
+        # actually met: without it, `converged_round` silently falls back to the
+        # round count and a run that never converged is indistinguishable from
+        # one that converged on its last round.
+        convergence_threshold = 0.01  # 1% change
+        converged_round = len(losses)
+        converged = False
+
+        min_reduction_pct = 0.20  # Must reduce by at least 20% to consider convergence
+        for i in range(10, len(losses)):
+            # Skip if loss hasn't reduced enough yet
+            if losses[i] > losses[0] * (1 - min_reduction_pct):
+                continue
+            recent_losses = losses[i-10:i]
+            if np.std(recent_losses) / np.mean(recent_losses) < convergence_threshold:
+                converged_round = i
+                converged = True
+                break
+
+        reduction_percentage = ((losses[0] - losses[-1]) / losses[0]) * 100
+
+        metrics = {
+            'converged_round': converged_round,
+            'converged': converged,
+            'convergence_detectable': len(losses) > 10,
+            'initial_loss': losses[0],
+            'final_loss': losses[-1],
+            'loss_reduction': losses[0] - losses[-1],
+            'reduction_percentage': reduction_percentage,
+            'loss_reduction_percent': reduction_percentage,
+            'convergence_rate': (losses[0] - losses[-1]) / len(losses),
+            'all_losses': losses
+        }
+
+        return metrics
