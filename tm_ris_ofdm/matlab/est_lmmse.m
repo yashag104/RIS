@@ -1,4 +1,4 @@
-function Hh = est_lmmse(Y, S, Bset, F, lam, s2, mode, iters)
+function [Hh, Ae, Se] = est_lmmse(Y, S, Bset, F, lam, s2, mode, iters)
 %EST_LMMSE Bayesian (LMMSE) physics-aware estimator with a DPSS prior.
 %   Each hop's delay-domain coefficients get prior variance proportional to
 %   the DPSS eigenvalues lam (delays uniform on [0, tau_max]), so a larger
@@ -28,6 +28,7 @@ if strcmp(mode, 'linear')
         C = reshape(c((g-1)*L*L+(1:L*L)), L, L).';
         Hh = Hh + Bset{g} .* (F * C * F.');
     end
+    Ae = []; Se = [];
     return
 end
 % rank-1 refinement (per element), prior on each hop
@@ -60,4 +61,5 @@ Hh = zeros(M);
 for q = 1:G
     Hh = Hh + Bset{q} .* ((F*a(:,q)) * (F*s(:,q)).');
 end
+Ae = (F*a).'; Se = (F*s).';                       % per-element frequency responses (Q x M)
 end

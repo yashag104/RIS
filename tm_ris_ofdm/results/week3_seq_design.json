@@ -1,0 +1,9 @@
+{
+  "rate_random": 5.5821375689155577,
+  "rate_designed": 8.8547068797464181,
+  "rate_identical": 5.523287291442597,
+  "eve_sir_random_db": -6.4726171374371511,
+  "eve_sir_designed_db": -8.1655854433622732,
+  "distinct_shifts": 5,
+  "snr_db": 20
+}
